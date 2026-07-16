@@ -98,16 +98,34 @@ code {
   opacity: 1;
 }
 
-.sidebar__api-url {
-  font-size: 0.7rem;
-  opacity: 0.65;
-  word-break: break-all;
+.sidebar__link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #99f6e4;
+  cursor: pointer;
+  text-align: left;
 }
+
+.sidebar__link-btn:hover {
+  text-decoration: underline;
+}
+
+.sidebar__footer {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   font-size: 0.8rem;
   opacity: 0.8;
+}
+
+.sidebar__api-url {
+  font-size: 0.7rem;
+  opacity: 0.65;
+  word-break: break-all;
 }
 
 .sidebar__docs {

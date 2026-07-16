@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useHealth } from "@/api/hooks";
 import { getApiBaseUrl } from "@/api/client";
@@ -14,6 +15,8 @@ const nav = [
 
 export function Layout() {
   const health = useHealth();
+  const [apiKeyOpen, setApiKeyOpen] = useState(false);
+  const apiBase = getApiBaseUrl();
 
   return (
     <div className="app-shell">
@@ -43,17 +46,20 @@ export function Layout() {
 
         <footer className="sidebar__footer">
           <a
-            href={
-              import.meta.env.VITE_API_BASE_URL
-                ? `${import.meta.env.VITE_API_BASE_URL}/api/docs`
-                : "/api/docs"
-            }
+            href={apiBase ? `${apiBase}/api/docs` : "/api/docs"}
             target="_blank"
             rel="noreferrer"
             className="sidebar__docs"
           >
             Documentação API
           </a>
+          <button
+            type="button"
+            className="sidebar__link-btn"
+            onClick={() => setApiKeyOpen(true)}
+          >
+            Chave API
+          </button>
           <span className="sidebar__status">
             {health.isLoading && "Conectando…"}
             {health.isError && "API offline"}
@@ -67,14 +73,12 @@ export function Layout() {
               </>
             )}
           </span>
-          {getApiBaseUrl() ? (
-            <span className="sidebar__api-url">{getApiBaseUrl()}</span>
-          ) : null}
+          {apiBase ? <span className="sidebar__api-url">{apiBase}</span> : null}
         </footer>
       </aside>
 
       <main className="main">
-        <ApiKeyBanner />
+        <ApiKeyBanner open={apiKeyOpen} onClose={() => setApiKeyOpen(false)} />
         <Outlet />
       </main>
     </div>

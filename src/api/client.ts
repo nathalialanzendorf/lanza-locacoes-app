@@ -2,9 +2,23 @@ import type { ApiError } from "./types";
 
 const STORAGE_KEY = "lanza_api_key";
 
+const PRODUCTION_API_URL = "https://api.lanzalocacoes.vercel.app";
+
+function isLanzaFrontendHost(hostname: string): boolean {
+  return (
+    hostname === "lanzalocacoes.vercel.app" ||
+    /^lanzalocacoes[\w-]*\.vercel\.app$/.test(hostname)
+  );
+}
+
 export function getApiBaseUrl(): string {
   const fromEnv = import.meta.env.VITE_API_BASE_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/+$/, "");
+  if (import.meta.env.PROD && typeof window !== "undefined") {
+    if (isLanzaFrontendHost(window.location.hostname)) {
+      return PRODUCTION_API_URL;
+    }
+  }
   return "";
 }
 
