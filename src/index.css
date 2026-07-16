@@ -98,8 +98,11 @@ code {
   opacity: 1;
 }
 
-.sidebar__footer {
-  margin-top: auto;
+.sidebar__api-url {
+  font-size: 0.7rem;
+  opacity: 0.65;
+  word-break: break-all;
+}
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

@@ -47,20 +47,18 @@ Copie `.env.example` para `.env` e ajuste conforme necessário:
 
 A chave também pode ser guardada no navegador pelo banner de autenticação.
 
-## Produção (Vercel)
+## Produção (Vercel) — 3 componentes
 
-1. No [dashboard Vercel](https://vercel.com/new), importe `nathalialanzendorf/lanza-web`.
-2. **Framework Preset:** Vite (detectado automaticamente)
-3. Variáveis de ambiente:
+Ver **[DEPLOY.md](./DEPLOY.md)** para o mapa completo (frontend + API + PostgreSQL).
 
-| Nome | Valor |
-|------|-------|
-| `VITE_API_BASE_URL` | `https://lanza-locacoes.vercel.app` |
-| `VITE_API_KEY` | (opcional) mesma chave de `LANZA_API_KEY` na API |
+Resumo:
 
-4. Deploy.
+| Projeto Vercel | Repositório | URL |
+|----------------|-------------|-----|
+| `lanza-web` | [lanza-web](https://github.com/nathalialanzendorf/lanza-web) | https://lanza-web-ten.vercel.app |
+| `lanza-locacoes` | [lanza-locacoes](https://github.com/nathalialanzendorf/lanza-locacoes) | https://lanza-locacoes.vercel.app |
 
-Na API (`lanza-locacoes`), defina `LANZA_API_CORS_ORIGIN` com o domínio do frontend.
+O frontend aponta para a API via `.env.production` (`VITE_API_BASE_URL`). A API aceita CORS do domínio do painel e reporta estado do PostgreSQL em `/health`.
 
 ## Páginas incluídas
 

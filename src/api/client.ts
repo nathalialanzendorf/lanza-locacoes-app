@@ -2,10 +2,14 @@ import type { ApiError } from "./types";
 
 const STORAGE_KEY = "lanza_api_key";
 
-function baseUrl(): string {
+export function getApiBaseUrl(): string {
   const fromEnv = import.meta.env.VITE_API_BASE_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/+$/, "");
   return "";
+}
+
+function baseUrl(): string {
+  return getApiBaseUrl();
 }
 
 export function getStoredApiKey(): string {

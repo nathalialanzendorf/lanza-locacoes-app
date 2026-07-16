@@ -68,9 +68,15 @@ export type Locacao = {
 };
 
 export type Health = {
-  status: string;
+  status: "ok" | "degraded";
   service: string;
   version: string;
+  apiUrl?: string;
+  frontendUrl?: string;
+  database?: {
+    backend: string;
+    postgres?: { ok: boolean; error?: string };
+  };
 };
 
 export type ApiError = {

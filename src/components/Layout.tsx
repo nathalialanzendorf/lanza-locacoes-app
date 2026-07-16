@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useHealth } from "@/api/hooks";
+import { getApiBaseUrl } from "@/api/client";
 import { ApiKeyBanner } from "./ApiKeyBanner";
 
 const nav = [
@@ -56,8 +57,19 @@ export function Layout() {
           <span className="sidebar__status">
             {health.isLoading && "Conectando…"}
             {health.isError && "API offline"}
-            {health.isSuccess && `API v${health.data.version}`}
+            {health.isSuccess && (
+              <>
+                API v{health.data.version}
+                {health.data.database?.backend
+                  ? ` · DB ${health.data.database.backend}`
+                  : null}
+                {health.data.database?.postgres?.ok === false ? " · PG erro" : null}
+              </>
+            )}
           </span>
+          {getApiBaseUrl() ? (
+            <span className="sidebar__api-url">{getApiBaseUrl()}</span>
+          ) : null}
         </footer>
       </aside>
 
