@@ -4,7 +4,7 @@ export type Resumo = {
   contratos: { total: number; ativos: number };
   despesasCliente: { emAberto: number; valorEmAberto: number };
   despesasParceiro: { emAberto: number; valorEmAberto: number };
-  infracoes: { emAberto: number; semCondutor: number };
+  infracoes: { emAberto: number; semCliente: number; semCondutor?: number };
   locacoes: { abertas: number };
 };
 
@@ -53,6 +53,13 @@ export type Veiculo = {
   rastreameRastreavelKey?: string | number | null;
 };
 
+export type ContratoVeiculoSnapshot = {
+  id?: string | null;
+  placa?: string;
+  marcaModelo?: string | null;
+  anoModelo?: string | null;
+};
+
 export type Contrato = {
   id: string;
   status?: string;
@@ -60,13 +67,27 @@ export type Contrato = {
   veiculoId?: string;
   placa?: string;
   pasta?: string;
+  pastaContrato?: string;
+  clienteNome?: string;
+  veiculo?: ContratoVeiculoSnapshot;
   dataInicio?: string;
   dataFim?: string;
+  dataFimPrevista?: string;
+  dataEncerramento?: string | null;
+  cpf?: string | null;
+};
+
+/** Resposta completa de GET /api/contratos/:id */
+export type ContratoDetalhe = Contrato & {
+  pastaContrato?: string;
+  cpf?: string | null;
+  clienteNome?: string;
+  dataFimPrevista?: string;
+  dataEncerramento?: string | null;
 };
 
 export type ClienteDespesa = {
   id: string;
-  clienteId?: string;
   veiculoId?: string;
   placa?: string;
   categoria?: string;
@@ -76,7 +97,11 @@ export type ClienteDespesa = {
   ativo?: boolean;
   situacao?: string;
   autoInfracao?: string;
+  /** Cliente responsável (API legada: condutorId) */
+  clienteId?: string | null;
   condutorId?: string | null;
+  clienteConfirmado?: boolean;
+  condutorConfirmado?: boolean;
   rastreameId?: string | number | null;
 };
 
@@ -140,8 +165,12 @@ export type Infracao = {
   limiteDefesa?: string;
   dataLimiteDefesa?: string;
   quitadaDetran?: boolean;
+  /** Cliente responsável (API legada: condutorId) */
+  clienteId?: string | null;
   condutorId?: string | null;
+  clienteConfirmado?: boolean;
   condutorConfirmado?: boolean;
+  clienteNaoIdentificado?: boolean;
   condutorNaoIdentificado?: boolean;
   debitoParceiroConfirmado?: boolean;
   revisarManual?: boolean;
@@ -158,7 +187,8 @@ export type Locacao = {
   placa?: string;
   inicio?: string;
   fim?: string | null;
-  condutor?: string | null;
+  clienteNome?: string | null;
+  condutorNome?: string | null;
   tipoLocacao?: string | null;
   observacao?: string | null;
 };
@@ -221,11 +251,14 @@ export type ApiError = {
   error: string;
 };
 
+export type SyncDirecao = "buscar" | "enviar";
+
 export type SyncCatalogEntry = {
   id: string;
   rotulo: string;
   destino: string;
   interativo: boolean;
+  direcao?: SyncDirecao;
   nota?: string;
 };
 

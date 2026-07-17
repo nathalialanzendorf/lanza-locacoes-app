@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { DocUploadField } from "@/components/DocUploadField";
 import { Field, FormCard } from "@/components/FormCard";
-import { ResultPanel } from "@/components/ResultPanel";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 
@@ -48,39 +46,6 @@ export function ClientesCadastroSection({ clienteId }: Props) {
   const [carregando, setCarregando] = useState(editando);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<unknown>(null);
-
-  function aplicarCnh(campos: Record<string, unknown>) {
-    if (typeof campos.nome === "string" && campos.nome.trim()) setNome(campos.nome.trim());
-    if (typeof campos.cpf === "string" && campos.cpf.trim()) setCpf(campos.cpf.trim());
-    const cnh = campos.cnh as Record<string, string> | undefined;
-    if (cnh?.numeroRegistro) setCnhNumero(cnh.numeroRegistro);
-    if (cnh?.categoria) setCnhCategoria(cnh.categoria);
-    if (cnh?.validade) setCnhValidade(cnh.validade);
-  }
-
-  function aplicarComprovante(campos: Record<string, unknown>) {
-    if (typeof campos.titular === "string" && campos.titular.trim() && !nome.trim()) {
-      setNome(campos.titular.trim());
-    }
-    const tel = campos.telefone;
-    const email = campos.email;
-    if (typeof tel === "string" && tel.trim()) setContato(tel.trim());
-    else if (typeof email === "string" && email.trim()) setContato(email.trim());
-
-    const end = campos.endereco as Record<string, string | null | undefined> | undefined;
-    if (!end) return;
-    setEndereco((prev) => ({
-      cep: end.cep ?? prev.cep,
-      logradouro: end.logradouro ?? prev.logradouro,
-      numero: end.numero ?? prev.numero,
-      complemento: end.complemento ?? prev.complemento,
-      bairro: end.bairro ?? prev.bairro,
-      cidade: end.cidade ?? prev.cidade,
-      uf: end.uf ?? prev.uf,
-    }));
-  }
-
   function popularFormulario(c: Record<string, unknown>) {
     if (typeof c.nome === "string") setNome(c.nome);
     if (typeof c.cpf === "string") setCpf(c.cpf);
@@ -165,14 +130,14 @@ export function ClientesCadastroSection({ clienteId }: Props) {
         contato: contato.trim() || undefined,
         telefone: contato.trim() || undefined,
         endereco: enderecoPayload,
-        ...(editando ? {} : { origemImportacao: "web-upload-documento" }),
+        ...(editando ? {} : { origemImportacao: "web-cadastro" }),
       };
 
-      const r = editando
-        ? await lanzaApi.atualizarCliente(clienteId!, body)
-        : await lanzaApi.criarCliente(body);
-
-      setResult(r);
+      if (editando) {
+        await lanzaApi.atualizarCliente(clienteId!, body);
+      } else {
+        await lanzaApi.criarCliente(body);
+      }
       void qc.invalidateQueries({ queryKey: ["clientes"] });
       navigate("/clientes");
     } catch (err) {
@@ -198,26 +163,8 @@ export function ClientesCadastroSection({ clienteId }: Props) {
         title={editando ? "Editar cliente" : "Novo cliente"}
         onSubmit={gravar}
         loading={loading}
-        submitLabel={editando ? "Salvar alterações" : "Gravar cliente"}
         error={error}
       >
-        <DocUploadField
-          label="CNH (PDF)"
-          tipo="cnh"
-          hint="Envie o PDF da CNH para preencher nome, CPF e dados da habilitação."
-          disabled={loading}
-          onParsed={({ campos }) => aplicarCnh(campos)}
-          onError={setError}
-        />
-        <DocUploadField
-          label="Comprovante de residência (PDF)"
-          tipo="comprovante-residencia"
-          hint="Boleto ou comprovante com endereço — confira se o titular é o locatário."
-          disabled={loading}
-          onParsed={({ campos }) => aplicarComprovante(campos)}
-          onError={setError}
-        />
-
         <Field label="Nome">
           <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} required />
         </Field>
@@ -268,7 +215,6 @@ export function ClientesCadastroSection({ clienteId }: Props) {
           <input className="input" value={endereco.uf} onChange={(e) => setEndereco({ ...endereco, uf: e.target.value })} />
         </Field>
       </FormCard>
-      <ResultPanel title="Resultado" data={result} />
     </>
   );
 }

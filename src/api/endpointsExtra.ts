@@ -88,10 +88,10 @@ export const lanzaApiExtra = {
       method: "DELETE",
       params: syncRastreame === undefined ? undefined : { syncRastreame },
     }),
-  confirmarCondutorDespesa: (id: string, condutorId: string | null, syncRastreame?: boolean) =>
-    apiRequest<{ data: ClienteDespesa }>(`/api/despesas/${encodeURIComponent(id)}/confirmar-condutor`, {
+  confirmarClienteDespesa: (id: string, clienteId: string | null, syncRastreame?: boolean) =>
+    apiRequest<{ data: ClienteDespesa }>(`/api/despesas/${encodeURIComponent(id)}/confirmar-cliente`, {
       method: "POST",
-      body: { condutorId, syncRastreame },
+      body: { clienteId, syncRastreame },
     }),
 
   criarDespesaParceiro: (body: Record<string, unknown>) =>
@@ -114,8 +114,8 @@ export const lanzaApiExtra = {
   removerLocacao: (id: string) =>
     apiRequest<{ data: Locacao }>(`/api/locacoes/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  atribuirCondutoresInfracoes: (body: { dryRun?: boolean; placa?: string; prazoDias?: number }) =>
-    apiRequest<{ data: unknown }>("/api/infracoes/atribuir-condutores", { method: "POST", body }),
+  atribuirClientesInfracoes: (body: { dryRun?: boolean; placa?: string; prazoDias?: number }) =>
+    apiRequest<{ data: unknown }>("/api/infracoes/atribuir-clientes", { method: "POST", body }),
   confirmarParceiroInfracao: (numeroAuto: string, parceiroId?: string | null) =>
     apiRequest<{ data: Infracao }>(`/api/infracoes/${encodeURIComponent(numeroAuto)}/confirmar-parceiro`, {
       method: "POST",
@@ -147,6 +147,20 @@ export const lanzaApiExtra = {
 
   removerContrato: (id: string) =>
     apiRequest<{ data: unknown }>(`/api/contratos/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  obterContrato: (id: string) =>
+    apiRequest<DataEnvelope<import("./types").ContratoDetalhe>>(`/api/contratos/${encodeURIComponent(id)}`),
+
+  obterParceiroDespesa: (id: string) =>
+    apiRequest<DataEnvelope<import("./types").ParceiroDespesa>>(`/api/parceiro-despesas/${encodeURIComponent(id)}`),
+  atualizarParceiroDespesa: (id: string, patch: Record<string, unknown>) =>
+    apiRequest<{ data: import("./types").ParceiroDespesa }>(`/api/parceiro-despesas/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: patch,
+    }),
+  removerParceiroDespesa: (id: string) =>
+    apiRequest<{ data: import("./types").ParceiroDespesa }>(`/api/parceiro-despesas/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
 };
 
 import type { Veiculo } from "./types";

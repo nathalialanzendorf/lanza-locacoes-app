@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 
+import { IconEdit, IconTrash } from "@/components/icons";
+import { LABEL } from "@/lib/labels";
+
 type Props = {
   editTo: string;
   onDelete: () => void;
@@ -7,19 +10,21 @@ type Props = {
   deleteLabel?: string;
 };
 
-export function RowActions({ editTo, onDelete, deleting, deleteLabel = "Excluir" }: Props) {
+export function RowActions({ editTo, onDelete, deleting, deleteLabel = LABEL.excluir }: Props) {
   return (
     <div className="row-actions">
-      <Link to={editTo} className="btn btn--sm">
-        Editar
+      <Link to={editTo} className="btn btn--icon" aria-label={LABEL.editar} title={LABEL.editar}>
+        <IconEdit />
       </Link>
       <button
         type="button"
-        className="btn btn--sm btn--danger"
+        className="btn btn--icon btn--icon-danger"
         disabled={deleting}
         onClick={onDelete}
+        aria-label={deleteLabel}
+        title={deleteLabel}
       >
-        {deleteLabel}
+        <IconTrash />
       </button>
     </div>
   );
