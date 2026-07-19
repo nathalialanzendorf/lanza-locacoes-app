@@ -147,12 +147,18 @@ export function DespesasParceiroListSection() {
           {
             key: "veiculo",
             header: "Veículo",
+            sortValue: (d) => d.veiculoLabel?.trim() || veiculoDespesa(d, veiculos),
             render: (d) => d.veiculoLabel?.trim() || veiculoDespesa(d, veiculos),
           },
-          { key: "desc", header: "Descrição", render: (d) => d.descricao ?? "—" },
-          { key: "categoria", header: "Categoria", render: (d) => d.categoria ?? "—" },
-          { key: "vencimento", header: "Vencimento", render: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "—" },
-          { key: "competencia", header: "Competência", render: (d) => d.competencia ?? "—" },
+          { key: "desc", header: "Descrição", sortValue: (d) => d.descricao ?? "", render: (d) => d.descricao ?? "—" },
+          { key: "categoria", header: "Categoria", sortValue: (d) => d.categoria ?? "", render: (d) => d.categoria ?? "—" },
+          {
+            key: "vencimento",
+            header: "Vencimento",
+            sortValue: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "",
+            render: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "—",
+          },
+          { key: "competencia", header: "Competência", sortValue: (d) => d.competencia ?? "", render: (d) => d.competencia ?? "—" },
           {
             key: "acoes",
             header: "Ações",

@@ -152,40 +152,46 @@ export function ContratosListSection() {
           {
             key: "placa",
             header: "Placa",
+            sortValue: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
             render: (c) => <strong>{formatPlaca(c.placa ?? c.veiculo?.placa)}</strong>,
           },
           {
             key: "marcaModelo",
             header: "Marca / modelo",
+            sortValue: (c) => c.veiculo?.marcaModelo ?? "",
             render: (c) => c.veiculo?.marcaModelo ?? "—",
           },
           {
             key: "ano",
             header: "Ano",
+            sortValue: (c) => c.veiculo?.anoModelo ?? "",
             render: (c) => c.veiculo?.anoModelo ?? "—",
           },
           {
             key: "cliente",
             header: "Cliente",
+            sortValue: (c) => clienteExibicaoPorId(clientesQuery.data?.items, c.clienteId, c.clienteNome),
             render: (c) =>
               clienteExibicaoPorId(clientesQuery.data?.items, c.clienteId, c.clienteNome),
           },
           {
             key: "parceiro",
             header: "Parceiro",
+            sortValue: (c) => parceiroDoContrato(c),
             render: (c) => parceiroDoContrato(c),
           },
           {
             key: "status",
             header: "Status",
+            sortValue: (c) => c.status ?? "",
             render: (c) => (
               <span className={c.status === "ativo" ? "badge badge--ok" : "badge badge--amber"}>
                 {c.status ?? "—"}
               </span>
             ),
           },
-          { key: "inicio", header: "Início", render: (c) => c.dataInicio ?? "—" },
-          { key: "termino", header: "Término", render: (c) => terminoContrato(c) },
+          { key: "inicio", header: "Início", sortValue: (c) => c.dataInicio ?? "", render: (c) => c.dataInicio ?? "—" },
+          { key: "termino", header: "Término", sortValue: (c) => terminoContrato(c), render: (c) => terminoContrato(c) },
           {
             key: "acoes",
             header: "Ações",

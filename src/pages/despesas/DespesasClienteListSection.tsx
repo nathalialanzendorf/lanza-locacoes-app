@@ -11,6 +11,12 @@ import { useClientes, useDespesasCliente, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { clienteExibicaoPorId, formatBrl, formatVeiculoLabel } from "@/lib/format";
+import {
+  badgeStatusDespesaCliente,
+  despesaCobravelCliente,
+  despesaElegivelBaixaCliente,
+  rotuloStatusDespesaCliente,
+} from "@/lib/despesaClienteStatus";
 import { urlLancarRecebimentoDespesa } from "@/lib/recebimentoUrl";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
 
@@ -39,26 +45,9 @@ function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): str
   return formatVeiculoLabel({ placa: d.placa ?? d.veiculoId });
 }
 
-function statusDespesa(d: ClienteDespesa): string {
-  const situacao = d.situacao?.trim();
-  if (situacao) return situacao;
-  return d.paga ? "Pago" : "Em aberto";
-}
-
-function badgeStatusDespesa(d: ClienteDespesa): "ok" | "warn" | "muted" {
-  if (d.paga || d.situacao?.toLowerCase() === "registrado") return "ok";
-  if (d.ativo === false) return "muted";
-  return "warn";
-}
-
-function despesaElegivelBaixa(d: ClienteDespesa): boolean {
-  if (d.paga || d.situacao?.toLowerCase() === "registrado") return false;
-  return Boolean((d.clienteId ?? d.condutorId)?.trim());
-}
-
 export function DespesasClienteListSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<FiltroPagamento>("em_aberto");
+  const [pagamento, setPagamento] = useState<FiltroPagamento>("todos");
   const [clienteId, setClienteId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -79,8 +68,9 @@ export function DespesasClienteListSection() {
   const veiculos = veiculosQuery.data?.items;
 
   const rows = query.data?.items ?? [];
-  const temFiltro =
-    pagamento !== "em_aberto" || Boolean(clienteId || veiculoId || categoria || competencia.trim());
+  const temFiltro = Boolean(
+    pagamento !== "todos" || clienteId || veiculoId || categoria || competencia.trim(),
+  );
 
   const total = useMemo(
     () => rows.reduce((sum, d) => sum + (Number(d.valorMulta) || 0), 0),
@@ -128,11 +118,11 @@ export function DespesasClienteListSection() {
           onChange={(v) => setPagamento(v as FiltroPagamento)}
           variant="filtro"
           allowEmpty={false}
-          aria-label="Pagamento"
+          aria-label="Status"
         >
+          <option value="todos">{SELECT_LABEL_TODOS}</option>
           <option value="em_aberto">Em aberto</option>
           <option value="pago">Pago</option>
-          <option value="todos">{SELECT_LABEL_TODOS}</option>
         </NativeSelect>
         <input
           className="input"
@@ -158,16 +148,20 @@ export function DespesasClienteListSection() {
         loading={query.isLoading}
         rows={rows}
         keyFn={(d) => d.id}
+        rowClassName={(d) => (despesaCobravelCliente(d) ? "row--em-aberto" : undefined)}
         emptyMessage={temFiltro ? "Nenhuma despesa corresponde aos filtros." : "Nenhuma despesa registada."}
         columns={[
           {
             key: "veiculo",
             header: "Veículo",
+            sortValue: (d) => d.veiculoLabel?.trim() || veiculoDespesa(d, veiculos),
             render: (d) => d.veiculoLabel?.trim() || veiculoDespesa(d, veiculos),
           },
           {
             key: "cliente",
             header: "Cliente",
+            sortValue: (d) =>
+              clienteExibicaoPorId(clientes, d.clienteId ?? d.condutorId, d.clienteNome),
             render: (d) =>
               clienteExibicaoPorId(
                 clientes,
@@ -175,25 +169,32 @@ export function DespesasClienteListSection() {
                 d.clienteNome,
               ),
           },
-          { key: "titulo", header: "Título", render: (d) => d.titulo?.trim() || "—" },
-          { key: "desc", header: "Descrição", render: (d) => d.descricao?.trim() || "—" },
-          { key: "categoria", header: "Categoria", render: (d) => d.categoria?.trim() || "—" },
-          { key: "vencimento", header: "Vencimento", render: (d) => d.vencimentoBr?.trim() || "—" },
+          { key: "desc", header: "Descrição", sortValue: (d) => d.descricao?.trim() || "", render: (d) => d.descricao?.trim() || "—" },
+          { key: "categoria", header: "Categoria", sortValue: (d) => d.categoria?.trim() || "", render: (d) => d.categoria?.trim() || "—" },
+          { key: "vencimento", header: "Vencimento", sortValue: (d) => d.vencimentoBr?.trim() || "", render: (d) => d.vencimentoBr?.trim() || "—" },
           {
             key: "valor",
             header: "Valor",
             className: "num",
+            sortValue: (d) => Number(d.valorMulta) || 0,
             render: (d) => formatBrl(Number(d.valorMulta) || 0),
           },
           {
             key: "status",
             header: "Status",
+            sortValue: (d) => rotuloStatusDespesaCliente(d),
             render: (d) => {
-              const tone = badgeStatusDespesa(d);
+              const tone = badgeStatusDespesaCliente(d);
               return (
-                <span className={`badge badge--${tone}`}>{statusDespesa(d)}</span>
+                <span className={`badge badge--${tone}`}>{rotuloStatusDespesaCliente(d)}</span>
               );
             },
+          },
+          {
+            key: "pagoEm",
+            header: "Pago em",
+            sortValue: (d) => (d.paga === true ? d.pagaEmBr?.trim() || "" : ""),
+            render: (d) => (d.paga === true ? d.pagaEmBr?.trim() || "—" : "—"),
           },
           {
             key: "acoes",
@@ -202,7 +203,7 @@ export function DespesasClienteListSection() {
             render: (d) => (
               <RowActions
                 recebimentoTo={
-                  despesaElegivelBaixa(d) ? urlLancarRecebimentoDespesa(d) : null
+                  despesaElegivelBaixaCliente(d) ? urlLancarRecebimentoDespesa(d) : null
                 }
                 editTo={`/despesas/cliente/${d.id}/editar`}
                 deleting={excluindoId === d.id}

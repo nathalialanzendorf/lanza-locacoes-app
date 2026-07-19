@@ -54,6 +54,9 @@ export function useDespesasCliente(params?: {
   placa?: string;
   categoria?: string;
   competencia?: string;
+  semCliente?: boolean;
+  dataInicial?: string;
+  dataFinal?: string;
 }) {
   return useQuery({
     queryKey: ["despesas-cliente", params],

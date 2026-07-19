@@ -140,10 +140,36 @@ export const lanzaApiExtra = {
   removerLocacao: (id: string) =>
     apiRequest<{ data: Locacao }>(`/api/locacoes/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  atribuirClientesInfracoes: (body: { dryRun?: boolean; placa?: string; prazoDias?: number }) =>
-    apiRequest<{ data: unknown }>("/api/infracoes/atribuir-clientes", { method: "POST", body }),
+  atribuirClientesInfracoes: (body: {
+    dryRun?: boolean;
+    placa?: string;
+    prazoDias?: number;
+    incluirPedagios?: boolean;
+  }) => apiRequest<{ data: unknown }>("/api/infracoes/atribuir-clientes", { method: "POST", body }),
+  atribuirClientesDespesas: (body: { dryRun?: boolean; placa?: string; prazoDias?: number }) =>
+    apiRequest<{ data: unknown }>("/api/despesas/atribuir-clientes", { method: "POST", body }),
+  pedagioConferir: (registrar?: boolean) =>
+    apiRequest<{ data: unknown }>("/api/pedagio/conferir", {
+      method: registrar ? "POST" : "GET",
+      body: registrar ? { registrar: true } : undefined,
+    }),
+  pedagioPassagens: (placa: string, status: "aberto" | "pago" | "todos" = "aberto") =>
+    apiRequest<{ total: number; items: unknown[]; placa: string; status: string }>(
+      "/api/pedagio/passagens",
+      { params: { placa, status } },
+    ),
   confirmarParceiroInfracao: (numeroAuto: string, parceiroId?: string | null) =>
     apiRequest<{ data: Infracao }>(`/api/infracoes/${encodeURIComponent(numeroAuto)}/confirmar-parceiro`, {
+      method: "POST",
+      body: { parceiroId },
+    }),
+  confirmarClienteInfracao: (numeroAuto: string, clienteId: string) =>
+    apiRequest<{ data: Infracao }>(`/api/infracoes/${encodeURIComponent(numeroAuto)}/confirmar-cliente`, {
+      method: "POST",
+      body: { clienteId },
+    }),
+  confirmarParceiroDespesa: (id: string, parceiroId?: string | null) =>
+    apiRequest<{ data: ClienteDespesa }>(`/api/despesas/${encodeURIComponent(id)}/confirmar-parceiro`, {
       method: "POST",
       body: { parceiroId },
     }),

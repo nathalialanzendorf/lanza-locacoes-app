@@ -135,10 +135,11 @@ export function ParceirosListSection() {
         }
         emptyMessage={temFiltro ? "Nenhum parceiro corresponde aos filtros." : "Nenhum parceiro registado."}
         columns={[
-          { key: "nome", header: "Nome", render: (p) => <strong>{p.nome}</strong> },
+          { key: "nome", header: "Nome", sortValue: (p) => p.nome, render: (p) => <strong>{p.nome}</strong> },
           {
             key: "veiculos",
             header: "Veículos",
+            sortValue: (p) => p.veiculos,
             render: (p) => (
               <span className={p.veiculos > 0 ? "badge badge--ok" : "badge badge--muted"}>{p.veiculos}</span>
             ),
@@ -146,12 +147,14 @@ export function ParceirosListSection() {
           {
             key: "placas",
             header: "Placas vinculadas",
+            sortValue: (p) => p.placas.join(" · "),
             render: (p) =>
               p.placas.length > 0 ? <span className="parceiros-placas">{p.placas.join(" · ")}</span> : "—",
           },
           {
             key: "status",
             header: "Status",
+            sortValue: (p) => statusLabel(p.ativo),
             render: (p) => (
               <span className={registroAtivo(p.ativo) ? "badge badge--ok" : "badge badge--amber"}>
                 {statusLabel(p.ativo)}

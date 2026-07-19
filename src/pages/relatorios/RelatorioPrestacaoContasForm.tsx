@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DataTable } from "@/components/DataTable";
 import { Field } from "@/components/FormCard";
 import { Toggle } from "@/components/Toggle";
 import { ParceiroSelect, VeiculoSelect } from "@/components/EntitySelects";
@@ -362,54 +363,61 @@ export function RelatorioPrestacaoContasForm() {
                     Valores de locações no período ou, se não houver movimentação, 4 semanas do contrato vigente.
                     Ajuste se necessário e confirme antes de gerar.
                   </p>
-                  <div className="table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Placa</th>
-                          <th>Origem</th>
-                          <th>Referência</th>
-                          <th className="num">Ganho (R$)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ganhos.map((g) => (
-                          <tr key={g.veiculoId}>
-                            <td>
-                              <strong>{formatPlaca(g.placa)}</strong>
-                            </td>
-                            <td>{g.origem === "locacoes" ? "Locações" : "Contrato"}</td>
-                            <td>
-                              <span className="field__hint" title={g.descricao}>
-                                {g.contratoCliente ?? g.descricao}
-                              </span>
-                            </td>
-                            <td className="num">
-                              <input
-                                className="input"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={g.valor}
-                                onChange={(e) => atualizarGanho(g.veiculoId, Number(e.target.value))}
-                                disabled={ganhosConfirmados}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td colSpan={3}>
-                            <strong>Total</strong>
-                          </td>
-                          <td className="num">
-                            <strong>{formatBrl(ganhos.reduce((s, g) => s + g.valor, 0))}</strong>
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                  <DataTable
+                    rows={ganhos}
+                    keyFn={(g) => g.veiculoId}
+                    columns={[
+                      {
+                        key: "placa",
+                        header: "Placa",
+                        sortValue: (g) => formatPlaca(g.placa),
+                        render: (g) => <strong>{formatPlaca(g.placa)}</strong>,
+                      },
+                      {
+                        key: "origem",
+                        header: "Origem",
+                        sortValue: (g) => (g.origem === "locacoes" ? "Locações" : "Contrato"),
+                        render: (g) => (g.origem === "locacoes" ? "Locações" : "Contrato"),
+                      },
+                      {
+                        key: "referencia",
+                        header: "Referência",
+                        sortValue: (g) => g.contratoCliente ?? g.descricao,
+                        render: (g) => (
+                          <span className="field__hint" title={g.descricao}>
+                            {g.contratoCliente ?? g.descricao}
+                          </span>
+                        ),
+                      },
+                      {
+                        key: "valor",
+                        header: "Ganho (R$)",
+                        className: "num",
+                        sortValue: (g) => g.valor,
+                        render: (g) => (
+                          <input
+                            className="input"
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={g.valor}
+                            onChange={(e) => atualizarGanho(g.veiculoId, Number(e.target.value))}
+                            disabled={ganhosConfirmados}
+                          />
+                        ),
+                      },
+                    ]}
+                    footer={
+                      <tr>
+                        <td colSpan={3}>
+                          <strong>Total</strong>
+                        </td>
+                        <td className="num">
+                          <strong>{formatBrl(ganhos.reduce((s, g) => s + g.valor, 0))}</strong>
+                        </td>
+                      </tr>
+                    }
+                  />
                 </>
               )}
             </section>

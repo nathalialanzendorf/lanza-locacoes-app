@@ -188,6 +188,8 @@ export function ContratosEncerrarSection() {
             {
               key: "cliente",
               header: "Cliente",
+              sortValue: (c) =>
+                clienteExibicaoPorId(clientesQuery.data?.items, c.clienteId, c.clienteNome),
               render: (c) => (
                 <strong>
                   {clienteExibicaoPorId(clientesQuery.data?.items, c.clienteId, c.clienteNome)}
@@ -197,10 +199,11 @@ export function ContratosEncerrarSection() {
             {
               key: "placa",
               header: "Placa",
+              sortValue: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
               render: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
             },
-            { key: "inicio", header: "Início", render: (c) => c.dataInicio ?? "—" },
-            { key: "termino", header: "Término previsto", render: (c) => terminoContrato(c) },
+            { key: "inicio", header: "Início", sortValue: (c) => c.dataInicio ?? "", render: (c) => c.dataInicio ?? "—" },
+            { key: "termino", header: "Término previsto", sortValue: (c) => terminoContrato(c), render: (c) => terminoContrato(c) },
           ]}
         />
       </section>

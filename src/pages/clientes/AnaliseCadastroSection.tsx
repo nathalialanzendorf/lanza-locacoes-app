@@ -164,12 +164,13 @@ export function AnaliseCadastroSection() {
         rows={listQuery.data?.items ?? []}
         keyFn={(a) => a.id}
         columns={[
-          { key: "nome", header: "Nome", render: (a) => a.nome ?? "—" },
-          { key: "cpf", header: "CPF", render: (a) => a.cpf ?? "—" },
-          { key: "data", header: "Data", render: (a) => a.dataConsulta ?? "—" },
+          { key: "nome", header: "Nome", sortValue: (a) => a.nome ?? "", render: (a) => a.nome ?? "—" },
+          { key: "cpf", header: "CPF", sortValue: (a) => a.cpf ?? "", render: (a) => a.cpf ?? "—" },
+          { key: "data", header: "Data", sortValue: (a) => a.dataConsulta ?? "", render: (a) => a.dataConsulta ?? "—" },
           {
             key: "alerta",
             header: "Alerta",
+            sortValue: (a) => (a.alertaGeral ? 1 : 0),
             render: (a) =>
               a.alertaGeral ? (
                 <span className="badge badge--warn">Sim</span>
@@ -180,6 +181,11 @@ export function AnaliseCadastroSection() {
           {
             key: "decisao",
             header: "Decisão",
+            sortValue: (a) => {
+              if (a.aprovado === true) return "Aprovado";
+              if (a.aprovado === false) return "Reprovado";
+              return "Pendente";
+            },
             render: (a) => {
               if (a.aprovado === true) return <span className="badge badge--ok">Aprovado</span>;
               if (a.aprovado === false) return <span className="badge badge--danger">Reprovado</span>;

@@ -83,6 +83,9 @@ export const lanzaApi = {
     placa?: string;
     categoria?: string;
     competencia?: string;
+    semCliente?: boolean;
+    dataInicial?: string;
+    dataFinal?: string;
   }) => apiRequest<ListEnvelope<ClienteDespesa>>("/api/despesas", { params }),
 
   listarDespesasParceiro: (params?: {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
@@ -9,7 +10,6 @@ import { useDespesasCliente, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import type { LinhaPlanoBaixa, PlanoBaixa, ClienteDespesa } from "@/api/types";
-import { useRastreameEspelho } from "@/hooks/useRastreameEspelho";
 import { formatBrl, formatValorInput, parseValorInput } from "@/lib/format";
 
 const ROTULO_TIPO_BAIXA: Record<NonNullable<PlanoBaixa["tipoBaixa"]>, string> = {
@@ -53,7 +53,6 @@ export function RecebimentosManualSection() {
   const despesaIdUrl = searchParams.get("despesaId")?.trim() || "";
   const dataBrUrl = searchParams.get("dataBr")?.trim() || "";
 
-  const { ativo: espelhoRastreame } = useRastreameEspelho();
   const veiculosQuery = useVeiculos({ ativo: true });
   const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState(clienteIdUrl);
@@ -263,7 +262,7 @@ export function RecebimentosManualSection() {
     setExecError(null);
     try {
       const linhas = plano.linhas.filter((l) => linhasSel.has(l.num));
-      const r = await lanzaApi.executarRecebimento({ linhas, syncRastreame: espelhoRastreame });
+      const r = await lanzaApi.executarRecebimento({ linhas, syncRastreame: false });
       setExecResult(r.data);
     } catch (err) {
       setExecError(err instanceof LanzaApiError ? err.message : "Falha ao executar baixa.");
@@ -378,39 +377,41 @@ export function RecebimentosManualSection() {
               {a}
             </p>
           ))}
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th />
-                  <th>#</th>
-                  <th>Operação</th>
-                  <th>Descrição</th>
-                  <th>Efeito</th>
-                  <th className="num">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plano.linhas.map((l: LinhaPlanoBaixa) => (
-                  <tr key={l.num}>
-                    <td>
-                      <Toggle
-                        checked={linhasSel.has(l.num)}
-                        onChange={() => toggleLinha(l.num)}
-                        size="compact"
-                        aria-label={`Selecionar linha ${l.num}`}
-                      />
-                    </td>
-                    <td>{l.num}</td>
-                    <td>{l.operacao}</td>
-                    <td>{l.descricao ?? "—"}</td>
-                    <td>{rotuloEfeitoLinha(l)}</td>
-                    <td className="num">{formatBrl(l.total ?? 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={plano.linhas}
+            keyFn={(l) => String(l.num)}
+            columns={[
+              {
+                key: "sel",
+                header: "",
+                sortable: false,
+                render: (l) => (
+                  <Toggle
+                    checked={linhasSel.has(l.num)}
+                    onChange={() => toggleLinha(l.num)}
+                    size="compact"
+                    aria-label={`Selecionar linha ${l.num}`}
+                  />
+                ),
+              },
+              { key: "num", header: "#", sortValue: (l) => l.num, render: (l) => l.num },
+              { key: "operacao", header: "Operação", sortValue: (l) => l.operacao, render: (l) => l.operacao },
+              { key: "descricao", header: "Descrição", sortValue: (l) => l.descricao ?? "", render: (l) => l.descricao ?? "—" },
+              {
+                key: "efeito",
+                header: "Efeito",
+                sortValue: (l) => rotuloEfeitoLinha(l),
+                render: (l) => rotuloEfeitoLinha(l),
+              },
+              {
+                key: "valor",
+                header: "Valor",
+                className: "num",
+                sortValue: (l) => l.total ?? 0,
+                render: (l) => formatBrl(l.total ?? 0),
+              },
+            ]}
+          />
           <p className="field__hint">Valor recebido: {formatBrl(parseValorInput(valor) ?? 0)}</p>
           <button
             type="button"

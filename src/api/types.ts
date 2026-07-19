@@ -153,6 +153,23 @@ export type ClienteDespesa = {
   veiculoLabel?: string | null;
   /** Vencimento calculado (DD/MM/AAAA) — listagem API. */
   vencimentoBr?: string | null;
+  /** Data/hora do pagamento (DD/MM/AAAA) — listagem API. */
+  pagaEmBr?: string | null;
+  dataAutuacao?: string | null;
+  /** Status bruto DETRAN: Advertida | Paga | Notificada | Justificada. */
+  statusInfracao?: string | null;
+  /** Status semântico DETRAN: advertida | paga | justificada. */
+  statusDetran?: string | null;
+  quitadaDetran?: boolean;
+  convertidaEmDebito?: boolean;
+  dataVencimentoOriginal?: string | null;
+  dataLimiteDefesa?: string | null;
+  limiteDefesa?: string | null;
+  condutorNaoIdentificado?: boolean;
+  debitoParceiroConfirmado?: boolean;
+  debitoParceiroId?: string | null;
+  revisarManual?: boolean;
+  origem?: string | null;
 };
 
 export type AnaliseCadastroItem = {
@@ -314,6 +331,7 @@ export type RastreameEspelhoConfig = {
   ativo: boolean;
   origem: "env" | "config" | "default";
   editavelViaApi: boolean;
+  depreciado?: boolean;
 };
 
 export type Health = {
@@ -342,6 +360,7 @@ export type SyncCatalogEntry = {
   interativo: boolean;
   direcao?: SyncDirecao;
   nota?: string;
+  depreciado?: boolean;
 };
 
 export type SyncMeta = {

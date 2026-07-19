@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable";
 import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ResponsavelDebitoCell } from "@/components/relatorios/ResponsavelDebitoCell";
 import { SELECT_LABEL_TODOS } from "@/lib/selectLabels";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
@@ -9,15 +11,10 @@ import {
   RelatorioPeriodoFiltro,
   type RelatorioPeriodo,
 } from "@/components/relatorios/RelatorioPeriodoFiltro";
-import { useClientes, useInfracoes, useVeiculos } from "@/api/hooks";
+import { useInfracoes, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { formatBrl, formatClienteLabel, formatPlaca } from "@/lib/format";
-import {
-  clienteConfirmadoDe,
-  clienteIdDe,
-  clienteNaoIdentificadoDe,
-} from "@/lib/clienteCampo";
+import { formatBrl, formatPlaca } from "@/lib/format";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import type { Infracao } from "@/api/types";
 
@@ -25,30 +22,6 @@ type FiltroSituacao = "em_aberto" | "quitado" | "todos";
 
 function valorInfracao(i: Infracao): number {
   return Number(i.valorMulta ?? i.valor) || 0;
-}
-
-function clienteLabel(
-  i: Infracao,
-  nomes: Map<string, string>,
-): { text: string; className: string } {
-  if (i.debitoParceiroConfirmado) {
-    return { text: "Débito parceiro", className: "badge badge--muted" };
-  }
-  const id = clienteIdDe(i);
-  if (id) {
-    const nome = nomes.get(id);
-    return {
-      text: nome ?? id.slice(0, 8),
-      className: clienteConfirmadoDe(i) ? "badge badge--ok" : "badge badge--warn",
-    };
-  }
-  if (clienteNaoIdentificadoDe(i)) {
-    return { text: "Não identificado", className: "badge badge--muted" };
-  }
-  if (i.revisarManual) {
-    return { text: "Revisar", className: "badge badge--warn" };
-  }
-  return { text: "Sem cliente", className: "badge badge--danger" };
 }
 
 function situacaoLabel(i: Infracao): { text: string; className: string } {
@@ -66,6 +39,7 @@ function situacaoLabel(i: Infracao): { text: string; className: string } {
 }
 
 export function RelatorioInfracoesSection() {
+  const queryClient = useQueryClient();
   const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [parceiroId, setParceiroId] = useState("");
@@ -86,23 +60,12 @@ export function RelatorioInfracoesSection() {
     emAberto,
     ativo: true,
   });
-  const clientesQuery = useClientes();
   const veiculosQuery = useVeiculos({ ativo: true });
 
   const placaFiltro = useMemo(() => {
     if (!veiculoId) return undefined;
     return veiculosQuery.data?.items.find((v) => v.id === veiculoId)?.placa;
   }, [veiculoId, veiculosQuery.data]);
-
-  const nomesCliente = useMemo(
-    () =>
-      new Map(
-        (clientesQuery.data?.items ?? [])
-          .filter((c) => c.nome)
-          .map((c) => [c.id, formatClienteLabel(c)]),
-      ),
-    [clientesQuery.data],
-  );
 
   const rows = query.data?.items ?? [];
   const temFiltro = Boolean(
@@ -111,7 +74,7 @@ export function RelatorioInfracoesSection() {
 
   const total = useMemo(() => rows.reduce((sum, i) => sum + valorInfracao(i), 0), [rows]);
 
-  const loading = query.isLoading || clientesQuery.isLoading;
+  const loading = query.isLoading;
 
   async function atribuirClientes(dryRun: boolean) {
     setAtribuirLoading(true);
@@ -122,6 +85,9 @@ export function RelatorioInfracoesSection() {
         placa: placaFiltro?.trim() || undefined,
       });
       setAtribuirResult(r);
+      if (!dryRun) {
+        await queryClient.invalidateQueries({ queryKey: ["infracoes"] });
+      }
     } catch (err) {
       setAtribuirError(err instanceof LanzaApiError ? err.message : "Falha ao atribuir clientes.");
     } finally {
@@ -180,6 +146,14 @@ export function RelatorioInfracoesSection() {
         </div>
       </section>
 
+      <section className="form-card">
+        <p className="field__hint">
+          «Inferir responsáveis» aplica as mesmas regras de contrato/manutenção/reserva para multas e
+          pedágios. Cliente ou parceiro ficam como <strong>sugestão</strong> até confirmar na linha
+          (ou escolher outro responsável).
+        </p>
+      </section>
+
       <div className="despesas-toolbar">
         <button
           type="button"
@@ -187,7 +161,7 @@ export function RelatorioInfracoesSection() {
           disabled={atribuirLoading}
           onClick={() => void atribuirClientes(true)}
         >
-          Preview atribuir clientes
+          Preview inferir
         </button>
         <button
           type="button"
@@ -195,12 +169,12 @@ export function RelatorioInfracoesSection() {
           disabled={atribuirLoading}
           onClick={() => void atribuirClientes(false)}
         >
-          Atribuir clientes
+          Inferir responsáveis
         </button>
       </div>
 
       {atribuirError ? <p className="form-card__error">{atribuirError}</p> : null}
-      <ResultPanel title="Atribuição de clientes" data={atribuirResult} />
+      <ResultPanel title="Inferência de responsáveis" data={atribuirResult} />
 
       {query.isError ? (
         <QueryError
@@ -223,16 +197,19 @@ export function RelatorioInfracoesSection() {
           {
             key: "auto",
             header: "Auto",
+            sortValue: (i) => i.numeroAuto ?? "",
             render: (i) => <strong>{i.numeroAuto}</strong>,
           },
           {
             key: "placa",
             header: "Placa",
+            sortValue: (i) => formatPlaca(i.veiculoId),
             render: (i) => formatPlaca(i.veiculoId),
           },
           {
             key: "desc",
             header: "Descrição",
+            sortValue: (i) => i.descricao ?? "",
             render: (i) => (
               <span className="infracao-desc" title={i.descricao}>
                 {i.descricao ?? "—"}
@@ -242,17 +219,20 @@ export function RelatorioInfracoesSection() {
           {
             key: "data",
             header: "Autuação",
+            sortValue: (i) => i.dataAutuacao?.slice(0, 16) ?? "",
             render: (i) => i.dataAutuacao?.slice(0, 16) ?? "—",
           },
           {
             key: "valor",
             header: "Valor",
             className: "num",
+            sortValue: (i) => valorInfracao(i),
             render: (i) => formatBrl(valorInfracao(i)),
           },
           {
             key: "situacao",
             header: "Situação",
+            sortValue: (i) => situacaoLabel(i).text,
             render: (i) => {
               const s = situacaoLabel(i);
               return <span className={s.className}>{s.text}</span>;
@@ -260,15 +240,20 @@ export function RelatorioInfracoesSection() {
           },
           {
             key: "cliente",
-            header: "Cliente",
-            render: (i) => {
-              const c = clienteLabel(i, nomesCliente);
-              return <span className={c.className}>{c.text}</span>;
-            },
+            header: "Responsável",
+            render: (i) => (
+              <ResponsavelDebitoCell
+                tipo="infracao"
+                chave={i.numeroAuto}
+                item={i}
+                onConfirmed={() => void queryClient.invalidateQueries({ queryKey: ["infracoes"] })}
+              />
+            ),
           },
           {
             key: "despesa",
             header: "Despesa",
+            sortValue: (i) => (i.clienteDespesaId ? 1 : 0),
             render: (i) =>
               i.clienteDespesaId ? (
                 <span className="badge badge--ok">Vinculada</span>

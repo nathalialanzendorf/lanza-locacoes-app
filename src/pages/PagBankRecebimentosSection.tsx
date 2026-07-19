@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ResultPanel } from "@/components/ResultPanel";
@@ -9,11 +10,8 @@ import { LanzaApiError } from "@/api/client";
 import { formatBrl } from "@/lib/format";
 import type { PagBankPlano } from "@/api/types";
 
-import { useRastreameEspelho } from "@/hooks/useRastreameEspelho";
-
 export function PagBankRecebimentosSection() {
   const qc = useQueryClient();
-  const { ativo: espelhoRastreame } = useRastreameEspelho();
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,7 +49,7 @@ export function PagBankRecebimentosSection() {
         if (!p?.plano?.linhas?.length) continue;
         const r = await lanzaApi.executarRecebimento({
           linhas: p.plano.linhas,
-          syncRastreame: espelhoRastreame,
+          syncRastreame: false,
         });
         resultados.push({ credito: p.pagbank.id, cliente: p.clienteQuery, resultado: r.data });
       }
@@ -72,6 +70,11 @@ export function PagBankRecebimentosSection() {
       return next;
     });
   }
+
+  const planosComIndice = useMemo(
+    () => (lote?.planos ?? []).map((p, index) => ({ ...p, index })),
+    [lote?.planos],
+  );
 
   return (
     <>
@@ -96,44 +99,56 @@ export function PagBankRecebimentosSection() {
           <h2 className="form-card__title">
             Planos ({lote.planos.length}) · Sem match: {lote.semMatch.length}
           </h2>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th />
-                  <th>Cliente</th>
-                  <th>Valor</th>
-                  <th>Data</th>
-                  <th>Confiança</th>
-                  <th>Linhas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lote.planos.map((p, i) => (
-                  <tr key={p.pagbank.id}>
-                    <td>
-                      <Toggle
-                        checked={sel.has(i)}
-                        onChange={() => toggle(i)}
-                        size="compact"
-                        aria-label={`Selecionar crédito ${i + 1}`}
-                      />
-                    </td>
-                    <td>{p.clienteQuery}</td>
-                    <td className="num">{formatBrl(p.pagbank.valor)}</td>
-                    <td>{p.pagbank.dataBr}</td>
-                    <td>
-                      <span className={p.confianca === "alta" ? "badge badge--ok" : "badge badge--warn"}>
-                        {p.confianca}
-                        {p.revisaoManual ? " · revisar" : ""}
-                      </span>
-                    </td>
-                    <td>{p.plano.linhas.length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={planosComIndice}
+            keyFn={(p) => p.pagbank.id}
+            columns={[
+              {
+                key: "sel",
+                header: "",
+                sortable: false,
+                render: (p) => (
+                  <Toggle
+                    checked={sel.has(p.index)}
+                    onChange={() => toggle(p.index)}
+                    size="compact"
+                    aria-label={`Selecionar crédito ${p.index + 1}`}
+                  />
+                ),
+              },
+              { key: "cliente", header: "Cliente", sortValue: (p) => p.clienteQuery, render: (p) => p.clienteQuery },
+              {
+                key: "valor",
+                header: "Valor",
+                className: "num",
+                sortValue: (p) => p.pagbank.valor,
+                render: (p) => formatBrl(p.pagbank.valor),
+              },
+              {
+                key: "data",
+                header: "Data",
+                sortValue: (p) => p.pagbank.dataBr,
+                render: (p) => p.pagbank.dataBr,
+              },
+              {
+                key: "confianca",
+                header: "Confiança",
+                sortValue: (p) => `${p.confianca}${p.revisaoManual ? " revisar" : ""}`,
+                render: (p) => (
+                  <span className={p.confianca === "alta" ? "badge badge--ok" : "badge badge--warn"}>
+                    {p.confianca}
+                    {p.revisaoManual ? " · revisar" : ""}
+                  </span>
+                ),
+              },
+              {
+                key: "linhas",
+                header: "Linhas",
+                sortValue: (p) => p.plano.linhas.length,
+                render: (p) => p.plano.linhas.length,
+              },
+            ]}
+          />
           <button
             type="button"
             className="btn btn--primary"

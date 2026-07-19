@@ -159,13 +159,14 @@ export function VeiculosListSection() {
           temFiltro ? "Nenhum veículo corresponde aos filtros." : "Nenhum veículo registado."
         }
         columns={[
-          { key: "placa", header: "Placa", render: (v) => <strong>{formatPlaca(v.placa)}</strong> },
-          { key: "marcaModelo", header: "Marca / modelo", render: (v) => v.marcaModelo ?? "—" },
-          { key: "ano", header: "Ano", render: (v) => v.anoModelo ?? "—" },
-          { key: "parceiro", header: "Parceiro", render: (v) => parceiroDoVeiculo(v) },
+          { key: "placa", header: "Placa", sortValue: (v) => formatPlaca(v.placa), render: (v) => <strong>{formatPlaca(v.placa)}</strong> },
+          { key: "marcaModelo", header: "Marca / modelo", sortValue: (v) => v.marcaModelo ?? "", render: (v) => v.marcaModelo ?? "—" },
+          { key: "ano", header: "Ano", sortValue: (v) => v.anoModelo ?? "", render: (v) => v.anoModelo ?? "—" },
+          { key: "parceiro", header: "Parceiro", sortValue: (v) => parceiroDoVeiculo(v), render: (v) => parceiroDoVeiculo(v) },
           {
             key: "status",
             header: "Status",
+            sortValue: (v) => statusVeiculoLabel(statusVeiculoOperacional(v, placasContratoAtivo)),
             render: (v) => {
               const status = statusVeiculoOperacional(v, placasContratoAtivo);
               return (

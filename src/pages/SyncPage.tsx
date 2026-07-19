@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { DataTable } from "@/components/DataTable";
 import { PageHeader, QueryError } from "@/components/PageHeader";
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { ResultPanel } from "@/components/ResultPanel";
@@ -7,9 +8,9 @@ import { Toggle } from "@/components/Toggle";
 import { useSyncJobs, useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { bodySyncGlobal, opcoesSyncCompleto, ordenarSyncsPorDirecao } from "@/lib/syncUi";
+import { bodySyncGlobal, direcaoEfetiva, opcoesSyncCompleto, ordenarSyncsPorDirecao, syncAtivo } from "@/lib/syncUi";
 import { LABEL } from "@/lib/labels";
-import type { SyncCatalogEntry, SyncDirecao, SyncJob } from "@/api/types";
+import type { SyncCatalogEntry, SyncJob } from "@/api/types";
 
 const SKILL_ALIASES: Record<string, string> = {
   motoristas: "sync-cliente",
@@ -40,17 +41,18 @@ function statusBadge(status: SyncJob["status"]) {
 
 type SyncCardProps = {
   sync: SyncCatalogEntry;
-  direcao: SyncDirecao;
   running: boolean;
   disabled: boolean;
   onExecutar: () => void;
 };
 
-function SyncCard({ sync, direcao, running, disabled, onExecutar }: SyncCardProps) {
+function SyncCard({ sync, running, disabled, onExecutar }: SyncCardProps) {
+  const direcao = direcaoEfetiva(sync);
   const acao = direcao === "enviar" ? "Enviar" : "Buscar";
+  const depreciado = !syncAtivo(sync);
 
   return (
-    <article className="sync-card">
+    <article className={`sync-card${depreciado ? " sync-card--deprecated" : ""}`}>
       <header className="sync-card__head">
         <h3>{sync.rotulo}</h3>
         <code className="sync-card__skill">{SKILL_ALIASES[sync.id] ?? sync.id}</code>
@@ -58,15 +60,25 @@ function SyncCard({ sync, direcao, running, disabled, onExecutar }: SyncCardProp
       <p className="sync-card__destino">{sync.destino}</p>
       {sync.nota ? <p className="sync-card__nota">{sync.nota}</p> : null}
       <div className="sync-card__badges">
-        <span className={direcao === "enviar" ? "badge badge--warn" : "badge badge--ok"}>{acao}</span>
-        {sync.interativo ? (
-          <span className="badge badge--muted">Interativo</span>
+        {depreciado ? (
+          <span className="badge badge--muted">Descontinuado</span>
         ) : (
-          <span className="badge badge--muted">Automático</span>
+          <span className={direcao === "enviar" ? "badge badge--warn" : "badge badge--ok"}>{acao}</span>
         )}
+        {!depreciado && sync.interativo ? (
+          <span className="badge badge--muted">Interativo</span>
+        ) : null}
+        {!depreciado && !sync.interativo ? (
+          <span className="badge badge--muted">Automático</span>
+        ) : null}
       </div>
-      <button type="button" className="btn btn--primary sync-card__btn" disabled={disabled} onClick={onExecutar}>
-        {running ? LABEL.processando : acao}
+      <button
+        type="button"
+        className="btn btn--primary sync-card__btn"
+        disabled={disabled || depreciado}
+        onClick={onExecutar}
+      >
+        {depreciado ? "Indisponível" : running ? LABEL.processando : acao}
       </button>
     </article>
   );
@@ -76,16 +88,16 @@ type SyncSectionProps = {
   titulo: string;
   descricao: string;
   syncs: SyncCatalogEntry[];
-  direcao: SyncDirecao;
   runningId: string | null;
   onExecutar: (id: string) => void;
+  deprecated?: boolean;
 };
 
-function SyncSection({ titulo, descricao, syncs, direcao, runningId, onExecutar }: SyncSectionProps) {
+function SyncSection({ titulo, descricao, syncs, runningId, onExecutar, deprecated }: SyncSectionProps) {
   if (syncs.length === 0) return null;
 
   return (
-    <section className="sync-section">
+    <section className={`sync-section${deprecated ? " sync-section--deprecated" : ""}`}>
       <header className="sync-section__head">
         <h2 className="form-card__title">{titulo}</h2>
         <p className="field__hint">{descricao}</p>
@@ -95,7 +107,6 @@ function SyncSection({ titulo, descricao, syncs, direcao, runningId, onExecutar 
           <SyncCard
             key={s.id}
             sync={s}
-            direcao={direcao}
             running={runningId === s.id}
             disabled={runningId !== null}
             onExecutar={() => onExecutar(s.id)}
@@ -122,6 +133,10 @@ export function SyncPage() {
   const syncs = metaQuery.data?.syncs ?? [];
   const syncsBuscar = useMemo(() => ordenarSyncsPorDirecao(syncs, "buscar"), [syncs]);
   const syncsEnviar = useMemo(() => ordenarSyncsPorDirecao(syncs, "enviar"), [syncs]);
+  const syncsBuscarAtivos = useMemo(() => syncsBuscar.filter(syncAtivo), [syncsBuscar]);
+  const syncsEnviarAtivos = useMemo(() => syncsEnviar.filter(syncAtivo), [syncsEnviar]);
+  const syncsBuscarDepreciados = useMemo(() => syncsBuscar.filter((s) => !syncAtivo(s)), [syncsBuscar]);
+  const syncsEnviarDepreciados = useMemo(() => syncsEnviar.filter((s) => !syncAtivo(s)), [syncsEnviar]);
 
   const globalOpts = useMemo(() => ({ dryRun, placa }), [dryRun, placa]);
   const usarAsync = asyncMode && !dryRun;
@@ -142,6 +157,8 @@ export function SyncPage() {
   }
 
   function executarSync(id: string) {
+    const entry = syncs.find((s) => s.id === id);
+    if (entry && !syncAtivo(entry)) return;
     void disparar(id, () => lanzaApi.executarSync(id, bodySyncGlobal(globalOpts), { async: usarAsync }));
   }
 
@@ -165,7 +182,7 @@ export function SyncPage() {
   return (
     <PageHeader
       title="Sincronizações"
-      description="Buscar dados de fontes externas ou enviar alterações locais ao Rastreame."
+      description="Buscar dados de fontes externas (DETRAN, pedágio, FIPE, seguro). Integração Rastreame descontinuada."
     >
       <section className="form-card sync-options">
         <h2 className="form-card__title">Opções globais</h2>
@@ -205,8 +222,7 @@ export function SyncPage() {
         <div>
           <h2 className="form-card__title">Sync completo</h2>
           <p className="field__hint">
-            Busca (DETRAN, pedágio, FIPE, rastreáveis…) e envia (motoristas, gastos, manutenção) na ordem
-            definida.
+            DETRAN, pedágio, FIPE e seguro — na ordem definida. Syncs Rastreame não entram mais no lote.
           </p>
         </div>
         <button
@@ -237,20 +253,30 @@ export function SyncPage() {
         <>
           <SyncSection
             titulo="Buscar dados"
-            descricao="Puxa informações para o database local (DETRAN, pedágio, FIPE). Rastreáveis: pull do Rastreame (sem FIPE)."
-            syncs={syncsBuscar}
-            direcao="buscar"
+            descricao="Puxa informações para o database local (DETRAN, pedágio, FIPE, seguro)."
+            syncs={syncsBuscarAtivos}
             runningId={runningId}
             onExecutar={executarSync}
           />
-          <SyncSection
-            titulo="Enviar dados"
-            descricao="Espelha o database local no Rastreame (motoristas, rastreáveis, gastos gerais, manutenção)."
-            syncs={syncsEnviar}
-            direcao="enviar"
-            runningId={runningId}
-            onExecutar={executarSync}
-          />
+          {syncsEnviarAtivos.length > 0 ? (
+            <SyncSection
+              titulo="Enviar dados"
+              descricao="Syncs ativos de envio."
+              syncs={syncsEnviarAtivos}
+              runningId={runningId}
+              onExecutar={executarSync}
+            />
+          ) : null}
+          {syncsBuscarDepreciados.length > 0 || syncsEnviarDepreciados.length > 0 ? (
+            <SyncSection
+              titulo="Rastreame (descontinuado)"
+              descricao="Mantidos só por compatibilidade — não enviar nem buscar dados do Rastreame."
+              syncs={[...syncsBuscarDepreciados, ...syncsEnviarDepreciados]}
+              runningId={runningId}
+              onExecutar={executarSync}
+              deprecated
+            />
+          ) : null}
         </>
       )}
 
@@ -261,34 +287,42 @@ export function SyncPage() {
         {jobs.length === 0 ? (
           <p className="field__hint">Nenhum job nesta instância da API.</p>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Sync</th>
-                  <th>Status</th>
-                  <th>Criado</th>
-                  <th>Erro</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((j) => (
-                  <tr key={j.id}>
-                    <td>
-                      <strong>{j.sync}</strong>
-                      <br />
-                      <span className="field__hint">{j.id.slice(0, 8)}…</span>
-                    </td>
-                    <td>
-                      <span className={statusBadge(j.status)}>{j.status}</span>
-                    </td>
-                    <td>{new Date(j.createdAt).toLocaleString("pt-BR")}</td>
-                    <td className="sync-job-error">{j.error ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={jobs}
+            keyFn={(j) => j.id}
+            columns={[
+              {
+                key: "sync",
+                header: "Sync",
+                sortValue: (j) => j.sync,
+                render: (j) => (
+                  <>
+                    <strong>{j.sync}</strong>
+                    <br />
+                    <span className="field__hint">{j.id.slice(0, 8)}…</span>
+                  </>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                sortValue: (j) => j.status,
+                render: (j) => <span className={statusBadge(j.status)}>{j.status}</span>,
+              },
+              {
+                key: "createdAt",
+                header: "Criado",
+                sortValue: (j) => j.createdAt,
+                render: (j) => new Date(j.createdAt).toLocaleString("pt-BR"),
+              },
+              {
+                key: "error",
+                header: "Erro",
+                sortValue: (j) => j.error ?? "",
+                render: (j) => <span className="sync-job-error">{j.error ?? "—"}</span>,
+              },
+            ]}
+          />
         )}
       </section>
     </PageHeader>

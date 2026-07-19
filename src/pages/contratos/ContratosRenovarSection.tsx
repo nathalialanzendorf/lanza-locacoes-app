@@ -165,6 +165,8 @@ export function ContratosRenovarSection() {
             {
               key: "cliente",
               header: "Cliente",
+              sortValue: (c) =>
+                clienteExibicaoPorId(clientesQuery.data?.items, c.clienteId, c.clienteNome),
               render: (c) => (
                 <strong>
                   {clienteExibicaoPorId(clientesQuery.data?.items, c.clienteId, c.clienteNome)}
@@ -174,12 +176,14 @@ export function ContratosRenovarSection() {
             {
               key: "placa",
               header: "Placa",
+              sortValue: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
               render: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
             },
-            { key: "inicio", header: "Início", render: (c) => c.dataInicio ?? "—" },
+            { key: "inicio", header: "Início", sortValue: (c) => c.dataInicio ?? "", render: (c) => c.dataInicio ?? "—" },
             {
               key: "termino",
               header: "Fim previsto",
+              sortValue: (c) => dataFimPrevistaContrato(c) ?? "",
               render: (c) => {
                 const fim = dataFimPrevistaContrato(c) ?? "—";
                 const rotulo = rotuloAlertaVencimento(dataFimPrevistaContrato(c), hojeIso);

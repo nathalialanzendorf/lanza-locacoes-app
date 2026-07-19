@@ -5,14 +5,12 @@ import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { Field, FormCard } from "@/components/FormCard";
 import { Toggle } from "@/components/Toggle";
 import { ResultPanel } from "@/components/ResultPanel";
-import { useRastreameEspelho } from "@/hooks/useRastreameEspelho";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { LABEL } from "@/lib/labels";
 
 export function ClientesImportLoteSection() {
   const qc = useQueryClient();
-  const { ativo: espelhoRastreame } = useRastreameEspelho();
   const [raizCnh, setRaizCnh] = useState("");
   const [dryRun, setDryRun] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -26,7 +24,7 @@ export function ClientesImportLoteSection() {
       const r = await lanzaApi.importarCnh({
         raiz: raizCnh.trim() || undefined,
         dryRun,
-        comRastreame: espelhoRastreame && !dryRun,
+        comRastreame: false,
       });
       setResult(r);
       if (!dryRun) void qc.invalidateQueries({ queryKey: ["clientes"] });

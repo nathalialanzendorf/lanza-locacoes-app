@@ -331,6 +331,54 @@ code {
   color: var(--muted);
 }
 
+.data-table th.sortable {
+  padding: 0;
+}
+
+.data-table__sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.data-table__sort-btn:hover {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.data-table th.is-sorted .data-table__sort-btn {
+  color: var(--text);
+}
+
+.data-table__sort-indicator {
+  font-size: 0.65rem;
+  opacity: 0.45;
+  line-height: 1;
+}
+
+.data-table th.is-sorted .data-table__sort-indicator {
+  opacity: 1;
+  color: var(--primary, #2563eb);
+}
+
+.data-table tfoot td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  background: #fafafa;
+  font-weight: 600;
+}
+
 .data-table tr:last-child td {
   border-bottom: none;
 }
@@ -349,6 +397,14 @@ code {
 
 .data-table tbody tr.is-selected[role="button"]:hover td {
   background: #dbeafe;
+}
+
+.data-table tbody tr.row--em-aberto td {
+  background: #fff5f5;
+}
+
+.data-table tbody tr.row--em-aberto[role="button"]:hover td {
+  background: #fee2e2;
 }
 
 .data-table tbody tr.row--vencido td {
@@ -370,6 +426,7 @@ code {
 }
 
 .data-table tbody tr.row--vencido.is-selected td,
+.data-table tbody tr.row--em-aberto.is-selected td,
 .data-table tbody tr.row--proximo-vencer.is-selected td,
 .data-table tbody tr.row--inativo.is-selected td {
   background: #dbeafe;
@@ -858,6 +915,40 @@ code {
   margin: 0;
   font-size: 0.78rem;
   color: var(--warn);
+}
+
+.sync-card--deprecated {
+  opacity: 0.55;
+  background: var(--surface-2, #f4f4f5);
+  border-style: dashed;
+}
+
+.sync-card--deprecated .sync-card__head h3,
+.sync-card--deprecated .sync-card__destino {
+  color: var(--muted);
+}
+
+.responsavel-debito-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 12rem;
+}
+
+.responsavel-debito-cell__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.responsavel-debito-cell__actions select {
+  min-width: 8rem;
+  flex: 1 1 8rem;
+}
+
+.sync-section--deprecated .form-card__title {
+  color: var(--muted);
 }
 
 .sync-card__btn {
@@ -1575,6 +1666,11 @@ code {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   font-size: 0.82rem;
+}
+
+.rastreame-espelho--deprecated {
+  opacity: 0.6;
+  border: 1px dashed var(--border);
 }
 
 .rastreame-espelho__label {

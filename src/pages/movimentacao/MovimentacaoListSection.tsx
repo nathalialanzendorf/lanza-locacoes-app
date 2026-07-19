@@ -207,22 +207,24 @@ export function MovimentacaoListSection() {
         keyFn={(l) => l.id}
         emptyMessage={temFiltro ? "Nenhuma movimentação corresponde aos filtros." : "Nenhuma movimentação registada."}
         columns={[
-          { key: "placa", header: "Placa", render: (l) => <strong>{formatPlaca(l.placa)}</strong> },
+          { key: "placa", header: "Placa", sortValue: (l) => formatPlaca(l.placa), render: (l) => <strong>{formatPlaca(l.placa)}</strong> },
           {
             key: "marcaModelo",
             header: "Marca / modelo",
+            sortValue: (l) => veiculoDaLocacao(l)?.marcaModelo ?? "",
             render: (l) => veiculoDaLocacao(l)?.marcaModelo ?? "—",
           },
           {
             key: "ano",
             header: "Ano",
+            sortValue: (l) => veiculoDaLocacao(l)?.anoModelo ?? "",
             render: (l) => veiculoDaLocacao(l)?.anoModelo ?? "—",
           },
-          { key: "parceiro", header: "Parceiro", render: (l) => parceiroDaLocacao(l) },
-          { key: "situacao", header: "Situação", render: (l) => l.situacao ?? l.tipo ?? "—" },
-          { key: "inicio", header: "Início", render: (l) => l.inicio ?? "—" },
-          { key: "fim", header: "Fim", render: (l) => l.fim ?? "Em aberto" },
-          { key: "cliente", header: "Cliente", render: (l) => clienteDaLocacao(l) },
+          { key: "parceiro", header: "Parceiro", sortValue: (l) => parceiroDaLocacao(l), render: (l) => parceiroDaLocacao(l) },
+          { key: "situacao", header: "Situação", sortValue: (l) => l.situacao ?? l.tipo ?? "", render: (l) => l.situacao ?? l.tipo ?? "—" },
+          { key: "inicio", header: "Início", sortValue: (l) => l.inicio ?? "", render: (l) => l.inicio ?? "—" },
+          { key: "fim", header: "Fim", sortValue: (l) => l.fim ?? "Em aberto", render: (l) => l.fim ?? "Em aberto" },
+          { key: "cliente", header: "Cliente", sortValue: (l) => clienteDaLocacao(l), render: (l) => clienteDaLocacao(l) },
           {
             key: "acoes",
             header: "Ações",

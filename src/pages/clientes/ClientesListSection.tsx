@@ -136,12 +136,13 @@ export function ClientesListSection() {
         keyFn={(c) => c.id}
         rowClassName={(c) => rowClassInativo(registroAtivo(c.ativo))}
         columns={[
-          { key: "nome", header: "Nome", render: (c) => formatClienteLabel(c) },
-          { key: "cpf", header: "CPF", render: (c) => c.cpf ?? "—" },
-          { key: "cnh", header: "CNH", render: (c) => formatCnh(c.cnh) },
+          { key: "nome", header: "Nome", sortValue: (c) => formatClienteLabel(c), render: (c) => formatClienteLabel(c) },
+          { key: "cpf", header: "CPF", sortValue: (c) => c.cpf ?? "", render: (c) => c.cpf ?? "—" },
+          { key: "cnh", header: "CNH", sortValue: (c) => formatCnh(c.cnh), render: (c) => formatCnh(c.cnh) },
           {
             key: "contratoAtivo",
             header: "Contrato ativo",
+            sortValue: (c) => (contratoAtivo(c) ? 1 : 0),
             render: (c) => {
               const tem = Boolean(contratoAtivo(c));
               return (
@@ -152,6 +153,10 @@ export function ClientesListSection() {
           {
             key: "veiculoContrato",
             header: "Veículo",
+            sortValue: (c) => {
+              const contrato = contratoAtivo(c);
+              return contrato ? veiculoDoContrato(contrato) : "";
+            },
             render: (c) => {
               const contrato = contratoAtivo(c);
               return contrato ? veiculoDoContrato(contrato) : "—";
@@ -160,11 +165,18 @@ export function ClientesListSection() {
           {
             key: "status",
             header: "Status",
+            sortValue: (c) => statusLabel(c.ativo),
             render: (c) => <span className={statusClass(c.ativo)}>{statusLabel(c.ativo)}</span>,
           },
           {
             key: "analise",
             header: "Análise",
+            sortValue: (c) => {
+              const a = c.analiseCadastro?.aprovado;
+              if (a === true) return "Aprovado";
+              if (a === false) return "Reprovado";
+              return "Pendente";
+            },
             render: (c) => {
               const a = c.analiseCadastro?.aprovado;
               if (a === true) return <span className="badge badge--ok">Aprovado</span>;

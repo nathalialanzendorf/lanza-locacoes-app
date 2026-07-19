@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ClienteSelect, VeiculoSelect } from "@/components/EntitySelects";
@@ -259,49 +260,46 @@ export function RenegociacaoClientePanel({ clienteIdInicial = "", placaInicial =
             {resumo.debitos.length === 0 ? (
               <p className="field__hint">Nenhum débito elegível para renegociação.</p>
             ) : (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th />
-                      <th>ID</th>
-                      <th>Data</th>
-                      <th>Descrição</th>
-                      <th>Tipo</th>
-                      <th className="num">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resumo.debitos.map((d) => (
-                      <tr key={String(d.id)}>
-                        <td>
-                          <Toggle
-                            checked={selIds.has(String(d.id))}
-                            onChange={() => toggleDebito(d.id)}
-                            size="compact"
-                            aria-label={`Selecionar débito ${d.id}`}
-                          />
-                        </td>
-                        <td>{String(d.id)}</td>
-                        <td>{formatDataDebito(d.data)}</td>
-                        <td>{d.info}</td>
-                        <td>{d.tipo ?? "—"}</td>
-                        <td className="num">{formatBrl(d.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={5}>
-                        <strong>Selecionados</strong>
-                      </td>
-                      <td className="num">
-                        <strong>{formatBrl(totalSelecionado)}</strong>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+              <DataTable
+                rows={resumo.debitos}
+                keyFn={(d) => String(d.id)}
+                columns={[
+                  {
+                    key: "sel",
+                    header: "",
+                    sortable: false,
+                    render: (d) => (
+                      <Toggle
+                        checked={selIds.has(String(d.id))}
+                        onChange={() => toggleDebito(d.id)}
+                        size="compact"
+                        aria-label={`Selecionar débito ${d.id}`}
+                      />
+                    ),
+                  },
+                  { key: "id", header: "ID", sortValue: (d) => String(d.id), render: (d) => String(d.id) },
+                  { key: "data", header: "Data", sortValue: (d) => formatDataDebito(d.data), render: (d) => formatDataDebito(d.data) },
+                  { key: "info", header: "Descrição", sortValue: (d) => d.info, render: (d) => d.info },
+                  { key: "tipo", header: "Tipo", sortValue: (d) => d.tipo ?? "", render: (d) => d.tipo ?? "—" },
+                  {
+                    key: "total",
+                    header: "Total",
+                    className: "num",
+                    sortValue: (d) => d.total,
+                    render: (d) => formatBrl(d.total),
+                  },
+                ]}
+                footer={
+                  <tr>
+                    <td colSpan={5}>
+                      <strong>Selecionados</strong>
+                    </td>
+                    <td className="num">
+                      <strong>{formatBrl(totalSelecionado)}</strong>
+                    </td>
+                  </tr>
+                }
+              />
             )}
           </section>
 
@@ -342,26 +340,31 @@ export function RenegociacaoClientePanel({ clienteIdInicial = "", placaInicial =
             </button>
             {parcelas.length > 0 ? (
               <div className="table-wrap reneg-parcelas">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Parcela</th>
-                      <th>Vencimento</th>
-                      <th className="num">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parcelas.map((p) => (
-                      <tr key={p.numero}>
-                        <td>
-                          {p.numero}x{p.totalParcelas}
-                        </td>
-                        <td>{formatDataDebito(p.data)}</td>
-                        <td className="num">{formatBrl(p.valor)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DataTable
+                  rows={parcelas}
+                  keyFn={(p) => String(p.numero)}
+                  columns={[
+                    {
+                      key: "parcela",
+                      header: "Parcela",
+                      sortValue: (p) => p.numero,
+                      render: (p) => `${p.numero}x${p.totalParcelas}`,
+                    },
+                    {
+                      key: "vencimento",
+                      header: "Vencimento",
+                      sortValue: (p) => formatDataDebito(p.data),
+                      render: (p) => formatDataDebito(p.data),
+                    },
+                    {
+                      key: "valor",
+                      header: "Valor",
+                      className: "num",
+                      sortValue: (p) => p.valor,
+                      render: (p) => formatBrl(p.valor),
+                    },
+                  ]}
+                />
               </div>
             ) : null}
           </section>

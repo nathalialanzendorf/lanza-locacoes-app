@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { DataTable, type Column } from "@/components/DataTable";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, QueryError } from "@/components/PageHeader";
 import { IconRecebimento, IconRenovar } from "@/components/icons";
@@ -76,7 +77,10 @@ function RecebimentosTable({
   titulo: string;
   linhas: DashboardRecebimentoLinha[];
   colunasExtra?: Array<{
+    key: string;
     header: string;
+    className?: string;
+    sortValue?: (l: DashboardRecebimentoLinha) => string | number;
     render: (l: DashboardRecebimentoLinha) => ReactNode;
   }>;
   colunaVeiculo?: "Placa" | "Veículo";
@@ -92,6 +96,86 @@ function RecebimentosTable({
     [linhas, zebraPorCliente],
   );
 
+  const rowIndexByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    linhas.forEach((l, i) => {
+      map.set(l.despesaId ?? `${l.clienteId ?? "—"}-${l.placa}-${l.vencimentoBr ?? ""}`, i);
+    });
+    return map;
+  }, [linhas]);
+
+  const columns = useMemo(() => {
+    const cols: Column<DashboardRecebimentoLinha>[] = [
+      {
+        key: "cliente",
+        header: "Cliente",
+        sortValue: (l) => clienteExibicaoPorId(clientes, l.clienteId, l.clienteNome),
+        render: (l) => clienteExibicaoPorId(clientes, l.clienteId, l.clienteNome),
+      },
+      {
+        key: "veiculo",
+        header: colunaVeiculo,
+        sortValue: (l) => (colunaVeiculo === "Veículo" ? l.veiculo ?? l.placa : l.placa),
+        render: (l) => (colunaVeiculo === "Veículo" ? l.veiculo ?? l.placa : l.placa),
+      },
+    ];
+    if (mostrarDescricao) {
+      cols.push({
+        key: "descricao",
+        header: "Descrição",
+        sortValue: (l) => l.descricao?.trim() || "",
+        render: (l) => l.descricao?.trim() || "—",
+      });
+    }
+    for (const col of colunasExtra ?? []) {
+      cols.push({
+        key: col.key,
+        header: col.header,
+        className: col.className,
+        sortValue: col.sortValue ?? ((l) => String(col.render(l) ?? "")),
+        render: col.render,
+      });
+    }
+    cols.push({
+      key: "valor",
+      header: "Valor",
+      className: "num",
+      sortValue: (l) => l.valor,
+      render: (l) => formatBrl(l.valor),
+    });
+    if (mostrarAcaoRecebimento) {
+      cols.push({
+        key: "acoes",
+        header: "Ação",
+        className: "col-acoes",
+        sortable: false,
+        render: (l) => {
+          const recebimentoTo = urlLancarRecebimento(l, dataReferenciaBr);
+          return recebimentoTo ? (
+            <Link
+              to={recebimentoTo}
+              className="btn btn--icon btn--icon-ok"
+              aria-label={LABEL.lancarRecebimento}
+              title={LABEL.lancarRecebimento}
+            >
+              <IconRecebimento className="row-actions__icon" />
+            </Link>
+          ) : (
+            "—"
+          );
+        },
+      });
+    }
+    return cols;
+  }, [
+    clientes,
+    colunaVeiculo,
+    colunasExtra,
+    dataReferenciaBr,
+    mostrarAcaoRecebimento,
+    mostrarDescricao,
+  ]);
+
   return (
     <section
       className={`form-card dashboard-recebimentos${acoesCompactas ? " dashboard-recebimentos--acoes-compactas" : ""}${zebraPorCliente ? " dashboard-recebimentos--zebra-cliente" : ""}`}
@@ -100,67 +184,19 @@ function RecebimentosTable({
         <h3 className="form-card__title">{titulo}</h3>
         <span className="field__hint">{linhas.length} locatário(s)</span>
       </header>
-      {linhas.length === 0 ? (
-        <p className="field__hint">Nenhum registo para hoje.</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>{colunaVeiculo}</th>
-                {mostrarDescricao ? <th>Descrição</th> : null}
-                {colunasExtra?.map((col) => (
-                  <th key={col.header}>{col.header}</th>
-                ))}
-                <th className="num">Valor</th>
-                {mostrarAcaoRecebimento ? <th className="col-acoes">Ação</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l, i) => {
-                const recebimentoTo = mostrarAcaoRecebimento
-                  ? urlLancarRecebimento(l, dataReferenciaBr)
-                  : null;
-                const rowClass =
-                  zebraPorCliente && gruposCliente && gruposCliente[i] % 2 === 1
-                    ? "row--cliente-alt"
-                    : undefined;
-                return (
-                <tr
-                  key={l.despesaId ?? `${l.clienteId ?? "—"}-${l.placa}-${l.vencimentoBr ?? ""}`}
-                  className={rowClass}
-                >
-                  <td>{clienteExibicaoPorId(clientes, l.clienteId, l.clienteNome)}</td>
-                  <td>{colunaVeiculo === "Veículo" ? (l.veiculo ?? l.placa) : l.placa}</td>
-                  {mostrarDescricao ? <td>{l.descricao?.trim() || "—"}</td> : null}
-                  {colunasExtra?.map((col) => (
-                    <td key={col.header}>{col.render(l)}</td>
-                  ))}
-                  <td className="num">{formatBrl(l.valor)}</td>
-                  {mostrarAcaoRecebimento ? (
-                    <td className="col-acoes">
-                      {recebimentoTo ? (
-                        <Link
-                          to={recebimentoTo}
-                          className="btn btn--icon btn--icon-ok"
-                          aria-label={LABEL.lancarRecebimento}
-                          title={LABEL.lancarRecebimento}
-                        >
-                          <IconRecebimento className="row-actions__icon" />
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  ) : null}
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        rows={linhas}
+        columns={columns}
+        keyFn={(l) => l.despesaId ?? `${l.clienteId ?? "—"}-${l.placa}-${l.vencimentoBr ?? ""}`}
+        emptyMessage="Nenhum registo para hoje."
+        rowClassName={(l) => {
+          if (!zebraPorCliente || !gruposCliente) return undefined;
+          const key = l.despesaId ?? `${l.clienteId ?? "—"}-${l.placa}-${l.vencimentoBr ?? ""}`;
+          const index = rowIndexByKey.get(key);
+          if (index == null) return undefined;
+          return gruposCliente[index] % 2 === 1 ? "row--cliente-alt" : undefined;
+        }}
+      />
     </section>
   );
 }
@@ -184,62 +220,65 @@ function ContratosVencimentoTable({
         <h3 className="form-card__title">{titulo}</h3>
         <span className="field__hint">{linhas.length} contrato{linhas.length === 1 ? "" : "s"}</span>
       </header>
-      {linhas.length === 0 ? (
-        <p className="field__hint">{vazio}</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Placa</th>
-                <th>Fim previsto</th>
-                <th>Alerta</th>
-                <th className="col-acoes">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((c) => {
-                const fim = dataFimPrevistaContrato(c);
-                const alerta = alertaVencimentoContrato(fim, hojeIso);
-                const rotulo = rotuloAlertaVencimento(fim, hojeIso);
-                return (
-                  <tr key={c.id} className={rowClassVencimentoContrato(c, hojeIso)}>
-                    <td>
-                      {clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome)}
-                    </td>
-                    <td>{formatPlaca(c.placa ?? c.veiculo?.placa)}</td>
-                    <td>{fim ?? "—"}</td>
-                    <td>
-                      {rotulo ? (
-                        <span
-                          className={
-                            alerta === "vencido" ? "badge badge--danger" : "badge badge--warn"
-                          }
-                        >
-                          {rotulo}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="col-acoes">
-                      <Link
-                        to={`/contratos/renovar?id=${encodeURIComponent(c.id)}`}
-                        className="btn btn--icon"
-                        aria-label="Renovar"
-                        title="Renovar"
-                      >
-                        <IconRenovar className="row-actions__icon" />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        rows={linhas}
+        keyFn={(c) => c.id}
+        emptyMessage={vazio}
+        rowClassName={(c) => rowClassVencimentoContrato(c, hojeIso)}
+        columns={[
+          {
+            key: "cliente",
+            header: "Cliente",
+            sortValue: (c) => clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome),
+            render: (c) => clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome),
+          },
+          {
+            key: "placa",
+            header: "Placa",
+            sortValue: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
+            render: (c) => formatPlaca(c.placa ?? c.veiculo?.placa),
+          },
+          {
+            key: "fim",
+            header: "Fim previsto",
+            sortValue: (c) => dataFimPrevistaContrato(c) ?? "",
+            render: (c) => dataFimPrevistaContrato(c) ?? "—",
+          },
+          {
+            key: "alerta",
+            header: "Alerta",
+            sortValue: (c) => rotuloAlertaVencimento(dataFimPrevistaContrato(c), hojeIso) ?? "",
+            render: (c) => {
+              const fim = dataFimPrevistaContrato(c);
+              const alerta = alertaVencimentoContrato(fim, hojeIso);
+              const rotulo = rotuloAlertaVencimento(fim, hojeIso);
+              return rotulo ? (
+                <span className={alerta === "vencido" ? "badge badge--danger" : "badge badge--warn"}>
+                  {rotulo}
+                </span>
+              ) : (
+                "—"
+              );
+            },
+          },
+          {
+            key: "acoes",
+            header: "Ação",
+            className: "col-acoes",
+            sortable: false,
+            render: (c) => (
+              <Link
+                to={`/contratos/renovar?id=${encodeURIComponent(c.id)}`}
+                className="btn btn--icon"
+                aria-label="Renovar"
+                title="Renovar"
+              >
+                <IconRenovar className="row-actions__icon" />
+              </Link>
+            ),
+          },
+        ]}
+      />
     </section>
   );
 }
@@ -466,8 +505,18 @@ export function DashboardPage() {
               zebraPorCliente
               dataReferenciaBr={rec.dataReferenciaBr}
               colunasExtra={[
-                { header: "Vencimento", render: vencimentoRecebimentoLinha },
-                { header: "Alerta", render: alertaAtrasoRecebimento },
+                {
+                  key: "vencimento",
+                  header: "Vencimento",
+                  sortValue: vencimentoRecebimentoLinha,
+                  render: vencimentoRecebimentoLinha,
+                },
+                {
+                  key: "alerta",
+                  header: "Alerta",
+                  sortValue: (l) => l.diasAtraso ?? 0,
+                  render: alertaAtrasoRecebimento,
+                },
               ]}
             />
           </section>

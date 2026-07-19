@@ -18,6 +18,7 @@ import { DespesasPage } from "@/pages/DespesasPage";
 
 import { RelatorioFipeSection } from "@/pages/relatorios/RelatorioFipeSection";
 import { RelatorioInfracoesSection } from "@/pages/relatorios/RelatorioInfracoesSection";
+import { RelatorioPedagiosSection } from "@/pages/relatorios/RelatorioPedagiosSection";
 
 import { LoginPage } from "@/pages/LoginPage";
 
@@ -121,6 +122,8 @@ export default function App() {
                   <Route path="encerramento" element={<RelatorioEncerramentoForm />} />
 
                   <Route path="infracoes" element={<RelatorioInfracoesSection />} />
+
+                  <Route path="pedagios" element={<RelatorioPedagiosSection />} />
 
                   <Route path="fipe" element={<RelatorioFipeSection />} />
 

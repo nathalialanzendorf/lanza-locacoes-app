@@ -55,5 +55,10 @@ export function opcoesSyncCompleto(
   opts: { dryRun: boolean; placa: string },
 ): Record<string, Record<string, unknown>> {
   const base = bodySyncGlobal(opts);
-  return Object.fromEntries(syncs.map((s) => [s.id, { ...base }]));
+  const ativos = syncs.filter((s) => !s.depreciado);
+  return Object.fromEntries(ativos.map((s) => [s.id, { ...base }]));
+}
+
+export function syncAtivo(sync: SyncCatalogEntry): boolean {
+  return !sync.depreciado;
 }
