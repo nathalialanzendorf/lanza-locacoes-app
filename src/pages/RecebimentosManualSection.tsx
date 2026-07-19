@@ -3,10 +3,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
-import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ClienteSelect, NativeSelect } from "@/components/EntitySelects";
 import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
-import { useDespesasCliente, useVeiculos } from "@/api/hooks";
+import { useDespesasCliente } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import type { LinhaPlanoBaixa, PlanoBaixa, ClienteDespesa } from "@/api/types";
@@ -48,13 +48,10 @@ function formatPlacaFromCompact(pk: string): string {
 export function RecebimentosManualSection() {
   const [searchParams] = useSearchParams();
   const clienteIdUrl = searchParams.get("clienteId")?.trim() || "";
-  const placaUrl = searchParams.get("placa")?.trim() || "";
   const valorUrl = searchParams.get("valor")?.trim() || "";
   const despesaIdUrl = searchParams.get("despesaId")?.trim() || "";
   const dataBrUrl = searchParams.get("dataBr")?.trim() || "";
 
-  const veiculosQuery = useVeiculos({ ativo: true });
-  const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState(clienteIdUrl);
   const [despesaId, setDespesaId] = useState("");
   const [dataBr, setDataBr] = useState(dataBrUrl);
@@ -67,26 +64,14 @@ export function RecebimentosManualSection() {
   const [execError, setExecError] = useState<string | null>(null);
   const [execResult, setExecResult] = useState<unknown>(null);
 
-  const veiculoSel = useMemo(
-    () => (veiculosQuery.data?.items ?? []).find((v) => v.id === veiculoId) ?? null,
-    [veiculosQuery.data, veiculoId],
-  );
-
   const despesasQuery = useDespesasCliente({
     emAberto: true,
     ativo: true,
     clienteId: clienteId || undefined,
   });
 
-  const despesasFiltradas = useMemo(() => {
-    const items = despesasQuery.data?.items ?? [];
-    if (!veiculoSel?.placa?.trim()) return items;
-    const pk = compactPlaca(veiculoSel.placa);
-    return items.filter((d) => placaDespesa(d) === pk);
-  }, [despesasQuery.data, veiculoSel?.placa]);
-
   const opcoesDespesa = useMemo(() => {
-    return despesasFiltradas
+    return (despesasQuery.data?.items ?? [])
       .map((d) => {
         const valorDevido = valorDespesaCliente(d);
         if (valorDevido <= 0) return null;
@@ -102,7 +87,7 @@ export function RecebimentosManualSection() {
       })
       .filter((o): o is NonNullable<typeof o> => o != null)
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [despesasFiltradas]);
+  }, [despesasQuery.data]);
 
   const despesaSel = useMemo(
     () => opcoesDespesa.find((o) => o.id === despesaId) ?? null,
@@ -112,11 +97,11 @@ export function RecebimentosManualSection() {
   const despesaRegistro = useMemo(() => {
     if (!despesaSel) return null;
     return (
-      despesasFiltradas.find(
+      (despesasQuery.data?.items ?? []).find(
         (d) => (d.autoInfracao?.trim() || d.id) === despesaSel.id,
       ) ?? null
     );
-  }, [despesaSel, despesasFiltradas]);
+  }, [despesaSel, despesasQuery.data]);
 
   const valorParcialHint = useMemo(() => {
     if (!despesaSel) return null;
@@ -139,15 +124,6 @@ export function RecebimentosManualSection() {
   }, [dataBrUrl]);
 
   useEffect(() => {
-    if (!placaUrl || despesaSel || !veiculosQuery.data) return;
-    const alvo = compactPlaca(placaUrl);
-    const v = (veiculosQuery.data.items ?? []).find(
-      (x) => x.placa && compactPlaca(x.placa) === alvo,
-    );
-    if (v) setVeiculoId(v.id);
-  }, [placaUrl, despesaSel, veiculosQuery.data]);
-
-  useEffect(() => {
     if (!despesaIdUrl || opcoesDespesa.length === 0) return;
     const item = opcoesDespesa.find((o) => o.id === despesaIdUrl);
     if (!item) return;
@@ -156,20 +132,10 @@ export function RecebimentosManualSection() {
     setValor(formatValorInput(n != null && n <= item.valor ? n : item.valor));
   }, [despesaIdUrl, valorUrl, opcoesDespesa]);
 
-  function onVeiculoChange(id: string) {
-    setVeiculoId(id);
-    setDespesaId("");
-    setValor("");
-    if (!id || clienteId.trim()) return;
-    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
-    if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
-  }
-
   function onClienteChange(id: string) {
     setClienteId(id);
     setDespesaId("");
     setValor("");
-    setVeiculoId("");
   }
 
   function onDespesaChange(id: string) {
@@ -222,7 +188,7 @@ export function RecebimentosManualSection() {
       return;
     }
     if (!dataBr.trim()) {
-      setPlanoError("Informe a data do crédito.");
+      setPlanoError("Informe a data do pagamento.");
       return;
     }
 
@@ -291,7 +257,7 @@ export function RecebimentosManualSection() {
             disabled={loadingPlano}
           />
         </Field>
-        <Field label="Data do crédito">
+        <Field label="Data do pagamento">
           <DateInput value={dataBr} onChange={setDataBr} required disabled={loadingPlano} />
         </Field>
         <Field
@@ -347,18 +313,6 @@ export function RecebimentosManualSection() {
           </div>
           {valorParcialHint ? <p className="field__hint">{valorParcialHint}</p> : null}
         </Field>
-        {!despesaSel ? (
-          <Field label="Veículo (opcional)" hint="Filtrar pendências por placa">
-            <VeiculoSelect
-              value={veiculoId}
-              onChange={onVeiculoChange}
-              valueField="id"
-              ativo
-              disabled={loadingPlano}
-              variant="cadastro"
-            />
-          </Field>
-        ) : null}
       </FormCard>
 
       {plano ? (

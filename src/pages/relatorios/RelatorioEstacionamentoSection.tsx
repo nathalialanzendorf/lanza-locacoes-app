@@ -16,12 +16,16 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatPlaca } from "@/lib/format";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
-import { CATEGORIA_PEDAGIO, rotuloPedagioDigital } from "@/lib/pedagioLabels";
+import {
+  CATEGORIA_ESTACIONAMENTO,
+  ROTULO_SIGAPAY,
+  rotuloEstacionamentoRotativo,
+} from "@/lib/estacionamentoLabels";
 import type { ClienteDespesa } from "@/api/types";
 
 type FiltroSituacao = "em_aberto" | "quitado" | "todos";
 
-function valorPedagio(d: ClienteDespesa): number {
+function valorAviso(d: ClienteDespesa): number {
   return Number(d.valorMulta) || 0;
 }
 
@@ -30,7 +34,7 @@ function situacaoLabel(d: ClienteDespesa): { text: string; className: string } {
     return { text: "Pago", className: "badge badge--ok" };
   }
   const raw = d.situacao ?? "";
-  if (/pago|quitad/i.test(raw)) {
+  if (/pago|quitad|regularizad/i.test(raw)) {
     return { text: raw, className: "badge badge--ok" };
   }
   if (/aberto|atrasad/i.test(raw) || /ATRASADO/i.test(d.descricao ?? "")) {
@@ -39,7 +43,7 @@ function situacaoLabel(d: ClienteDespesa): { text: string; className: string } {
   return { text: raw || "—", className: "badge badge--muted" };
 }
 
-export function RelatorioPedagiosSection() {
+export function RelatorioEstacionamentoSection() {
   const queryClient = useQueryClient();
   const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState("");
@@ -55,7 +59,7 @@ export function RelatorioPedagiosSection() {
   const emAberto = situacao === "em_aberto" ? true : situacao === "quitado" ? false : undefined;
 
   const query = useDespesasCliente({
-    categoria: CATEGORIA_PEDAGIO,
+    categoria: CATEGORIA_ESTACIONAMENTO,
     veiculoId: veiculoId || undefined,
     clienteId: clienteId || undefined,
     dataInicial: periodo.dataInicial.trim() || undefined,
@@ -80,7 +84,7 @@ export function RelatorioPedagiosSection() {
       periodoPreenchido(periodo),
   );
 
-  const total = useMemo(() => rows.reduce((sum, d) => sum + valorPedagio(d), 0), [rows]);
+  const total = useMemo(() => rows.reduce((sum, d) => sum + valorAviso(d), 0), [rows]);
 
   const loading = query.isLoading;
 
@@ -91,7 +95,7 @@ export function RelatorioPedagiosSection() {
       const r = await lanzaApi.atribuirClientesDespesas({
         dryRun,
         placa: placaFiltro?.trim() || undefined,
-        escopo: "pedagio",
+        escopo: "estacionamento",
       });
       setAtribuirResult(r);
       if (!dryRun) {
@@ -104,15 +108,17 @@ export function RelatorioPedagiosSection() {
     }
   }
 
-  async function sincronizarPedagios() {
+  async function sincronizarEstacionamento() {
     setAcaoLoading("sync");
     setAcaoError(null);
     try {
-      const r = await lanzaApi.executarSync("pedagios", { syncRastreame: false });
+      const r = await lanzaApi.executarSync("estacionamento", { syncRastreame: false });
       setSyncResult(r);
       await queryClient.invalidateQueries({ queryKey: ["despesas-cliente"] });
     } catch (err) {
-      setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao sincronizar pedágios.");
+      setAcaoError(
+        err instanceof LanzaApiError ? err.message : "Falha ao sincronizar estacionamento.",
+      );
     } finally {
       setAcaoLoading(null);
     }
@@ -120,13 +126,13 @@ export function RelatorioPedagiosSection() {
 
   async function consultarPortal() {
     if (!placaFiltro?.trim()) {
-      setAcaoError("Selecione um veículo para consultar passagens no portal.");
+      setAcaoError("Selecione um veículo para consultar ACT/avisos no portal.");
       return;
     }
     setAcaoLoading("portal");
     setAcaoError(null);
     try {
-      const r = await lanzaApi.pedagioPassagens(placaFiltro, "aberto");
+      const r = await lanzaApi.estacionamentoAvisos(placaFiltro, "aberto");
       setPortalResult(r);
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao consultar portal.");
@@ -139,7 +145,7 @@ export function RelatorioPedagiosSection() {
     setAcaoLoading(registrar ? "registrar" : "conferir");
     setAcaoError(null);
     try {
-      const r = await lanzaApi.pedagioConferir(registrar);
+      const r = await lanzaApi.estacionamentoConferir(registrar);
       setPortalResult(r);
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao conferir placas.");
@@ -153,7 +159,7 @@ export function RelatorioPedagiosSection() {
       {!loading ? (
         <p className="relatorio-infracoes__resumo">
           <span className="badge badge--muted">
-            {query.data?.total ?? 0} passagem{(query.data?.total ?? 0) === 1 ? "" : "ns"} ·{" "}
+            {query.data?.total ?? 0} aviso{(query.data?.total ?? 0) === 1 ? "" : "s"} ·{" "}
             {formatBrl(total)}
           </span>
         </p>
@@ -177,7 +183,7 @@ export function RelatorioPedagiosSection() {
           <RelatorioPeriodoFiltro
             value={periodo}
             onChange={setPeriodo}
-            hint="Filtra pela data da passagem"
+            hint="Filtra pela data do ACT/aviso"
           />
           <FieldLike label="Situação">
             <NativeSelect
@@ -188,7 +194,7 @@ export function RelatorioPedagiosSection() {
               aria-label="Situação"
             >
               <option value="em_aberto">Em aberto</option>
-              <option value="quitado">Pagas</option>
+              <option value="quitado">Regularizados</option>
               <option value="todos">{SELECT_LABEL_TODOS}</option>
             </NativeSelect>
           </FieldLike>
@@ -207,9 +213,9 @@ export function RelatorioPedagiosSection() {
 
       <section className="form-card">
         <p className="field__hint">
-          Mesmas regras das multas (contrato, manutenção, reserva). «Inferir» grava sugestão de cliente
-          ou parceiro; confirme na linha ou escolha outro responsável. Só após confirmar parceiro o
-          débito espelha em Despesas → Parceiro.
+          Mesmas regras das multas e pedágios (contrato vigente na data do ACT). «Inferir» grava
+          sugestão de cliente ou parceiro; confirme na linha ou escolha outro responsável. Só após
+          confirmar parceiro o débito espelha em Despesas → Parceiro.
         </p>
       </section>
 
@@ -218,7 +224,7 @@ export function RelatorioPedagiosSection() {
           type="button"
           className="btn btn--ghost"
           disabled={Boolean(acaoLoading)}
-          onClick={() => void sincronizarPedagios()}
+          onClick={() => void sincronizarEstacionamento()}
         >
           {acaoLoading === "sync" ? "Sincronizando…" : "Sync portal → despesas"}
         </button>
@@ -236,7 +242,7 @@ export function RelatorioPedagiosSection() {
           disabled={Boolean(acaoLoading) || !placaFiltro}
           onClick={() => void consultarPortal()}
         >
-          {acaoLoading === "portal" ? "Consultando…" : "Passagens abertas (portal)"}
+          {acaoLoading === "portal" ? "Consultando…" : "ACT/avisos abertos (portal)"}
         </button>
         <button
           type="button"
@@ -259,15 +265,15 @@ export function RelatorioPedagiosSection() {
       {acaoError ? <p className="form-card__error">{acaoError}</p> : null}
       <AtribuicaoResumo data={atribuirResult} />
       <ResultPanel title="Detalhe inferência" data={atribuirResult} />
-      <ResultPanel title="Sync pedágios" data={syncResult} />
-      <ResultPanel title="Portal pedágio digital" data={portalResult} />
+      <ResultPanel title={`Sync ${ROTULO_SIGAPAY}`} data={syncResult} />
+      <ResultPanel title={`Portal ${ROTULO_SIGAPAY}`} data={portalResult} />
 
       {query.isError ? (
         <QueryError
           message={
             query.error instanceof LanzaApiError
               ? query.error.message
-              : "Falha ao listar pedágios."
+              : "Falha ao listar estacionamento rotativo."
           }
         />
       ) : null}
@@ -278,8 +284,8 @@ export function RelatorioPedagiosSection() {
         keyFn={(d) => d.id}
         emptyMessage={
           temFiltro
-            ? "Nenhum pedágio corresponde aos filtros."
-            : "Nenhum pedágio sincronizado. Use «Sync portal → despesas»."
+            ? "Nenhum ACT/aviso corresponde aos filtros."
+            : "Nenhum débito sincronizado. Use «Sync portal → despesas»."
         }
         columns={[
           {
@@ -305,8 +311,14 @@ export function RelatorioPedagiosSection() {
             ),
           },
           {
+            key: "local",
+            header: "Local",
+            sortValue: (d) => d.localInfracao ?? "",
+            render: (d) => d.localInfracao || "—",
+          },
+          {
             key: "data",
-            header: "Passagem",
+            header: "Data",
             sortValue: (d) => d.dataAutuacao?.slice(0, 16) ?? "",
             render: (d) => d.dataAutuacao?.slice(0, 16) ?? "—",
           },
@@ -314,8 +326,8 @@ export function RelatorioPedagiosSection() {
             key: "valor",
             header: "Valor",
             className: "num",
-            sortValue: (d) => valorPedagio(d),
-            render: (d) => formatBrl(valorPedagio(d)),
+            sortValue: (d) => valorAviso(d),
+            render: (d) => formatBrl(valorAviso(d)),
           },
           {
             key: "situacao",
@@ -344,9 +356,9 @@ export function RelatorioPedagiosSection() {
           {
             key: "origem",
             header: "Origem",
-            sortValue: (d) => d.origem ?? "pedagio-digital",
+            sortValue: (d) => d.origem ?? "sigapay",
             render: (d) => (
-              <span className="badge badge--muted">{rotuloPedagioDigital(d.origem)}</span>
+              <span className="badge badge--muted">{rotuloEstacionamentoRotativo(d.origem)}</span>
             ),
           },
         ]}

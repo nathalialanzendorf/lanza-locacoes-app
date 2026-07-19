@@ -2,11 +2,10 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/DataTable";
-import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
 import { ListToolbar } from "@/components/ListToolbar";
 import { QueryError } from "@/components/PageHeader";
 import { RowActions } from "@/components/RowActions";
-import { Toggle } from "@/components/Toggle";
 import {
   PERIODO_VAZIO,
   RelatorioPeriodoFiltro,
@@ -24,16 +23,27 @@ function normPlaca(placa?: string | null): string {
   return (placa ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
+function veiculoDaLocacaoFromMaps(
+  locacao: Locacao,
+  veiculoPorId: Map<string, Veiculo>,
+  veiculoPorPlaca: Map<string, Veiculo>,
+): Veiculo | undefined {
+  if (locacao.veiculoId && veiculoPorId.has(locacao.veiculoId)) {
+    return veiculoPorId.get(locacao.veiculoId);
+  }
+  if (locacao.placa) return veiculoPorPlaca.get(normPlaca(locacao.placa));
+  return undefined;
+}
+
 export function MovimentacaoListSection() {
   const qc = useQueryClient();
-  const [emAberto, setEmAberto] = useState(true);
   const [veiculoPlaca, setVeiculoPlaca] = useState("");
+  const [parceiroId, setParceiroId] = useState("");
   const [situacao, setSituacao] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const query = useLocacoes({
-    abertas: emAberto ? true : undefined,
     placa: veiculoPlaca || undefined,
     situacao: situacao || undefined,
     clienteId: clienteId || undefined,
@@ -44,11 +54,6 @@ export function MovimentacaoListSection() {
   const veiculosQuery = useVeiculos();
   const parceirosQuery = useParceiros();
   const vinculosQuery = useVinculosParceiro();
-
-  const rows = query.data?.items ?? [];
-  const temFiltro = Boolean(
-    veiculoPlaca || situacao || clienteId || !emAberto || periodoPreenchido(periodo),
-  );
 
   const nomesCliente = useMemo(
     () =>
@@ -86,12 +91,30 @@ export function MovimentacaoListSection() {
     return map;
   }, [parceirosQuery.data, vinculosQuery.data]);
 
-  function veiculoDaLocacao(locacao: Locacao): Veiculo | undefined {
-    if (locacao.veiculoId && veiculoPorId.has(locacao.veiculoId)) {
-      return veiculoPorId.get(locacao.veiculoId);
+  const parceiroIdPorVeiculoId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const v of vinculosQuery.data?.items ?? []) {
+      map.set(v.veiculoId, v.parceiroId);
     }
-    if (locacao.placa) return veiculoPorPlaca.get(normPlaca(locacao.placa));
-    return undefined;
+    return map;
+  }, [vinculosQuery.data]);
+
+  const rows = useMemo(() => {
+    const items = query.data?.items ?? [];
+    if (!parceiroId) return items;
+    return items.filter((l) => {
+      const veiculo = veiculoDaLocacaoFromMaps(l, veiculoPorId, veiculoPorPlaca);
+      if (!veiculo) return false;
+      return parceiroIdPorVeiculoId.get(veiculo.id) === parceiroId;
+    });
+  }, [query.data, parceiroId, veiculoPorId, veiculoPorPlaca, parceiroIdPorVeiculoId]);
+
+  const temFiltro = Boolean(
+    veiculoPlaca || parceiroId || situacao || clienteId || periodoPreenchido(periodo),
+  );
+
+  function veiculoDaLocacao(locacao: Locacao): Veiculo | undefined {
+    return veiculoDaLocacaoFromMaps(locacao, veiculoPorId, veiculoPorPlaca);
   }
 
   function parceiroDaLocacao(locacao: Locacao): string {
@@ -114,6 +137,14 @@ export function MovimentacaoListSection() {
     if (!placa) return;
     const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(placa));
     if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
+    if (v) setParceiroId(parceiroIdPorVeiculoId.get(v.id) ?? "");
+  }
+
+  function onParceiroChange(id: string) {
+    setParceiroId(id);
+    if (!id || !veiculoPlaca) return;
+    const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(veiculoPlaca));
+    if (v && parceiroIdPorVeiculoId.get(v.id) !== id) setVeiculoPlaca("");
   }
 
   function onClienteChange(id: string) {
@@ -157,8 +188,13 @@ export function MovimentacaoListSection() {
               onChange={onVeiculoChange}
               valueField="placa"
               clienteId={clienteId || undefined}
+              parceiroId={parceiroId || undefined}
               variant="filtro"
             />
+          </label>
+          <label className="field">
+            <span className="field__label">Parceiro</span>
+            <ParceiroSelect value={parceiroId} onChange={onParceiroChange} variant="filtro" />
           </label>
           <label className="field">
             <span className="field__label">Cliente</span>
@@ -177,17 +213,7 @@ export function MovimentacaoListSection() {
               <option value="manutencao">Manutenção</option>
             </NativeSelect>
           </label>
-          <RelatorioPeriodoFiltro
-            value={periodo}
-            onChange={setPeriodo}
-            hint="Locações que intersectam o período (início/fim da movimentação)"
-          />
-          <Toggle
-            className="field"
-            checked={emAberto}
-            onChange={setEmAberto}
-            label="Só períodos abertos"
-          />
+          <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} />
         </div>
         {!query.isLoading ? (
           <p className="field__hint">

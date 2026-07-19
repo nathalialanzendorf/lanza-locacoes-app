@@ -72,6 +72,8 @@ export function useDespesasParceiro(params?: {
   placa?: string;
   categoria?: string;
   competencia?: string;
+  dataInicial?: string;
+  dataFinal?: string;
 }) {
   return useQuery({
     queryKey: ["despesas-parceiro", params],

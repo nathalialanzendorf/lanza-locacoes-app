@@ -17,7 +17,7 @@ const ROTULO_TIPO_COBRANCA: Record<string, string> = {
   "pagamento-semanal": "Pagamento semanal",
   renegociacao: "Renegociação",
   infracoes: "Infrações",
-  pedagio: "Pedágio",
+  pedagio: "Pedágio Digital",
   "estacionamento-rotativo": "Estacionamento rotativo",
   manutencao: "Manutenção",
 };

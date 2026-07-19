@@ -10,6 +10,8 @@ type DateInputProps = {
   required?: boolean;
   className?: string;
   id?: string;
+  placeholder?: string;
+  "aria-label"?: string;
 };
 
 function emitStoredValue(masked: string, format: "br" | "iso", onChange: (value: string) => void) {
@@ -29,6 +31,8 @@ export function DateInput({
   required,
   className,
   id,
+  placeholder = "dd/mm/aaaa",
+  "aria-label": ariaLabel,
 }: DateInputProps) {
   const displayFromProps = dateValueToDisplay(value, format);
   const [text, setText] = useState(displayFromProps);
@@ -74,7 +78,8 @@ export function DateInput({
       autoComplete="off"
       className={["input", "input--date-br", className].filter(Boolean).join(" ")}
       value={text}
-      placeholder="dd/mm/aaaa"
+      placeholder={placeholder}
+      aria-label={ariaLabel}
       maxLength={10}
       onFocus={() => setFocused(true)}
       onBlur={handleBlur}

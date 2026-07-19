@@ -15,6 +15,7 @@ export function direcaoEfetiva(sync: SyncCatalogEntry): SyncDirecao {
 
 const BUSCAR_ORDEM = [
   "pedagios",
+  "estacionamento",
   "infracoes",
   "ipva-licenciamento",
   "detran-rs",

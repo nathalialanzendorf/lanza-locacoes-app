@@ -4,6 +4,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable";
 import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
 import { SELECT_LABEL_TODOS } from "@/lib/selectLabels";
+import {
+  PERIODO_VAZIO,
+  RelatorioPeriodoFiltro,
+  type RelatorioPeriodo,
+} from "@/components/relatorios/RelatorioPeriodoFiltro";
 import { ListToolbar } from "@/components/ListToolbar";
 import { QueryError } from "@/components/PageHeader";
 import { RowActions } from "@/components/RowActions";
@@ -18,6 +23,8 @@ import {
   rotuloStatusDespesaCliente,
 } from "@/lib/despesaClienteStatus";
 import { urlLancarRecebimentoDespesa } from "@/lib/recebimentoUrl";
+import { periodoPreenchido } from "@/lib/periodoRelatorio";
+import { CATEGORIA_PEDAGIO, rotuloCategoriaDespesa } from "@/lib/pedagioLabels";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
 
 const CATEGORIAS = [
@@ -25,7 +32,7 @@ const CATEGORIAS = [
   "Locação semanal",
   "Caução",
   "Outros",
-  "Pedágio",
+  CATEGORIA_PEDAGIO,
   "Infração",
   "Estacionamento",
 ] as const;
@@ -51,7 +58,7 @@ export function DespesasClienteListSection() {
   const [clienteId, setClienteId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [competencia, setCompetencia] = useState("");
+  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasCliente({
@@ -60,7 +67,8 @@ export function DespesasClienteListSection() {
     clienteId: clienteId || undefined,
     veiculoId: veiculoId || undefined,
     categoria: categoria || undefined,
-    competencia: competencia.trim() || undefined,
+    dataInicial: periodo.dataInicial.trim() || undefined,
+    dataFinal: periodo.dataFinal.trim() || undefined,
   });
   const clientesQuery = useClientes();
   const clientes = clientesQuery.data?.items;
@@ -69,7 +77,11 @@ export function DespesasClienteListSection() {
 
   const rows = query.data?.items ?? [];
   const temFiltro = Boolean(
-    pagamento !== "todos" || clienteId || veiculoId || categoria || competencia.trim(),
+    pagamento !== "todos" ||
+      clienteId ||
+      veiculoId ||
+      categoria ||
+      periodoPreenchido(periodo),
   );
 
   const total = useMemo(
@@ -93,50 +105,65 @@ export function DespesasClienteListSection() {
 
   return (
     <>
-      <ListToolbar addTo="/despesas/cliente/novo">
-        <ClienteSelect value={clienteId} onChange={setClienteId} variant="filtro" />
-        <VeiculoSelect
-          value={veiculoId}
-          onChange={setVeiculoId}
-          valueField="id"
-          variant="filtro"
-        />
-        <NativeSelect
-          value={categoria}
-          onChange={setCategoria}
-          variant="filtro"
-          aria-label="Categoria"
-        >
-          {CATEGORIAS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </NativeSelect>
-        <NativeSelect
-          value={pagamento}
-          onChange={(v) => setPagamento(v as FiltroPagamento)}
-          variant="filtro"
-          allowEmpty={false}
-          aria-label="Status"
-        >
-          <option value="todos">{SELECT_LABEL_TODOS}</option>
-          <option value="em_aberto">Em aberto</option>
-          <option value="pago">Pago</option>
-        </NativeSelect>
-        <input
-          className="input"
-          placeholder="Competência (MM/AAAA)"
-          value={competencia}
-          onChange={(e) => setCompetencia(e.target.value)}
-          aria-label="Competência"
-        />
+      <ListToolbar addTo="/despesas/cliente/novo" />
+
+      <section className="form-card">
+        <h2 className="form-card__title">Filtros</h2>
+        <div className="form-grid">
+          <label className="field">
+            <span className="field__label">Veículo</span>
+            <VeiculoSelect
+              value={veiculoId}
+              onChange={setVeiculoId}
+              valueField="id"
+              variant="filtro"
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">Cliente</span>
+            <ClienteSelect value={clienteId} onChange={setClienteId} variant="filtro" />
+          </label>
+          <label className="field">
+            <span className="field__label">Categoria</span>
+            <NativeSelect
+              value={categoria}
+              onChange={setCategoria}
+              variant="filtro"
+              aria-label="Categoria"
+            >
+              {CATEGORIAS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </NativeSelect>
+          </label>
+          <label className="field">
+            <span className="field__label">Status</span>
+            <NativeSelect
+              value={pagamento}
+              onChange={(v) => setPagamento(v as FiltroPagamento)}
+              variant="filtro"
+              allowEmpty={false}
+              aria-label="Status"
+            >
+              <option value="todos">{SELECT_LABEL_TODOS}</option>
+              <option value="em_aberto">Em aberto</option>
+              <option value="pago">Pago</option>
+            </NativeSelect>
+          </label>
+          <RelatorioPeriodoFiltro
+            value={periodo}
+            onChange={setPeriodo}
+            hint="Despesas com vencimento no intervalo inclusivo"
+          />
+        </div>
         {!query.isLoading ? (
-          <span className="badge badge--muted">
+          <p className="field__hint">
             {rows.length} lançamento{rows.length === 1 ? "" : "s"} · {formatBrl(total)}
-          </span>
+          </p>
         ) : null}
-      </ListToolbar>
+      </section>
 
       {query.isError ? (
         <QueryError
@@ -170,7 +197,7 @@ export function DespesasClienteListSection() {
               ),
           },
           { key: "desc", header: "Descrição", sortValue: (d) => d.descricao?.trim() || "", render: (d) => d.descricao?.trim() || "—" },
-          { key: "categoria", header: "Categoria", sortValue: (d) => d.categoria?.trim() || "", render: (d) => d.categoria?.trim() || "—" },
+          { key: "categoria", header: "Categoria", sortValue: (d) => rotuloCategoriaDespesa(d.categoria), render: (d) => rotuloCategoriaDespesa(d.categoria) },
           { key: "vencimento", header: "Vencimento", sortValue: (d) => d.vencimentoBr?.trim() || "", render: (d) => d.vencimentoBr?.trim() || "—" },
           {
             key: "valor",

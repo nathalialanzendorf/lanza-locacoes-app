@@ -5,6 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable";
 import { ParceiroSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
 import { SELECT_LABEL_TODOS } from "@/lib/selectLabels";
+import {
+  PERIODO_VAZIO,
+  RelatorioPeriodoFiltro,
+  type RelatorioPeriodo,
+} from "@/components/relatorios/RelatorioPeriodoFiltro";
 import { ListToolbar } from "@/components/ListToolbar";
 import { QueryError } from "@/components/PageHeader";
 import { RowActions } from "@/components/RowActions";
@@ -12,6 +17,7 @@ import { useDespesasParceiro, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatVeiculoLabel } from "@/lib/format";
+import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import type { ParceiroDespesa, Veiculo } from "@/api/types";
 
 const CATEGORIAS = [
@@ -44,7 +50,7 @@ export function DespesasParceiroListSection() {
   const [parceiroId, setParceiroId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [competencia, setCompetencia] = useState("");
+  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasParceiro({
@@ -52,14 +58,16 @@ export function DespesasParceiroListSection() {
     parceiroId: parceiroId || undefined,
     veiculoId: veiculoId || undefined,
     categoria: categoria || undefined,
-    competencia: competencia.trim() || undefined,
+    dataInicial: periodo.dataInicial.trim() || undefined,
+    dataFinal: periodo.dataFinal.trim() || undefined,
   });
   const veiculosQuery = useVeiculos();
   const veiculos = veiculosQuery.data?.items;
 
   const rows = query.data?.items ?? [];
   const temFiltro =
-    pagamento !== "em_aberto" || Boolean(parceiroId || veiculoId || categoria || competencia.trim());
+    pagamento !== "em_aberto" ||
+    Boolean(parceiroId || veiculoId || categoria || periodoPreenchido(periodo));
 
   const total = useMemo(
     () => rows.reduce((sum, d) => sum + (Number(d.valor) || 0), 0),
@@ -82,53 +90,72 @@ export function DespesasParceiroListSection() {
 
   return (
     <>
-      <ListToolbar addTo="/despesas/parceiro/novo">
-        <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="filtro" />
-        <VeiculoSelect
-          value={veiculoId}
-          onChange={setVeiculoId}
-          valueField="id"
-          variant="filtro"
-        />
-        <NativeSelect
-          value={categoria}
-          onChange={setCategoria}
-          variant="filtro"
-          aria-label="Categoria"
-        >
-          {CATEGORIAS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </NativeSelect>
-        <NativeSelect
-          value={pagamento}
-          onChange={(v) => setPagamento(v as FiltroPagamento)}
-          variant="filtro"
-          allowEmpty={false}
-          aria-label="Pagamento"
-        >
-          <option value="em_aberto">Em aberto</option>
-          <option value="pago">Pago</option>
-          <option value="todos">{SELECT_LABEL_TODOS}</option>
-        </NativeSelect>
-        <input
-          className="input"
-          placeholder="Competência (MM/AAAA)"
-          value={competencia}
-          onChange={(e) => setCompetencia(e.target.value)}
-          aria-label="Competência"
-        />
-        <Link to="/despesas/parceiro/operacoes" className="btn btn--ghost btn--sm">
-          Baixa / rastreador
-        </Link>
+      <ListToolbar
+        addTo="/despesas/parceiro/novo"
+        extraActions={
+          <Link to="/despesas/parceiro/operacoes" className="btn btn--ghost">
+            Baixa / rastreador
+          </Link>
+        }
+      />
+
+      <section className="form-card">
+        <h2 className="form-card__title">Filtros</h2>
+        <div className="form-grid">
+          <label className="field">
+            <span className="field__label">Veículo</span>
+            <VeiculoSelect
+              value={veiculoId}
+              onChange={setVeiculoId}
+              valueField="id"
+              variant="filtro"
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">Parceiro</span>
+            <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="filtro" />
+          </label>
+          <label className="field">
+            <span className="field__label">Categoria</span>
+            <NativeSelect
+              value={categoria}
+              onChange={setCategoria}
+              variant="filtro"
+              aria-label="Categoria"
+            >
+              {CATEGORIAS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </NativeSelect>
+          </label>
+          <label className="field">
+            <span className="field__label">Pagamento</span>
+            <NativeSelect
+              value={pagamento}
+              onChange={(v) => setPagamento(v as FiltroPagamento)}
+              variant="filtro"
+              allowEmpty={false}
+              aria-label="Pagamento"
+            >
+              <option value="em_aberto">Em aberto</option>
+              <option value="pago">Pago</option>
+              <option value="todos">{SELECT_LABEL_TODOS}</option>
+            </NativeSelect>
+          </label>
+          <RelatorioPeriodoFiltro
+            value={periodo}
+            onChange={setPeriodo}
+            hint="Despesas com vencimento no intervalo inclusivo"
+          />
+        </div>
         {!query.isLoading ? (
-          <span className="badge badge--muted">
+          <p className="field__hint">
             {rows.length} lançamento{rows.length === 1 ? "" : "s"} · {formatBrl(total)}
-          </span>
+          </p>
         ) : null}
-      </ListToolbar>
+      </section>
 
       {query.isError ? (
         <QueryError
@@ -158,7 +185,6 @@ export function DespesasParceiroListSection() {
             sortValue: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "",
             render: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "—",
           },
-          { key: "competencia", header: "Competência", sortValue: (d) => d.competencia ?? "", render: (d) => d.competencia ?? "—" },
           {
             key: "acoes",
             header: "Ações",

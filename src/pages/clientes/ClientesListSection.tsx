@@ -10,6 +10,11 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatVeiculoLabel, formatClienteLabel, statusClass, statusLabel } from "@/lib/format";
 import { ordenarAtivoDepoisAlfabetico, registroAtivo, rowClassInativo } from "@/lib/listagemCadastro";
+import {
+  clienteOperacionalAtivo,
+  contratoOperacionalDoCliente,
+  indexarContratosOperacionaisAtivos,
+} from "@/lib/statusCliente";
 import type { Cliente, Contrato } from "@/api/types";
 
 function formatCnh(cnh: Cliente["cnh"]): string {
@@ -21,16 +26,16 @@ function formatCnh(cnh: Cliente["cnh"]): string {
   return "—";
 }
 
-function normCpf(cpf?: string | null): string {
-  return (cpf ?? "").replace(/\D/g, "");
-}
-
 function veiculoDoContrato(contrato: Contrato): string {
   return formatVeiculoLabel({
     placa: contrato.placa ?? contrato.veiculo?.placa,
     marcaModelo: contrato.veiculo?.marcaModelo,
     anoModelo: contrato.veiculo?.anoModelo,
   });
+}
+
+function rotuloCliente(cliente: Cliente, ativoOperacional: boolean): string {
+  return formatClienteLabel({ ...cliente, ativo: ativoOperacional });
 }
 
 export function ClientesListSection() {
@@ -41,34 +46,24 @@ export function ClientesListSection() {
   const query = useClientes();
   const contratosQuery = useContratos({ status: "ativo" });
 
+  const contratosAtivos = useMemo(
+    () => indexarContratosOperacionaisAtivos(contratosQuery.data?.items),
+    [contratosQuery.data],
+  );
+
   const rows = useMemo(() => {
     const items = query.data?.items ?? [];
     const q = nome.trim().toLowerCase();
     const filtrados = q ? items.filter((c) => (c.nome ?? "").toLowerCase().includes(q)) : items;
     return ordenarAtivoDepoisAlfabetico(filtrados, {
-      ativoDe: (c) => registroAtivo(c.ativo),
+      ativoDe: (c) => clienteOperacionalAtivo(c, contratosAtivos),
       rotuloDe: (c) => c.nome ?? "",
     });
-  }, [query.data, nome]);
-
-  const { porClienteId, porCpf } = useMemo(() => {
-    const porClienteId = new Map<string, Contrato>();
-    const porCpf = new Map<string, Contrato>();
-    for (const c of contratosQuery.data?.items ?? []) {
-      if (c.clienteId) porClienteId.set(c.clienteId, c);
-      const cpf = normCpf(c.cpf);
-      if (cpf) porCpf.set(cpf, c);
-    }
-    return { porClienteId, porCpf };
-  }, [contratosQuery.data]);
-
-  function contratoAtivo(cliente: Cliente): Contrato | undefined {
-    return porClienteId.get(cliente.id) ?? porCpf.get(normCpf(cliente.cpf));
-  }
+  }, [query.data, nome, contratosAtivos]);
 
   async function desabilitar(cliente: Cliente) {
-    const nome = formatClienteLabel(cliente);
-    if (!window.confirm(`Desabilitar o cliente "${nome}"?`)) return;
+    const label = rotuloCliente(cliente, clienteOperacionalAtivo(cliente, contratosAtivos));
+    if (!window.confirm(`Desabilitar o cliente "${label}"?`)) return;
     setTogglingAtivoId(cliente.id);
     try {
       await lanzaApi.atualizarCliente(cliente.id, { ativo: false });
@@ -82,8 +77,8 @@ export function ClientesListSection() {
   }
 
   async function habilitar(cliente: Cliente) {
-    const nome = formatClienteLabel(cliente);
-    if (!window.confirm(`Habilitar o cliente "${nome}"?`)) return;
+    const label = rotuloCliente(cliente, clienteOperacionalAtivo(cliente, contratosAtivos));
+    if (!window.confirm(`Habilitar o cliente "${label}"?`)) return;
     setTogglingAtivoId(cliente.id);
     try {
       await lanzaApi.atualizarCliente(cliente.id, { ativo: true });
@@ -97,8 +92,8 @@ export function ClientesListSection() {
   }
 
   async function excluir(cliente: Cliente) {
-    const nome = formatClienteLabel(cliente);
-    if (!window.confirm(`Excluir o cliente "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    const label = rotuloCliente(cliente, clienteOperacionalAtivo(cliente, contratosAtivos));
+    if (!window.confirm(`Excluir o cliente "${label}"? Esta ação não pode ser desfeita.`)) return;
     setExcluindoId(cliente.id);
     try {
       await lanzaApi.removerCliente(cliente.id);
@@ -134,39 +129,38 @@ export function ClientesListSection() {
         loading={query.isLoading || contratosQuery.isLoading}
         rows={rows}
         keyFn={(c) => c.id}
-        rowClassName={(c) => rowClassInativo(registroAtivo(c.ativo))}
+        rowClassName={(c) =>
+          rowClassInativo(clienteOperacionalAtivo(c, contratosAtivos))
+        }
         columns={[
-          { key: "nome", header: "Nome", sortValue: (c) => formatClienteLabel(c), render: (c) => formatClienteLabel(c) },
+          {
+            key: "nome",
+            header: "Nome",
+            sortValue: (c) => rotuloCliente(c, clienteOperacionalAtivo(c, contratosAtivos)),
+            render: (c) => rotuloCliente(c, clienteOperacionalAtivo(c, contratosAtivos)),
+          },
           { key: "cpf", header: "CPF", sortValue: (c) => c.cpf ?? "", render: (c) => c.cpf ?? "—" },
           { key: "cnh", header: "CNH", sortValue: (c) => formatCnh(c.cnh), render: (c) => formatCnh(c.cnh) },
-          {
-            key: "contratoAtivo",
-            header: "Contrato ativo",
-            sortValue: (c) => (contratoAtivo(c) ? 1 : 0),
-            render: (c) => {
-              const tem = Boolean(contratoAtivo(c));
-              return (
-                <span className={tem ? "badge badge--ok" : "badge badge--muted"}>{tem ? "Sim" : "Não"}</span>
-              );
-            },
-          },
           {
             key: "veiculoContrato",
             header: "Veículo",
             sortValue: (c) => {
-              const contrato = contratoAtivo(c);
+              const contrato = contratoOperacionalDoCliente(c, contratosAtivos);
               return contrato ? veiculoDoContrato(contrato) : "";
             },
             render: (c) => {
-              const contrato = contratoAtivo(c);
+              const contrato = contratoOperacionalDoCliente(c, contratosAtivos);
               return contrato ? veiculoDoContrato(contrato) : "—";
             },
           },
           {
             key: "status",
             header: "Status",
-            sortValue: (c) => statusLabel(c.ativo),
-            render: (c) => <span className={statusClass(c.ativo)}>{statusLabel(c.ativo)}</span>,
+            sortValue: (c) => statusLabel(clienteOperacionalAtivo(c, contratosAtivos)),
+            render: (c) => {
+              const ativo = clienteOperacionalAtivo(c, contratosAtivos);
+              return <span className={statusClass(ativo)}>{statusLabel(ativo)}</span>;
+            },
           },
           {
             key: "analise",

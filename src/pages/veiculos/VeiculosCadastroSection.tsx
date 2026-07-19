@@ -11,10 +11,11 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import {
   placasComContratoAtivo,
-  statusVeiculoClass,
-  statusVeiculoLabel,
-  statusVeiculoOperacional,
+  situacaoLocacaoVeiculo,
+  situacaoVeiculoClass,
+  situacaoVeiculoLabel,
 } from "@/lib/statusVeiculo";
+import { statusLabel } from "@/lib/format";
 
 type Props = {
   veiculoId?: string;
@@ -46,8 +47,8 @@ export function VeiculosCadastroSection({ veiculoId }: Props) {
   const [carregando, setCarregando] = useState(editando);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const statusOperacional = useMemo(
-    () => statusVeiculoOperacional({ ativo, placa }, placasContratoAtivo),
+  const situacaoLocacao = useMemo(
+    () => situacaoLocacaoVeiculo({ ativo, placa }, placasContratoAtivo),
     [ativo, placa, placasContratoAtivo],
   );
   function popularFormulario(v: Record<string, unknown>) {
@@ -170,21 +171,25 @@ export function VeiculosCadastroSection({ veiculoId }: Props) {
         <Field label="Parceiro (proprietário)">
           <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="cadastro" disabled={loading} />
         </Field>
-        <Field label="Status operacional">
-          <span className={statusVeiculoClass(statusOperacional)}>
-            {statusVeiculoLabel(statusOperacional)}
-          </span>
-          <span className="field__hint">
-            Locado = contrato ativo na placa. Use o toggle abaixo para inativar ou reativar.
-          </span>
-        </Field>
-        <Field label="Frota" hint="Inativo sai da frota operacional">
+        <Field
+          label="Status"
+          hint={
+            editando
+              ? `${statusLabel(ativo)} — altere para ativar ou inativar na frota`
+              : "Novos veículos entram como ativos"
+          }
+        >
           <Toggle
             checked={ativo}
             onChange={setAtivo}
             disabled={loading}
             aria-label="Veículo ativo na frota"
           />
+        </Field>
+        <Field label="Situação" hint="Derivada do contrato ativo na placa (somente leitura)">
+          <span className={situacaoVeiculoClass(situacaoLocacao)}>
+            {situacaoVeiculoLabel(situacaoLocacao)}
+          </span>
         </Field>
       </FormCard>
     </>

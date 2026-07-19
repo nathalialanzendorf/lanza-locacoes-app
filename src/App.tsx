@@ -19,6 +19,7 @@ import { DespesasPage } from "@/pages/DespesasPage";
 import { RelatorioFipeSection } from "@/pages/relatorios/RelatorioFipeSection";
 import { RelatorioInfracoesSection } from "@/pages/relatorios/RelatorioInfracoesSection";
 import { RelatorioPedagiosSection } from "@/pages/relatorios/RelatorioPedagiosSection";
+import { RelatorioEstacionamentoSection } from "@/pages/relatorios/RelatorioEstacionamentoSection";
 
 import { LoginPage } from "@/pages/LoginPage";
 
@@ -109,7 +110,7 @@ export default function App() {
 
                 <Route path="recebimentos/*" element={<RecebimentosPage />} />
 
-                <Route path="sync" element={<SyncPage />} />
+                <Route path="sync/*" element={<SyncPage />} />
 
                 <Route path="relatorios" element={<RelatoriosShell />}>
 
@@ -124,6 +125,7 @@ export default function App() {
                   <Route path="infracoes" element={<RelatorioInfracoesSection />} />
 
                   <Route path="pedagios" element={<RelatorioPedagiosSection />} />
+                  <Route path="estacionamento" element={<RelatorioEstacionamentoSection />} />
 
                   <Route path="fipe" element={<RelatorioFipeSection />} />
 

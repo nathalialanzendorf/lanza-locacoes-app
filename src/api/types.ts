@@ -156,6 +156,7 @@ export type ClienteDespesa = {
   /** Data/hora do pagamento (DD/MM/AAAA) — listagem API. */
   pagaEmBr?: string | null;
   dataAutuacao?: string | null;
+  localInfracao?: string | null;
   /** Status bruto DETRAN: Advertida | Paga | Notificada | Justificada. */
   statusInfracao?: string | null;
   /** Status semântico DETRAN: advertida | paga | justificada. */

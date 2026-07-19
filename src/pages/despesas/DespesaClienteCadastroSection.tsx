@@ -10,13 +10,14 @@ import { useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { clienteIdDe } from "@/lib/clienteCampo";
+import { CATEGORIA_PEDAGIO } from "@/lib/pedagioLabels";
 
 const CATEGORIAS = [
   "Manutenção",
   "Locação semanal",
   "Caução",
   "Outros",
-  "Pedágio",
+  CATEGORIA_PEDAGIO,
   "Infração",
   "Estacionamento",
 ];

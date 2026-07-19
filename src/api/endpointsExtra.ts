@@ -146,8 +146,12 @@ export const lanzaApiExtra = {
     prazoDias?: number;
     incluirPedagios?: boolean;
   }) => apiRequest<{ data: unknown }>("/api/infracoes/atribuir-clientes", { method: "POST", body }),
-  atribuirClientesDespesas: (body: { dryRun?: boolean; placa?: string; prazoDias?: number }) =>
-    apiRequest<{ data: unknown }>("/api/despesas/atribuir-clientes", { method: "POST", body }),
+  atribuirClientesDespesas: (body: {
+    dryRun?: boolean;
+    placa?: string;
+    prazoDias?: number;
+    escopo?: "pedagio" | "estacionamento";
+  }) => apiRequest<{ data: unknown }>("/api/despesas/atribuir-clientes", { method: "POST", body }),
   pedagioConferir: (registrar?: boolean) =>
     apiRequest<{ data: unknown }>("/api/pedagio/conferir", {
       method: registrar ? "POST" : "GET",
@@ -156,6 +160,16 @@ export const lanzaApiExtra = {
   pedagioPassagens: (placa: string, status: "aberto" | "pago" | "todos" = "aberto") =>
     apiRequest<{ total: number; items: unknown[]; placa: string; status: string }>(
       "/api/pedagio/passagens",
+      { params: { placa, status } },
+    ),
+  estacionamentoConferir: (registrar?: boolean) =>
+    apiRequest<{ data: unknown }>("/api/estacionamento/conferir", {
+      method: registrar ? "POST" : "GET",
+      body: registrar ? { registrar: true } : undefined,
+    }),
+  estacionamentoAvisos: (placa: string, status: "aberto" | "pago" | "todos" = "aberto") =>
+    apiRequest<{ total: number; items: unknown[]; placa: string; status: string }>(
+      "/api/estacionamento/avisos",
       { params: { placa, status } },
     ),
   confirmarParceiroInfracao: (numeroAuto: string, parceiroId?: string | null) =>

@@ -2,20 +2,20 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/DataTable";
-import { VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ParceiroSelect, VeiculoSelect } from "@/components/EntitySelects";
 import { ListToolbar } from "@/components/ListToolbar";
 import { QueryError } from "@/components/PageHeader";
 import { RowActions } from "@/components/RowActions";
 import { useParceiros, useVeiculos, useVinculosParceiro, useContratos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { formatPlaca } from "@/lib/format";
+import { formatPlaca, statusClass, statusLabel } from "@/lib/format";
 import { ordenarAtivoDepoisAlfabetico, registroAtivo } from "@/lib/listagemCadastro";
 import {
   placasComContratoAtivo,
-  statusVeiculoClass,
-  statusVeiculoLabel,
-  statusVeiculoOperacional,
+  situacaoLocacaoVeiculo,
+  situacaoVeiculoClass,
+  situacaoVeiculoLabel,
 } from "@/lib/statusVeiculo";
 import type { Veiculo } from "@/api/types";
 
@@ -29,14 +29,6 @@ export function VeiculosListSection() {
   const contratosQuery = useContratos({ status: "ativo" });
   const parceirosQuery = useParceiros();
   const vinculosQuery = useVinculosParceiro();
-
-  const parceirosOrdenados = useMemo(
-    () =>
-      [...(parceirosQuery.data?.items ?? [])].sort((a, b) =>
-        a.nome.localeCompare(b.nome, "pt-BR"),
-      ),
-    [parceirosQuery.data],
-  );
 
   const { parceiroPorVeiculoId, parceiroIdPorVeiculoId } = useMemo(() => {
     const nomes = new Map((parceirosQuery.data?.items ?? []).map((p) => [p.id, p.nome]));
@@ -123,26 +115,32 @@ export function VeiculosListSection() {
 
   return (
     <>
-      <ListToolbar addTo="/veiculos/novo" importTo="/veiculos/importar">
-        <VeiculoSelect
-          value={veiculoId}
-          onChange={setVeiculoId}
-          valueField="id"
-          variant="filtro"
-        />
-        <NativeSelect value={parceiroId} onChange={setParceiroId} variant="filtro" aria-label="Parceiro">
-          {parceirosOrdenados.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nome}
-            </option>
-          ))}
-        </NativeSelect>
+      <ListToolbar addTo="/veiculos/novo" importTo="/veiculos/importar" />
+
+      <section className="form-card">
+        <h2 className="form-card__title">Filtros</h2>
+        <div className="form-grid">
+          <label className="field">
+            <span className="field__label">Veículo</span>
+            <VeiculoSelect
+              value={veiculoId}
+              onChange={setVeiculoId}
+              valueField="id"
+              variant="filtro"
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">Parceiro</span>
+            <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="filtro" />
+          </label>
+        </div>
         {!query.isLoading ? (
-          <span className="badge badge--muted">
+          <p className="field__hint">
             {rows.length} veículo{rows.length === 1 ? "" : "s"}
-          </span>
+          </p>
         ) : null}
-      </ListToolbar>
+      </section>
+
       {query.isError ? (
         <QueryError
           message={query.error instanceof LanzaApiError ? query.error.message : "Falha ao listar veículos."}
@@ -166,11 +164,21 @@ export function VeiculosListSection() {
           {
             key: "status",
             header: "Status",
-            sortValue: (v) => statusVeiculoLabel(statusVeiculoOperacional(v, placasContratoAtivo)),
+            sortValue: (v) => statusLabel(v.ativo),
+            render: (v) => (
+              <span className={statusClass(v.ativo)}>{statusLabel(v.ativo)}</span>
+            ),
+          },
+          {
+            key: "situacao",
+            header: "Situação",
+            sortValue: (v) => situacaoVeiculoLabel(situacaoLocacaoVeiculo(v, placasContratoAtivo)),
             render: (v) => {
-              const status = statusVeiculoOperacional(v, placasContratoAtivo);
+              const situacao = situacaoLocacaoVeiculo(v, placasContratoAtivo);
               return (
-                <span className={statusVeiculoClass(status)}>{statusVeiculoLabel(status)}</span>
+                <span className={situacaoVeiculoClass(situacao)}>
+                  {situacaoVeiculoLabel(situacao)}
+                </span>
               );
             },
           },

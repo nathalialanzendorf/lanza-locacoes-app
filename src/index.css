@@ -570,6 +570,11 @@ code {
   gap: 0.5rem;
 }
 
+.despesas-toolbar .input--filtro-data {
+  width: 9.5rem;
+  min-width: 9.5rem;
+}
+
 .data-fields {
   display: grid;
   gap: 0.5rem 1.5rem;

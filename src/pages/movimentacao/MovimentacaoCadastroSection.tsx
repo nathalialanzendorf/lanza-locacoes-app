@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { ResultPanel } from "@/components/ResultPanel";
-import { useVeiculos } from "@/api/hooks";
+import { useVeiculos, useVinculosParceiro } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 
@@ -23,9 +23,11 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const veiculosQuery = useVeiculos();
+  const vinculosQuery = useVinculosParceiro();
   const editando = Boolean(locacaoId);
 
   const [veiculoPlaca, setVeiculoPlaca] = useState("");
+  const [parceiroId, setParceiroId] = useState("");
   const [situacao, setSituacao] = useState("locado");
   const [tipoLocacao, setTipoLocacao] = useState("semanal");
   const [inicio, setInicio] = useState("");
@@ -67,11 +69,38 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
     };
   }, [locacaoId]);
 
+  useEffect(() => {
+    if (!veiculoPlaca.trim() || !veiculosQuery.data || !vinculosQuery.data) return;
+    const v = (veiculosQuery.data.items ?? []).find(
+      (x) => normPlaca(x.placa) === normPlaca(veiculoPlaca),
+    );
+    if (!v) return;
+    const vinculo = (vinculosQuery.data.items ?? []).find((x) => x.veiculoId === v.id);
+    if (vinculo?.parceiroId) setParceiroId(vinculo.parceiroId);
+  }, [veiculoPlaca, veiculosQuery.data, vinculosQuery.data]);
+
   function onVeiculoChange(placa: string) {
     setVeiculoPlaca(placa);
-    if (!placa) return;
+    if (!placa) {
+      setParceiroId("");
+      return;
+    }
     const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(placa));
     if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
+    if (v) {
+      const vinculo = (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === v.id);
+      setParceiroId(vinculo?.parceiroId ?? "");
+    }
+  }
+
+  function onParceiroChange(id: string) {
+    setParceiroId(id);
+    if (!id || !veiculoPlaca) return;
+    const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(veiculoPlaca));
+    const vinculo = v
+      ? (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === v.id)
+      : undefined;
+    if (v && vinculo?.parceiroId !== id) setVeiculoPlaca("");
   }
 
   function onClienteChange(id: string) {
@@ -133,7 +162,16 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
               value={veiculoPlaca}
               onChange={onVeiculoChange}
               clienteId={clienteId || undefined}
+              parceiroId={parceiroId || undefined}
               required
+              variant="cadastro"
+              disabled={loading}
+            />
+          </Field>
+          <Field label="Parceiro">
+            <ParceiroSelect
+              value={parceiroId}
+              onChange={onParceiroChange}
               variant="cadastro"
               disabled={loading}
             />

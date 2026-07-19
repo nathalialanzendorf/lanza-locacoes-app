@@ -32,6 +32,25 @@ export function statusVeiculoOperacional(
   return "nao_locado";
 }
 
+/** Locado / não locado; `null` quando o veículo está inativo na frota. */
+export function situacaoLocacaoVeiculo(
+  v: Pick<Veiculo, "ativo" | "placa">,
+  placasContratoAtivo: ReadonlySet<string> = new Set(),
+): boolean | null {
+  if (v.ativo === false) return null;
+  return placasContratoAtivo.has(compactPlaca(v.placa ?? ""));
+}
+
+export function situacaoVeiculoLabel(situacao: boolean | null): string {
+  if (situacao === null) return "—";
+  return situacao ? "Locado" : "Não locado";
+}
+
+export function situacaoVeiculoClass(situacao: boolean | null): string {
+  if (situacao === null) return "badge badge--muted";
+  return situacao ? "badge badge--ok" : "badge";
+}
+
 export function statusVeiculoLabel(status: StatusVeiculoOperacional): string {
   switch (status) {
     case "locado":
