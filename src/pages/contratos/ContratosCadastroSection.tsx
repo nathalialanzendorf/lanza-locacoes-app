@@ -170,7 +170,7 @@ export function ContratosCadastroSection({
   const [cpf, setCpf] = useState("");
   const [semana, setSemana] = useState("");
   const [caucao, setCaucao] = useState("");
-  const [diaPagamento, setDiaPagamento] = useState(DIAS_PAGAMENTO_SEMANAL[0]!.value);
+  const [diaPagamento, setDiaPagamento] = useState<string>(DIAS_PAGAMENTO_SEMANAL[0]!.value);
   const periodoInicial = modo === "renovar" ? "3 meses" : "semana";
   const inicioInicial = hojeDataBr();
   const [periodo, setPeriodo] = useState(periodoInicial);
@@ -509,7 +509,7 @@ export function ContratosCadastroSection({
           </Field>
         </div>
 
-        {mostrarToggleCaucao || modo === "criar" ? (
+        {mostrarToggleCaucao ? (
           <div className="contrato-toggles-row">
             {mostrarToggleCaucao ? (
               <Toggle
