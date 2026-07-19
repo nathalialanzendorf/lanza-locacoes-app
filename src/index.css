@@ -1262,6 +1262,10 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .contrato-toggles-row {
+    flex-wrap: wrap;
+  }
+
   .field--wide {
     grid-column: span 1;
   }
@@ -1535,13 +1539,13 @@ code {
 }
 
 .form-grid--contrato-prazo {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .contrato-toggles-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem 2rem;
+  flex-wrap: nowrap;
+  gap: 1.25rem 2.5rem;
   align-items: center;
   grid-column: 1 / -1;
 }

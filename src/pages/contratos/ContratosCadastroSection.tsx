@@ -473,15 +473,15 @@ export function ContratosCadastroSection({
             ))}
           </NativeSelect>
         </Field>
-        <Field label="Data início">
-          <DateInput
-            value={dataInicio}
-            onChange={handleDataInicioChange}
-            disabled={loading}
-            required
-          />
-        </Field>
         <div className="field--full form-grid form-grid--contrato-prazo">
+          <Field label="Data início">
+            <DateInput
+              value={dataInicio}
+              onChange={handleDataInicioChange}
+              disabled={loading}
+              required
+            />
+          </Field>
           <Field label="Tempo do contrato">
             <NativeSelect
               value={periodo}
