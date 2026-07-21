@@ -41,7 +41,6 @@ export function RelatorioCobrancasForm() {
   const [veiculoPlaca, setVeiculoPlaca] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [armazenarServidor, setArmazenarServidor] = useState(false);
-  const [incluirEncerradosComPendencia, setIncluirEncerradosComPendencia] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
@@ -75,7 +74,6 @@ export function RelatorioCobrancasForm() {
           dataInicial: periodo.dataInicial.trim() || undefined,
           dataFinal: periodo.dataFinal.trim() || undefined,
           situacao: situacao === "em_aberto" ? undefined : situacao,
-          incluirEncerradosComPendencia,
         },
       });
       const payload = r.data;
@@ -119,7 +117,6 @@ export function RelatorioCobrancasForm() {
             <ClienteSelect
               value={clienteId}
               onChange={onClienteChange}
-              ativo
               variant="filtro"
               disabled={loading || Boolean(veiculoPlaca)}
             />
@@ -156,13 +153,6 @@ export function RelatorioCobrancasForm() {
             </NativeSelect>
           </Field>
         </div>
-        <Toggle
-          className="field relatorio-entrega__check"
-          checked={incluirEncerradosComPendencia}
-          onChange={setIncluirEncerradosComPendencia}
-          disabled={loading}
-          label="Incluir ex-locatários (contrato encerrado com débito)"
-        />
         <Toggle
           className="field relatorio-entrega__check"
           checked={armazenarServidor}
