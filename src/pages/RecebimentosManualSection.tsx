@@ -214,6 +214,13 @@ export function RecebimentosManualSection() {
         placa,
         autoInfracaoAlvo: despesaSel.autoInfracao,
       });
+      if (!r.data.linhas.length) {
+        setPlanoError(
+          r.data.avisos?.[0] ?? "Nenhuma linha de baixa gerada para este pagamento.",
+        );
+        setPlano(null);
+        return;
+      }
       setPlano(r.data);
       setLinhasSel(new Set(r.data.linhas.map((l) => l.num)));
     } catch (err) {
