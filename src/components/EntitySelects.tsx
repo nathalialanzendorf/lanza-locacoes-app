@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 
-import { useClientes, useParceiros, useVeiculos, useVinculosParceiro } from "@/api/hooks";
+import { useClientes, useContratos, useParceiros, useVeiculos, useVinculosParceiro } from "@/api/hooks";
 import { formatClienteLabel, formatVeiculoLabel } from "@/lib/format";
 import { selectEmptyLabel, type SelectEmptyVariant } from "@/lib/selectLabels";
 import type { Cliente, Parceiro, Veiculo } from "@/api/types";
@@ -141,6 +141,10 @@ export function ClienteSelect({ valueField = "id", ativo, ...props }: ClienteSel
   );
 }
 
+function compactPlaca(placa: string | null | undefined): string {
+  return (placa ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
+
 function veiculoValue(v: Veiculo, field: "id" | "placa"): string {
   if (field === "id") return v.id;
   return v.placa?.trim() ?? v.id;
@@ -161,23 +165,47 @@ export function VeiculoSelect({
   ...props
 }: VeiculoSelectProps) {
   const query = useVeiculos({ ativo });
+  const clienteRef = clienteId?.trim() ?? "";
+  const contratosQuery = useContratos(
+    { status: "ativo", clienteId: clienteRef || undefined },
+    { enabled: Boolean(clienteRef) },
+  );
   const vinculosQuery = useVinculosParceiro(
     parceiroId?.trim() ? { parceiroId: parceiroId.trim() } : undefined,
   );
+  const placasContratoCliente = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of contratosQuery.data?.items ?? []) {
+      const pk = compactPlaca(c.placa ?? c.veiculoId);
+      if (pk) set.add(pk);
+    }
+    return set;
+  }, [contratosQuery.data]);
   const items = useMemo(() => {
     let list = query.data?.items ?? [];
-    if (clienteId?.trim()) {
-      list = list.filter((v) => v.clienteVinculadoId === clienteId.trim());
+    if (clienteRef) {
+      list = list.filter((v) => {
+        if (v.clienteVinculadoId === clienteRef) return true;
+        const pk = compactPlaca(v.placa);
+        return pk.length > 0 && placasContratoCliente.has(pk);
+      });
     }
     if (parceiroId?.trim()) {
       const veiculoIds = new Set((vinculosQuery.data?.items ?? []).map((v) => v.veiculoId));
       list = list.filter((v) => veiculoIds.has(v.id));
     }
     return [...list].sort((a, b) => (a.placa ?? a.id).localeCompare(b.placa ?? b.id, "pt-BR"));
-  }, [query.data, clienteId, parceiroId, vinculosQuery.data]);
+  }, [query.data, clienteRef, parceiroId, vinculosQuery.data, placasContratoCliente]);
 
   return (
-    <SelectShell {...props} loading={query.isLoading || (parceiroId?.trim() ? vinculosQuery.isLoading : false)}>
+    <SelectShell
+      {...props}
+      loading={
+        query.isLoading ||
+        (clienteRef ? contratosQuery.isLoading : false) ||
+        (parceiroId?.trim() ? vinculosQuery.isLoading : false)
+      }
+    >
       {items.map((v) => (
         <option key={v.id} value={veiculoValue(v, valueField)}>
           {formatVeiculoLabel(v)}

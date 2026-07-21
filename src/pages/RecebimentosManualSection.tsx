@@ -4,6 +4,7 @@ import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ClienteSelect, NativeSelect } from "@/components/EntitySelects";
+import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
 import { useDespesasCliente } from "@/api/hooks";
@@ -65,11 +66,17 @@ export function RecebimentosManualSection() {
   const [execError, setExecError] = useState<string | null>(null);
   const [execResult, setExecResult] = useState<unknown>(null);
 
-  const despesasQuery = useDespesasCliente({
-    emAberto: true,
-    ativo: true,
-    clienteId: clienteId || undefined,
-  });
+  const clienteSelecionado = clienteId.trim();
+  const despesasQuery = useDespesasCliente(
+    {
+      emAberto: true,
+      ativo: true,
+      clienteId: clienteSelecionado || undefined,
+    },
+    { enabled: Boolean(clienteSelecionado) },
+  );
+  const loadingDespesas =
+    Boolean(clienteSelecionado) && (despesasQuery.isLoading || despesasQuery.isFetching);
 
   const opcoesDespesa = useMemo(() => {
     return (despesasQuery.data?.items ?? [])
@@ -252,12 +259,20 @@ export function RecebimentosManualSection() {
           <ClienteSelect
             value={clienteId}
             onChange={onClienteChange}
-            ativo
             variant="cadastro"
             required
             disabled={loadingPlano}
           />
         </Field>
+        {despesasQuery.isError ? (
+          <QueryError
+            message={
+              despesasQuery.error instanceof LanzaApiError
+                ? despesasQuery.error.message
+                : "Falha ao carregar pendências do cliente."
+            }
+          />
+        ) : null}
         <Field label="Data do pagamento">
           <DateInput value={dataBr} onChange={setDataBr} required disabled={loadingPlano} />
         </Field>
@@ -265,7 +280,7 @@ export function RecebimentosManualSection() {
           label="Pendência em aberto"
           span="wide"
           hint={
-            clienteId
+            clienteSelecionado
               ? despesaSel
                 ? `Devido ${formatBrl(despesaSel.valor)} · placa ${placaBaixa() ?? "—"} · pode receber valor parcial (até o total)`
                 : opcoesDespesa.length === 0
@@ -285,10 +300,10 @@ export function RecebimentosManualSection() {
               onChange={onDespesaChange}
               variant="cadastro"
               required
-              disabled={loadingPlano || !clienteId || despesasQuery.isLoading}
-              loading={Boolean(clienteId && despesasQuery.isLoading)}
+              disabled={loadingPlano || !clienteSelecionado || loadingDespesas}
+              loading={loadingDespesas}
               emptyLabel={
-                clienteId && !despesasQuery.isLoading && opcoesDespesa.length === 0
+                clienteSelecionado && !loadingDespesas && opcoesDespesa.length === 0
                   ? "Nenhuma pendência em aberto"
                   : undefined
               }
@@ -307,7 +322,7 @@ export function RecebimentosManualSection() {
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               required
-              disabled={loadingPlano || !clienteId || !despesaId}
+              disabled={loadingPlano || !clienteSelecionado || !despesaId}
               placeholder="0,00"
               aria-label="Valor recebido"
             />

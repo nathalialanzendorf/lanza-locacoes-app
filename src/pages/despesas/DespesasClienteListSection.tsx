@@ -116,6 +116,7 @@ export function DespesasClienteListSection() {
               value={veiculoId}
               onChange={setVeiculoId}
               valueField="id"
+              clienteId={clienteId || undefined}
               variant="filtro"
             />
           </label>

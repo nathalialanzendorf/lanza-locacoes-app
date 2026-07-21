@@ -32,35 +32,43 @@ export function useVeiculos(params?: { ativo?: boolean; placa?: string }) {
   });
 }
 
-export function useContratos(params?: {
-  status?: "ativo" | "encerrado";
-  placa?: string;
-  clienteId?: string;
-  veiculoId?: string;
-  dataInicial?: string;
-  dataFinal?: string;
-}) {
+export function useContratos(
+  params?: {
+    status?: "ativo" | "encerrado";
+    placa?: string;
+    clienteId?: string;
+    veiculoId?: string;
+    dataInicial?: string;
+    dataFinal?: string;
+  },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["contratos", params],
     queryFn: () => lanzaApi.listarContratos(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useDespesasCliente(params?: {
-  emAberto?: boolean;
-  ativo?: boolean;
-  clienteId?: string;
-  veiculoId?: string;
-  placa?: string;
-  categoria?: string;
-  competencia?: string;
-  semCliente?: boolean;
-  dataInicial?: string;
-  dataFinal?: string;
-}) {
+export function useDespesasCliente(
+  params?: {
+    emAberto?: boolean;
+    ativo?: boolean;
+    clienteId?: string;
+    veiculoId?: string;
+    placa?: string;
+    categoria?: string;
+    competencia?: string;
+    semCliente?: boolean;
+    dataInicial?: string;
+    dataFinal?: string;
+  },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["despesas-cliente", params],
     queryFn: () => lanzaApi.listarDespesasCliente(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

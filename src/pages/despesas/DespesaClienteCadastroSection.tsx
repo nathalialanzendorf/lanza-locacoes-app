@@ -53,9 +53,9 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
       .then((r) => {
         if (cancelado) return;
         const d = r.data;
-        if (d.veiculoId) setVeiculoId(d.veiculoId);
-        else if (d.placa) {
-          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, d.placa, "id"));
+        const veiculoRef = d.placa ?? d.veiculoId;
+        if (veiculoRef) {
+          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
         }
         if (d.categoria) setCategoria(d.categoria);
         if (d.descricao) setDescricao(d.descricao);
@@ -74,7 +74,25 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     return () => {
       cancelado = true;
     };
-  }, [despesaId]);
+  }, [despesaId, veiculosQuery.data]);
+
+  function onVeiculoChange(id: string) {
+    setVeiculoId(id);
+    if (!id) return;
+    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
+    if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
+  }
+
+  function onClienteChange(id: string) {
+    setClienteId(id);
+    if (!id) {
+      setVeiculoId("");
+      return;
+    }
+    if (!veiculoId) return;
+    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === veiculoId);
+    if (v?.clienteVinculadoId && v.clienteVinculadoId !== id) setVeiculoId("");
+  }
 
   async function gravar() {
     setLoading(true);
@@ -146,24 +164,27 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         loading={loading}
         error={error}
       >
-        <Field label="Veículo">
-          <VeiculoSelect
-            value={veiculoId}
-            onChange={setVeiculoId}
-            valueField="id"
-            required
-            variant="cadastro"
-            disabled={loading || editando}
-          />
-        </Field>
         <Field label="Cliente" hint="Locatário responsável por esta despesa">
           <ClienteSelect
             value={clienteId}
-            onChange={setClienteId}
-            ativo
+            onChange={onClienteChange}
             variant="cadastro"
             required={!editando}
             disabled={loading}
+          />
+        </Field>
+        <Field
+          label="Veículo"
+          hint={clienteId.trim() ? "Veículos vinculados ao cliente ou com contrato ativo" : "Selecione o cliente para filtrar veículos"}
+        >
+          <VeiculoSelect
+            value={veiculoId}
+            onChange={onVeiculoChange}
+            valueField="id"
+            clienteId={clienteId.trim() || undefined}
+            required
+            variant="cadastro"
+            disabled={loading || editando || !clienteId.trim()}
           />
         </Field>
         <Field label="Categoria">

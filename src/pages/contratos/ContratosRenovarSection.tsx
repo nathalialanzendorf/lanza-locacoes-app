@@ -95,26 +95,32 @@ export function ContratosRenovarSection() {
     <>
       <section className="form-card">
         <h2 className="form-card__title">Contratos ativos — renovação</h2>
-        <div className="despesas-toolbar">
-          <ClienteSelect
-            value={clienteId}
-            onChange={setClienteId}
-            ativo
-            variant="filtro"
-          />
-          <VeiculoSelect
-            value={veiculoId}
-            onChange={setVeiculoId}
-            valueField="id"
-            ativo
-            variant="filtro"
-          />
-          {!query.isLoading ? (
-            <span className="badge badge--muted">
-              {rows.length} contrato{rows.length === 1 ? "" : "s"}
-            </span>
-          ) : null}
+        <div className="form-grid">
+          <label className="field">
+            <span className="field__label">Cliente</span>
+            <ClienteSelect
+              value={clienteId}
+              onChange={setClienteId}
+              ativo
+              variant="filtro"
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">Veículo</span>
+            <VeiculoSelect
+              value={veiculoId}
+              onChange={setVeiculoId}
+              valueField="id"
+              ativo
+              variant="filtro"
+            />
+          </label>
         </div>
+        {!query.isLoading ? (
+          <p className="field__hint">
+            {rows.length} contrato{rows.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
 
         <p className="field__hint contratos-renovar__legenda">
           <span className="badge badge--danger">Vencido</span> fim previsto já passou ·{" "}
