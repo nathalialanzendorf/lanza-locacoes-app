@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ClienteSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue, placaDoVeiculo } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { Toggle } from "@/components/Toggle";
@@ -10,6 +10,7 @@ import { ValorInput } from "@/components/ValorInput";
 import { ResultPanel } from "@/components/ResultPanel";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
+import { useVeiculos, useClientes } from "@/api/hooks";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
   DIAS_PAGAMENTO_SEMANAL,
@@ -165,8 +166,10 @@ export function ContratosCadastroSection({
 }: Props) {
   const navigate = useNavigate();
   const editando = Boolean(contratoId);
+  const veiculosQuery = useVeiculos();
+  const clientesQuery = useClientes();
 
-  const [placa, setPlaca] = useState("");
+  const [veiculoId, setVeiculoId] = useState("");
   const [cpf, setCpf] = useState("");
   const [semana, setSemana] = useState("");
   const [caucao, setCaucao] = useState("");
@@ -241,7 +244,11 @@ export function ContratosCadastroSection({
           valorCaucao?: number;
           diaPagamentoSemana?: string | null;
         };
-        if (c.placa) setPlaca(c.placa);
+        const veiculoRef =
+          typeof c.veiculoId === "string" ? c.veiculoId : typeof c.placa === "string" ? c.placa : "";
+        if (veiculoRef) {
+          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+        }
         if (c.cpf) setCpf(c.cpf);
         if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
         if (c.valorCaucao != null) {
@@ -270,7 +277,7 @@ export function ContratosCadastroSection({
     return () => {
       cancelado = true;
     };
-  }, [contratoId, modo]);
+  }, [contratoId, modo, veiculosQuery.data]);
 
   const caucaoNumerica = parseValorInput(caucao) ?? NaN;
   const caucaoComplementoRenovacao =
@@ -362,8 +369,15 @@ export function ContratosCadastroSection({
         throw new Error("Informe o dia de pagamento semanal.");
       }
 
+      const placa = placaDoVeiculo(veiculosQuery.data?.items, veiculoId);
+      if (!placa) throw new Error("Selecione um veículo cadastrado.");
+      const clienteIdBody =
+        clientesQuery.data?.items.find((c) => c.cpf?.trim() === cpf.trim())?.id ?? undefined;
+
       const body: Record<string, unknown> = {
-        placa: placa.trim(),
+        veiculoId: veiculoId.trim(),
+        clienteId: clienteIdBody,
+        placa,
         cpf: cpf.trim() || undefined,
         semana: semanaTotal,
         caucao: caucaoTotal,
@@ -446,7 +460,14 @@ export function ContratosCadastroSection({
       <CadastroBackLink to={backTo} label={backLabel} />
       <FormCard title={titulo} onSubmit={submit} loading={loading} submitLabel={submitLabel} error={error}>
         <Field label="Veículo">
-          <VeiculoSelect value={placa} onChange={setPlaca} required variant="cadastro" disabled={loading} />
+          <VeiculoSelect
+            value={veiculoId}
+            onChange={setVeiculoId}
+            valueField="id"
+            required
+            variant="cadastro"
+            disabled={loading}
+          />
         </Field>
         <Field label="Cliente">
           <ClienteSelect value={cpf} onChange={setCpf} valueField="cpf" variant="cadastro" disabled={loading} />

@@ -142,12 +142,14 @@ export const lanzaApiExtra = {
 
   atribuirClientesInfracoes: (body: {
     dryRun?: boolean;
+    veiculoId?: string;
     placa?: string;
     prazoDias?: number;
     incluirPedagios?: boolean;
   }) => apiRequest<{ data: unknown }>("/api/infracoes/atribuir-clientes", { method: "POST", body }),
   atribuirClientesDespesas: (body: {
     dryRun?: boolean;
+    veiculoId?: string;
     placa?: string;
     prazoDias?: number;
     escopo?: "pedagio" | "estacionamento";

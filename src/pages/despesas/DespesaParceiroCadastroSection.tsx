@@ -22,7 +22,7 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
   const editando = Boolean(despesaId);
 
   const veiculosQuery = useVeiculos();
-  const [veiculoPlaca, setVeiculoPlaca] = useState("");
+  const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("IPVA");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -42,8 +42,9 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
       .then((r) => {
         if (cancelado) return;
         const d = r.data;
-        if (d.placa) {
-          setVeiculoPlaca(matchVeiculoSelectValue(veiculosQuery.data?.items, d.placa, "placa"));
+        const veiculoRef = d.veiculoId ?? d.placa;
+        if (veiculoRef) {
+          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
         }
         if (d.categoria) setCategoria(d.categoria);
         if (d.descricao) setDescricao(d.descricao);
@@ -71,8 +72,12 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
     setLoading(true);
     setError(null);
     try {
+      if (!veiculoId.trim()) {
+        setError("Selecione um veículo.");
+        return;
+      }
       const body = {
-        placa: veiculoPlaca.trim(),
+        veiculoId: veiculoId.trim(),
         categoria: categoria.trim(),
         descricao: descricao.trim(),
         valor: Number(valor),
@@ -110,7 +115,14 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
         error={error}
       >
         <Field label="Veículo">
-          <VeiculoSelect value={veiculoPlaca} onChange={setVeiculoPlaca} required variant="cadastro" disabled={loading} />
+          <VeiculoSelect
+            value={veiculoId}
+            onChange={setVeiculoId}
+            valueField="id"
+            required
+            variant="cadastro"
+            disabled={loading}
+          />
         </Field>
         <Field label="Categoria">
           <NativeSelect

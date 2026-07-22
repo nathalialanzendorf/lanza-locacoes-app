@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { ResultPanel } from "@/components/ResultPanel";
@@ -15,10 +15,6 @@ type Props = {
   locacaoId?: string;
 };
 
-function normPlaca(placa?: string | null): string {
-  return (placa ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-}
-
 export function MovimentacaoCadastroSection({ locacaoId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -26,7 +22,7 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
   const vinculosQuery = useVinculosParceiro();
   const editando = Boolean(locacaoId);
 
-  const [veiculoPlaca, setVeiculoPlaca] = useState("");
+  const [veiculoId, setVeiculoId] = useState("");
   const [parceiroId, setParceiroId] = useState("");
   const [situacao, setSituacao] = useState("locado");
   const [tipoLocacao, setTipoLocacao] = useState("semanal");
@@ -49,7 +45,15 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
       .then((r) => {
         if (cancelado) return;
         const l = r.data as Record<string, unknown>;
-        if (typeof l.placa === "string") setVeiculoPlaca(l.placa);
+        const veiculoRef =
+          typeof l.veiculoId === "string"
+            ? l.veiculoId
+            : typeof l.placa === "string"
+              ? l.placa
+              : "";
+        if (veiculoRef) {
+          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+        }
         if (typeof l.situacao === "string") setSituacao(l.situacao);
         if (typeof l.tipoLocacao === "string") setTipoLocacao(l.tipoLocacao);
         if (typeof l.inicio === "string") setInicio(l.inicio);
@@ -67,55 +71,47 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
     return () => {
       cancelado = true;
     };
-  }, [locacaoId]);
+  }, [locacaoId, veiculosQuery.data]);
 
   useEffect(() => {
-    if (!veiculoPlaca.trim() || !veiculosQuery.data || !vinculosQuery.data) return;
-    const v = (veiculosQuery.data.items ?? []).find(
-      (x) => normPlaca(x.placa) === normPlaca(veiculoPlaca),
-    );
-    if (!v) return;
-    const vinculo = (vinculosQuery.data.items ?? []).find((x) => x.veiculoId === v.id);
+    if (!veiculoId.trim() || !veiculosQuery.data || !vinculosQuery.data) return;
+    const vinculo = (vinculosQuery.data.items ?? []).find((x) => x.veiculoId === veiculoId.trim());
     if (vinculo?.parceiroId) setParceiroId(vinculo.parceiroId);
-  }, [veiculoPlaca, veiculosQuery.data, vinculosQuery.data]);
+  }, [veiculoId, veiculosQuery.data, vinculosQuery.data]);
 
-  function onVeiculoChange(placa: string) {
-    setVeiculoPlaca(placa);
-    if (!placa) {
+  function onVeiculoChange(id: string) {
+    setVeiculoId(id);
+    if (!id) {
       setParceiroId("");
       return;
     }
-    const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(placa));
+    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
     if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
-    if (v) {
-      const vinculo = (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === v.id);
-      setParceiroId(vinculo?.parceiroId ?? "");
-    }
+    const vinculo = (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === id);
+    setParceiroId(vinculo?.parceiroId ?? "");
   }
 
   function onParceiroChange(id: string) {
     setParceiroId(id);
-    if (!id || !veiculoPlaca) return;
-    const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(veiculoPlaca));
-    const vinculo = v
-      ? (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === v.id)
-      : undefined;
-    if (v && vinculo?.parceiroId !== id) setVeiculoPlaca("");
+    if (!id || !veiculoId) return;
+    const vinculo = (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === veiculoId);
+    if (vinculo?.parceiroId !== id) setVeiculoId("");
   }
 
   function onClienteChange(id: string) {
     setClienteId(id);
-    if (!id || !veiculoPlaca) return;
-    const v = (veiculosQuery.data?.items ?? []).find((x) => normPlaca(x.placa) === normPlaca(veiculoPlaca));
-    if (v?.clienteVinculadoId && v.clienteVinculadoId !== id) setVeiculoPlaca("");
+    if (!id || !veiculoId) return;
+    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === veiculoId);
+    if (v?.clienteVinculadoId && v.clienteVinculadoId !== id) setVeiculoId("");
   }
 
   async function submit() {
     setLoading(true);
     setError(null);
     try {
+      if (!veiculoId.trim()) throw new Error("Selecione um veículo.");
       const body = {
-        placa: veiculoPlaca.trim(),
+        veiculoId: veiculoId.trim(),
         situacao,
         inicio: inicio.trim(),
         fim: fim.trim() || null,
@@ -159,8 +155,9 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
         <div className="form-grid">
           <Field label="Veículo">
             <VeiculoSelect
-              value={veiculoPlaca}
+              value={veiculoId}
               onChange={onVeiculoChange}
+              valueField="id"
               clienteId={clienteId || undefined}
               parceiroId={parceiroId || undefined}
               required

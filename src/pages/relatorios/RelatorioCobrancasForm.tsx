@@ -38,7 +38,7 @@ export function RelatorioCobrancasForm() {
   const [tipo, setTipo] = useState("");
   const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [situacao, setSituacao] = useState<FiltroSituacao>("em_aberto");
-  const [veiculoPlaca, setVeiculoPlaca] = useState("");
+  const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [armazenarServidor, setArmazenarServidor] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,12 +50,12 @@ export function RelatorioCobrancasForm() {
 
   function onClienteChange(id: string) {
     setClienteId(id);
-    if (id) setVeiculoPlaca("");
+    if (id) setVeiculoId("");
   }
 
-  function onVeiculoChange(placa: string) {
-    setVeiculoPlaca(placa);
-    if (placa) setClienteId("");
+  function onVeiculoChange(id: string) {
+    setVeiculoId(id);
+    if (id) setClienteId("");
   }
 
   async function entregar(modo: RelatorioModoEntrega) {
@@ -69,7 +69,7 @@ export function RelatorioCobrancasForm() {
         tipos: tipo ? [tipo] : undefined,
         armazenarServidor,
         filtro: {
-          placa: veiculoPlaca.trim() || undefined,
+          veiculoId: veiculoId.trim() || undefined,
           clienteId: clienteId || undefined,
           dataInicial: periodo.dataInicial.trim() || undefined,
           dataFinal: periodo.dataFinal.trim() || undefined,
@@ -106,8 +106,9 @@ export function RelatorioCobrancasForm() {
         <div className="form-grid">
           <Field label="Veículo" hint="Opcional — exclui filtro por cliente">
             <VeiculoSelect
-              value={veiculoPlaca}
+              value={veiculoId}
               onChange={onVeiculoChange}
+              valueField="id"
               ativo
               variant="filtro"
               disabled={loading || Boolean(clienteId)}
@@ -118,7 +119,7 @@ export function RelatorioCobrancasForm() {
               value={clienteId}
               onChange={onClienteChange}
               variant="filtro"
-              disabled={loading || Boolean(veiculoPlaca)}
+              disabled={loading || Boolean(veiculoId)}
             />
           </Field>
           <Field label="Tipo de cobrança">

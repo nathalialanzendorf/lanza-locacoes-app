@@ -46,34 +46,31 @@ function categoriaDespesaSync(d: ClienteDespesa): "Pedágio" | "Estacionamento" 
 export function SyncRegistrosSection() {
   const qc = useQueryClient();
   const metaQuery = useSyncMeta();
-  const [placa, setPlaca] = useState("");
+  const [veiculoId, setVeiculoId] = useState("");
   const [semConfirmacao, setSemConfirmacao] = useState(false);
   const [acaoLoading, setAcaoLoading] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<unknown>(null);
   const [inferirResult, setInferirResult] = useState<unknown>(null);
   const [acaoError, setAcaoError] = useState<string | null>(null);
 
-  const placaFiltro = placa.trim() || undefined;
+  const veiculoIdFiltro = veiculoId.trim() || undefined;
   const veiculosQuery = useVeiculos({ ativo: true });
 
-  const veiculoId = useMemo(() => {
-    if (!placaFiltro) return undefined;
-    const alvo = placaFiltro.replace(/-/g, "").toUpperCase();
-    return veiculosQuery.data?.items.find(
-      (v) => (v.placa ?? "").replace(/-/g, "").toUpperCase() === alvo,
-    )?.id;
-  }, [placaFiltro, veiculosQuery.data]);
+  const placaSync = useMemo(() => {
+    if (!veiculoIdFiltro) return "";
+    return (
+      veiculosQuery.data?.items.find((v) => v.id === veiculoIdFiltro)?.placa?.trim() ?? ""
+    );
+  }, [veiculoIdFiltro, veiculosQuery.data]);
 
   const infracoesQuery = useInfracoes({
-    veiculoId,
-    placa: !veiculoId ? placaFiltro : undefined,
+    veiculoId: veiculoIdFiltro,
     emAberto: true,
     ativo: true,
   });
 
   const despesasQuery = useDespesasCliente({
-    veiculoId,
-    placa: !veiculoId ? placaFiltro : undefined,
+    veiculoId: veiculoIdFiltro,
     emAberto: true,
     ativo: true,
   });
@@ -135,8 +132,8 @@ export function SyncRegistrosSection() {
     try {
       const syncs = metaQuery.data?.syncs ?? [];
       const r = await lanzaApi.executarSyncCompleto({
-        ...bodySyncGlobal({ dryRun: false, placa }),
-        opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa }),
+        ...bodySyncGlobal({ dryRun: false, placa: placaSync }),
+        opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa: placaSync }),
       });
       setSyncResult(r);
       await qc.invalidateQueries({ queryKey: ["infracoes"] });
@@ -154,11 +151,11 @@ export function SyncRegistrosSection() {
     setInferirResult(null);
     try {
       const rInf = await lanzaApi.atribuirClientesInfracoes({
-        placa: placaFiltro,
+        veiculoId: veiculoIdFiltro,
         incluirPedagios: true,
       });
       const rEst = await lanzaApi.atribuirClientesDespesas({
-        placa: placaFiltro,
+        veiculoId: veiculoIdFiltro,
         escopo: "estacionamento",
       });
       setInferirResult({ infracoes: rInf, estacionamento: rEst });
@@ -179,16 +176,16 @@ export function SyncRegistrosSection() {
     try {
       const syncs = metaQuery.data?.syncs ?? [];
       const rSync = await lanzaApi.executarSyncCompleto({
-        ...bodySyncGlobal({ dryRun: false, placa }),
-        opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa }),
+        ...bodySyncGlobal({ dryRun: false, placa: placaSync }),
+        opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa: placaSync }),
       });
       setSyncResult(rSync);
       const rInf = await lanzaApi.atribuirClientesInfracoes({
-        placa: placaFiltro,
+        veiculoId: veiculoIdFiltro,
         incluirPedagios: true,
       });
       const rEst = await lanzaApi.atribuirClientesDespesas({
-        placa: placaFiltro,
+        veiculoId: veiculoIdFiltro,
         escopo: "estacionamento",
       });
       setInferirResult({ infracoes: rInf, estacionamento: rEst });
@@ -212,16 +209,16 @@ export function SyncRegistrosSection() {
         <h2 className="form-card__title">Veículo</h2>
         <div className="form-grid">
           <label className="field">
-            <span className="field__label">Placa</span>
+            <span className="field__label">Veículo</span>
             <VeiculoSelect
-              value={placa}
-              onChange={setPlaca}
-              valueField="placa"
+              value={veiculoId}
+              onChange={setVeiculoId}
+              valueField="id"
               ativo
               variant="filtro"
             />
             <span className="field__hint">
-              ---Todos--- sincroniza e lista a frota ativa. Uma placa limita pedágio, SigaPay, DETRAN e
+              ---Todos--- sincroniza e lista a frota ativa. Um veículo limita pedágio, SigaPay, DETRAN e
               FIPE a esse veículo.
             </span>
           </label>
@@ -297,9 +294,9 @@ export function SyncRegistrosSection() {
         rows={linhas}
         keyFn={(l) => l.id}
         emptyMessage={
-          placaFiltro
-            ? "Nenhum registo em aberto para esta placa. Use «Sincronizar e inferir»."
-            : "Nenhum registo em aberto. Selecione a frota ou uma placa e sincronize."
+          veiculoIdFiltro
+            ? "Nenhum registo em aberto para este veículo. Use «Sincronizar e inferir»."
+            : "Nenhum registo em aberto. Selecione a frota ou um veículo e sincronize."
         }
         columns={[
           {

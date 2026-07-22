@@ -102,6 +102,7 @@ export const lanzaApi = {
 
   listarLocacoes: (params?: {
     abertas?: boolean;
+    veiculoId?: string;
     placa?: string;
     situacao?: string;
     clienteId?: string;
@@ -140,11 +141,27 @@ export const lanzaApi = {
   }) => apiRequest<ListEnvelope<Infracao>>("/api/infracoes", { params }),
 
   metaCobrancas: () => apiRequest<CobrancasMeta>("/api/relatorios/cobrancas/meta"),
-  gerarCobrancas: (body: Record<string, unknown>) =>
+  gerarCobrancas: (body: {
+    tipos?: string[];
+    armazenarServidor?: boolean;
+    filtro?: {
+      veiculoId?: string;
+      clienteId?: string;
+      dataInicial?: string;
+      dataFinal?: string;
+      situacao?: "pago" | "todos";
+    };
+  }) =>
     apiRequest<{ data: unknown }>("/api/relatorios/cobrancas", { method: "POST", body }),
   gerarPrestacaoContas: (body: Record<string, unknown>) =>
     apiRequest<{ data: unknown }>("/api/relatorios/prestacao-contas", { method: "POST", body }),
-  gerarEncerramento: (body: Record<string, unknown>) =>
+  gerarEncerramento: (body: {
+    contratoId?: string;
+    pastaContrato?: string;
+    dataEncerramento: string;
+    semanasPagas?: number;
+    armazenarServidor?: boolean;
+  }) =>
     apiRequest<{
       data: unknown;
       whatsapp?: string;
@@ -185,7 +202,7 @@ export const lanzaApi = {
 
   resumoRenegociacao: (params: {
     clienteId?: string;
-    placa?: string;
+    veiculoId?: string;
     motoristaKey?: string;
     rastreavelKey?: string;
     apenasVencidos?: boolean;

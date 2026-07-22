@@ -12,7 +12,7 @@ import {
   RelatorioPeriodoFiltro,
   type RelatorioPeriodo,
 } from "@/components/relatorios/RelatorioPeriodoFiltro";
-import { useInfracoes, useVeiculos } from "@/api/hooks";
+import { useInfracoes } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatPlaca } from "@/lib/format";
@@ -61,13 +61,6 @@ export function RelatorioInfracoesSection() {
     emAberto,
     ativo: true,
   });
-  const veiculosQuery = useVeiculos({ ativo: true });
-
-  const placaFiltro = useMemo(() => {
-    if (!veiculoId) return undefined;
-    return veiculosQuery.data?.items.find((v) => v.id === veiculoId)?.placa;
-  }, [veiculoId, veiculosQuery.data]);
-
   const rows = query.data?.items ?? [];
   const temFiltro = Boolean(
     veiculoId || clienteId || parceiroId || situacao !== "em_aberto" || periodoPreenchido(periodo),
@@ -83,7 +76,7 @@ export function RelatorioInfracoesSection() {
     try {
       const r = await lanzaApi.atribuirClientesInfracoes({
         dryRun,
-        placa: placaFiltro?.trim() || undefined,
+        veiculoId: veiculoId || undefined,
       });
       setAtribuirResult(r);
       if (!dryRun) {

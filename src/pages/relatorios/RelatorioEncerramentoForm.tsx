@@ -97,7 +97,7 @@ export function RelatorioEncerramentoForm() {
     if (motivo === "troca") setQuebraContrato(false);
   }, [motivo]);
 
-  const paramsValidos = Boolean(pastaContrato.trim() && dataEncerramento.trim());
+  const paramsValidos = Boolean(contratoSelecionadoId && dataEncerramento.trim());
 
   function selecionarContrato(contrato: Contrato) {
     setContratoSelecionadoId(contrato.id);
@@ -117,7 +117,7 @@ export function RelatorioEncerramentoForm() {
     if (modo !== "visualizar") setResult(null);
     try {
       const bruto = await lanzaApi.gerarEncerramento({
-        pastaContrato: pastaContrato.trim(),
+        contratoId: contratoSelecionado.id,
         dataEncerramento: dataEncerramento.trim(),
         semanasPagas: semanasPagas.trim() ? Number(semanasPagas) : undefined,
         armazenarServidor,

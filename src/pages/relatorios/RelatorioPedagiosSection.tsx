@@ -91,7 +91,7 @@ export function RelatorioPedagiosSection() {
     try {
       const r = await lanzaApi.atribuirClientesDespesas({
         dryRun,
-        placa: placaFiltro?.trim() || undefined,
+        veiculoId: veiculoId || undefined,
         escopo: "pedagio",
       });
       setAtribuirResult(r);

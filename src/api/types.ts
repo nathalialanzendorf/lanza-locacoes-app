@@ -300,6 +300,7 @@ export type LinhaPlanoBaixa = {
   operacao: string;
   rastreavel: string;
   autoInfracao: string | null;
+  despesaId?: string | null;
   descricao?: string;
   total?: number;
   patch?: Record<string, unknown>;
@@ -396,6 +397,7 @@ export type RenegociacaoResumo = {
   motoristaKey?: string;
   rastreavelKey?: string;
   clienteId?: string;
+  veiculoId?: string;
   placa?: string;
   /** Próximo código [NEGOCIADO X] — sequencial por cliente, inicia em 1. */
   negociacaoCodigo?: string;
@@ -418,6 +420,7 @@ export type RenegociacaoInput = {
   /** Omitir para a API gerar automaticamente (sequencial por cliente). */
   negociacaoCodigo?: string;
   clienteId?: string;
+  veiculoId?: string;
   placa?: string;
   gastosIds: Array<string | number>;
   motoristaKey?: string;

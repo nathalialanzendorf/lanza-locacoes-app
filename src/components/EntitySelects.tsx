@@ -250,6 +250,13 @@ export function matchParceiroIdPorNome(parceiros: Parceiro[] | undefined, nome: 
   return parcial?.length === 1 ? parcial[0]!.id : "";
 }
 
+/** Placa cadastrada para um veículo (APIs legadas que ainda exigem placa no body). */
+export function placaDoVeiculo(veiculos: Veiculo[] | undefined, veiculoId: string): string {
+  const id = veiculoId.trim();
+  if (!id) return "";
+  return veiculos?.find((v) => v.id === id)?.placa?.trim() ?? "";
+}
+
 export function matchVeiculoSelectValue(
   veiculos: Veiculo[] | undefined,
   ref: string | undefined,

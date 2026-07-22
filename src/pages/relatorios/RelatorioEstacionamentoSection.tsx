@@ -95,7 +95,7 @@ export function RelatorioEstacionamentoSection() {
     try {
       const r = await lanzaApi.atribuirClientesDespesas({
         dryRun,
-        placa: placaFiltro?.trim() || undefined,
+        veiculoId: veiculoId || undefined,
         escopo: "estacionamento",
       });
       setAtribuirResult(r);

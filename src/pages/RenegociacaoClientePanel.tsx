@@ -16,7 +16,7 @@ import type { RenegociacaoInput, RenegociacaoParcela, RenegociacaoPreview } from
 
 type Props = {
   clienteIdInicial?: string;
-  placaInicial?: string;
+  veiculoIdInicial?: string;
 };
 
 function addDays(isoDate: string, days: number): string {
@@ -59,11 +59,11 @@ function formatDataDebito(data?: string): string {
   return d.toLocaleDateString("pt-BR");
 }
 
-export function RenegociacaoClientePanel({ clienteIdInicial = "", placaInicial = "" }: Props) {
+export function RenegociacaoClientePanel({ clienteIdInicial = "", veiculoIdInicial = "" }: Props) {
   const qc = useQueryClient();
 
   const [clienteId, setClienteId] = useState(clienteIdInicial);
-  const [placa, setPlaca] = useState(placaInicial);
+  const [veiculoId, setVeiculoId] = useState(veiculoIdInicial);
   const [numParcelas, setNumParcelas] = useState("3");
   const [primeiraParcela, setPrimeiraParcela] = useState(hojeIso());
   const [intervaloDias, setIntervaloDias] = useState("7");
@@ -82,9 +82,9 @@ export function RenegociacaoClientePanel({ clienteIdInicial = "", placaInicial =
   const filtroParams = useMemo(
     () => ({
       clienteId: clienteId.trim() || undefined,
-      placa: placa.trim() || undefined,
+      veiculoId: veiculoId.trim() || undefined,
     }),
-    [clienteId, placa],
+    [clienteId, veiculoId],
   );
 
   const resumoQuery = useRenegociacaoResumo(filtroParams, {
@@ -119,7 +119,7 @@ export function RenegociacaoClientePanel({ clienteIdInicial = "", placaInicial =
     return {
       negociacaoCodigo: resumo.negociacaoCodigo,
       clienteId: resumo.clienteId ?? (clienteId.trim() || undefined),
-      placa: placa.trim() || resumo.placa || undefined,
+      veiculoId: veiculoId.trim() || resumo.veiculoId || undefined,
       gastosIds,
       motoristaKey: resumo.motoristaKey,
       rastreavelKey: resumo.rastreavelKey,
@@ -208,8 +208,9 @@ export function RenegociacaoClientePanel({ clienteIdInicial = "", placaInicial =
           <label className="field">
             <span className="field__label">Veículo</span>
             <VeiculoSelect
-              value={placa}
-              onChange={setPlaca}
+              value={veiculoId}
+              onChange={setVeiculoId}
+              valueField="id"
               clienteId={clienteId || undefined}
               variant="filtro"
             />

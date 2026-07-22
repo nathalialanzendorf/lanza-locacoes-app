@@ -74,7 +74,7 @@ export function useDespesasCliente(
 }
 
 export function useRenegociacaoResumo(
-  params?: { clienteId?: string; placa?: string },
+  params?: { clienteId?: string; veiculoId?: string },
   options?: { enabled?: boolean },
 ) {
   return useQuery({
@@ -104,6 +104,7 @@ export function useDespesasParceiro(params?: {
 
 export function useLocacoes(params?: {
   abertas?: boolean;
+  veiculoId?: string;
   placa?: string;
   situacao?: string;
   clienteId?: string;
