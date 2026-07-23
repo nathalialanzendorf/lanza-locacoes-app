@@ -5,8 +5,8 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, QueryError } from "@/components/PageHeader";
 import { IconRecebimento, IconRenovar } from "@/components/icons";
-import { useResumo, useClientes, useContratos } from "@/api/hooks";
-import { formatBrl, formatPlaca, clienteExibicaoPorId } from "@/lib/format";
+import { useResumo } from "@/api/hooks";
+import { formatBrl, formatPlaca } from "@/lib/format";
 import { LABEL } from "@/lib/labels";
 import { urlLancarRecebimento } from "@/lib/recebimentoUrl";
 import {
@@ -14,7 +14,6 @@ import {
   alertaVencimentoContrato,
   dataFimPrevistaContrato,
   hojeIsoBr,
-  ordenarContratosRenovacao,
   rotuloAlertaVencimento,
   rowClassVencimentoContrato,
 } from "@/lib/contratoVencimento";
@@ -67,7 +66,6 @@ function RecebimentosTable({
   linhas,
   colunasExtra,
   colunaVeiculo = "Placa",
-  clientes,
   mostrarAcaoRecebimento = false,
   mostrarDescricao = true,
   acoesCompactas = false,
@@ -84,17 +82,13 @@ function RecebimentosTable({
     render: (l: DashboardRecebimentoLinha) => ReactNode;
   }>;
   colunaVeiculo?: "Placa" | "Veículo";
-  clientes?: { id: string; nome?: string; ativo?: boolean }[];
   mostrarAcaoRecebimento?: boolean;
   mostrarDescricao?: boolean;
   acoesCompactas?: boolean;
   dataReferenciaBr?: string;
   zebraPorCliente?: boolean;
 }) {
-  const gruposCliente = useMemo(
-    () => (zebraPorCliente ? indiceGrupoPorCliente(linhas) : null),
-    [linhas, zebraPorCliente],
-  );
+  const gruposCliente = zebraPorCliente ? indiceGrupoPorCliente(linhas) : null;
 
   const rowIndexByKey = useMemo(() => {
     const map = new Map<string, number>();
@@ -109,8 +103,8 @@ function RecebimentosTable({
       {
         key: "cliente",
         header: "Cliente",
-        sortValue: (l) => clienteExibicaoPorId(clientes, l.clienteId, l.clienteNome),
-        render: (l) => clienteExibicaoPorId(clientes, l.clienteId, l.clienteNome),
+        sortValue: (l) => l.clienteNome?.trim() || "—",
+        render: (l) => l.clienteNome?.trim() || "—",
       },
       {
         key: "veiculo",
@@ -168,7 +162,6 @@ function RecebimentosTable({
     }
     return cols;
   }, [
-    clientes,
     colunaVeiculo,
     colunasExtra,
     dataReferenciaBr,
@@ -205,13 +198,11 @@ function ContratosVencimentoTable({
   titulo,
   linhas,
   hojeIso,
-  clientes,
   vazio,
 }: {
   titulo: string;
   linhas: Contrato[];
   hojeIso: string;
-  clientes?: { id: string; nome?: string; ativo?: boolean }[];
   vazio: string;
 }) {
   return (
@@ -229,8 +220,8 @@ function ContratosVencimentoTable({
           {
             key: "cliente",
             header: "Cliente",
-            sortValue: (c) => clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome),
-            render: (c) => clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome),
+            sortValue: (c) => c.clienteNome?.trim() || "—",
+            render: (c) => c.clienteNome?.trim() || "—",
           },
           {
             key: "placa",
@@ -285,24 +276,9 @@ function ContratosVencimentoTable({
 
 export function DashboardPage() {
   const resumo = useResumo();
-  const clientesQuery = useClientes();
-  const contratosQuery = useContratos({ status: "ativo" });
   const rec = resumo.data?.recebimentos ?? RECEBIMENTOS_VAZIO;
-  const clientes = clientesQuery.data?.items;
+  const contratosVencimento = resumo.data?.contratosVencimento ?? { vencidos: [], aVencer: [] };
   const hojeIso = hojeIsoBr();
-
-  const contratosVencimento = useMemo(() => {
-    const vencidos: Contrato[] = [];
-    const aVencer: Contrato[] = [];
-    for (const c of contratosQuery.data?.items ?? []) {
-      const alerta = alertaVencimentoContrato(dataFimPrevistaContrato(c), hojeIso);
-      if (alerta === "vencido") vencidos.push(c);
-      else if (alerta === "proximo") aVencer.push(c);
-    }
-    vencidos.sort((a, b) => ordenarContratosRenovacao(a, b, hojeIso));
-    aVencer.sort((a, b) => ordenarContratosRenovacao(a, b, hojeIso));
-    return { vencidos, aVencer };
-  }, [contratosQuery.data, hojeIso]);
 
   return (
     <PageHeader
@@ -397,16 +373,8 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {contratosQuery.isLoading ? (
-        <p className="field__hint">A carregar contratos…</p>
-      ) : contratosQuery.isError ? (
-        <QueryError
-          message={
-            contratosQuery.error instanceof LanzaApiError
-              ? contratosQuery.error.message
-              : "Falha ao listar contratos."
-          }
-        />
+      {resumo.isLoading ? (
+        <p className="field__hint">A carregar dashboard…</p>
       ) : (
         <section className="dashboard-section">
           <header className="dashboard-section__head">
@@ -434,22 +402,18 @@ export function DashboardPage() {
             titulo="Vencidos"
             linhas={contratosVencimento.vencidos}
             hojeIso={hojeIso}
-            clientes={clientes}
             vazio="Nenhum contrato ativo vencido."
           />
           <ContratosVencimentoTable
             titulo={`A vencer (próximos ${PROXIMO_VENCER_DIAS} dias)`}
             linhas={contratosVencimento.aVencer}
             hojeIso={hojeIso}
-            clientes={clientes}
             vazio="Nenhum contrato a vencer nos próximos 14 dias."
           />
         </section>
       )}
 
-      {resumo.isLoading ? (
-        <p className="field__hint">A carregar recebimentos…</p>
-      ) : (
+      {resumo.isLoading ? null : (
         <>
           <section className="dashboard-section">
             <header className="dashboard-section__head">
@@ -489,7 +453,6 @@ export function DashboardPage() {
               titulo={rec.tituloPagamentoSemanal ?? "Pagamento semanal"}
               linhas={rec.venceHoje}
               colunaVeiculo="Veículo"
-              clientes={clientes}
               mostrarAcaoRecebimento
               mostrarDescricao={false}
               dataReferenciaBr={rec.dataReferenciaBr}
@@ -499,7 +462,6 @@ export function DashboardPage() {
               titulo="Em atraso"
               linhas={rec.atrasados}
               colunaVeiculo="Veículo"
-              clientes={clientes}
               mostrarAcaoRecebimento
               acoesCompactas
               zebraPorCliente

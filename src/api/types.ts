@@ -13,6 +13,10 @@ export type Resumo = {
     semCliente?: number;
     semCondutor?: number;
   };
+  contratosVencimento?: {
+    vencidos: Contrato[];
+    aVencer: Contrato[];
+  };
   recebimentos?: DashboardRecebimentos;
 };
 
@@ -298,22 +302,24 @@ export type CobrancasMeta = {
 export type LinhaPlanoBaixa = {
   num: number;
   operacao: string;
-  rastreavel: string;
   autoInfracao: string | null;
   despesaId?: string | null;
+  clienteId?: string | null;
+  veiculoId?: string | null;
   descricao?: string;
   total?: number;
   patch?: Record<string, unknown>;
 };
 
 export type PlanoBaixa = {
-  cliente: { id: string; nome: string; cpf?: string | null };
+  cliente: { id: string; cpf?: string | null };
   pagamento?: { valor: number; dataBr: string };
   despesaAlvo?: {
     autoInfracao: string;
     descricaoAtual: string;
     valorDevido: number;
     dataVencimento: string;
+    veiculoId?: string;
   } | null;
   tipoBaixa?: "integral" | "parcial" | "integral_desconto";
   avisos?: string[];
