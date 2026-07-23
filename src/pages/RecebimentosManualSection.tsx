@@ -6,7 +6,6 @@ import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ClienteSelect, NativeSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
-import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
 import { useDespesasCliente } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
@@ -69,7 +68,6 @@ export function RecebimentosManualSection() {
   const [loadingExec, setLoadingExec] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
   const [execSuccess, setExecSuccess] = useState<string | null>(null);
-  const [execResult, setExecResult] = useState<unknown>(null);
 
   const clienteSelecionado = clienteId.trim();
   const despesasQuery = useDespesasCliente(
@@ -152,7 +150,6 @@ export function RecebimentosManualSection() {
   function onDespesaChange(id: string) {
     setDespesaId(id);
     setPlano(null);
-    setExecResult(null);
     setExecSuccess(null);
     if (!id) {
       setValor("");
@@ -218,7 +215,6 @@ export function RecebimentosManualSection() {
     setLoadingPlano(true);
     setPlanoError(null);
     setPlano(null);
-    setExecResult(null);
     setExecSuccess(null);
     try {
       const r = await lanzaApi.montarPlanoRecebimento({
@@ -272,7 +268,6 @@ export function RecebimentosManualSection() {
         despesaId: despesaSel?.id,
         syncRastreame: false,
       });
-      setExecResult(r.data);
       const aplicadas =
         typeof r.data === "object" &&
         r.data != null &&
@@ -280,7 +275,9 @@ export function RecebimentosManualSection() {
         typeof (r.data as { aplicadas: unknown }).aplicadas === "number"
           ? (r.data as { aplicadas: number }).aplicadas
           : linhas.length;
-      setExecSuccess(`Baixa aplicada com sucesso (${aplicadas} linha${aplicadas === 1 ? "" : "s"}).`);
+      setExecSuccess(
+        `Baixa aplicada com sucesso (${aplicadas} linha${aplicadas === 1 ? "" : "s"}).`,
+      );
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
     } catch (err) {
       setExecError(err instanceof LanzaApiError ? err.message : "Falha ao executar baixa.");
@@ -439,8 +436,6 @@ export function RecebimentosManualSection() {
           <FlashSuccess message={execSuccess} />
         </section>
       ) : null}
-
-      <ResultPanel title="Baixa aplicada" data={execResult} />
     </>
   );
 }
