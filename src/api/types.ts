@@ -26,6 +26,7 @@ export type Resumo = {
     vencidos: ContratoVencimentoResumo[];
     aVencer: ContratoVencimentoResumo[];
   };
+  /** @deprecated use GET /api/contratos no dashboard */
   recebimentos?: DashboardRecebimentos;
 };
 

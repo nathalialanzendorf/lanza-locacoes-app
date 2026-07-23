@@ -5,8 +5,8 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, QueryError } from "@/components/PageHeader";
 import { IconRecebimento, IconRenovar } from "@/components/icons";
-import { useResumo } from "@/api/hooks";
-import { formatBrl, formatPlaca } from "@/lib/format";
+import { useResumo, useClientes, useContratos } from "@/api/hooks";
+import { formatBrl, formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import { LABEL } from "@/lib/labels";
 import { urlLancarRecebimento } from "@/lib/recebimentoUrl";
 import {
@@ -14,11 +14,12 @@ import {
   alertaVencimentoContrato,
   dataFimPrevistaContrato,
   hojeIsoBr,
+  ordenarContratosRenovacao,
   rotuloAlertaVencimento,
   rowClassVencimentoContrato,
 } from "@/lib/contratoVencimento";
 import { LanzaApiError } from "@/api/client";
-import type { ContratoVencimentoResumo, DashboardRecebimentoLinha, DashboardRecebimentos } from "@/api/types";
+import type { Contrato, DashboardRecebimentoLinha, DashboardRecebimentos } from "@/api/types";
 
 const RECEBIMENTOS_VAZIO: DashboardRecebimentos = {
   dataReferenciaBr: "—",
@@ -201,11 +202,13 @@ function ContratosVencimentoTable({
   linhas,
   hojeIso,
   vazio,
+  clientes,
 }: {
   titulo: string;
-  linhas: ContratoVencimentoResumo[];
+  linhas: Contrato[];
   hojeIso: string;
   vazio: string;
+  clientes?: { id: string; nome?: string; ativo?: boolean }[];
 }) {
   return (
     <section className="form-card dashboard-recebimentos">
@@ -222,8 +225,8 @@ function ContratosVencimentoTable({
           {
             key: "cliente",
             header: "Cliente",
-            sortValue: (c) => c.clienteNome?.trim() || "—",
-            render: (c) => c.clienteNome?.trim() || "—",
+            sortValue: (c) => clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome),
+            render: (c) => clienteExibicaoPorId(clientes, c.clienteId, c.clienteNome),
           },
           {
             key: "placa",
@@ -278,9 +281,24 @@ function ContratosVencimentoTable({
 
 export function DashboardPage() {
   const resumo = useResumo();
+  const clientesQuery = useClientes();
+  const contratosQuery = useContratos({ status: "ativo" });
   const rec = resumo.data?.recebimentos ?? RECEBIMENTOS_VAZIO;
-  const contratosVencimento = resumo.data?.contratosVencimento ?? { vencidos: [], aVencer: [] };
+  const clientes = clientesQuery.data?.items;
   const hojeIso = hojeIsoBr();
+
+  const contratosVencimento = useMemo(() => {
+    const vencidos: Contrato[] = [];
+    const aVencer: Contrato[] = [];
+    for (const c of contratosQuery.data?.items ?? []) {
+      const alerta = alertaVencimentoContrato(dataFimPrevistaContrato(c), hojeIso);
+      if (alerta === "vencido") vencidos.push(c);
+      else if (alerta === "proximo") aVencer.push(c);
+    }
+    vencidos.sort((a, b) => ordenarContratosRenovacao(a, b, hojeIso));
+    aVencer.sort((a, b) => ordenarContratosRenovacao(a, b, hojeIso));
+    return { vencidos, aVencer };
+  }, [contratosQuery.data, hojeIso]);
 
   return (
     <PageHeader
@@ -292,7 +310,7 @@ export function DashboardPage() {
           message={
             resumo.error instanceof LanzaApiError
               ? resumo.error.message
-              : "Falha na ligação à API."
+              : "Falha ao carregar totais do dashboard."
           }
         />
       ) : null}
@@ -375,8 +393,16 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {resumo.isLoading ? (
-        <p className="field__hint">A carregar dashboard…</p>
+      {contratosQuery.isLoading ? (
+        <p className="field__hint">A carregar contratos…</p>
+      ) : contratosQuery.isError ? (
+        <QueryError
+          message={
+            contratosQuery.error instanceof LanzaApiError
+              ? contratosQuery.error.message
+              : "Falha ao listar contratos."
+          }
+        />
       ) : (
         <section className="dashboard-section">
           <header className="dashboard-section__head">
@@ -404,12 +430,14 @@ export function DashboardPage() {
             titulo="Vencidos"
             linhas={contratosVencimento.vencidos}
             hojeIso={hojeIso}
+            clientes={clientes}
             vazio="Nenhum contrato ativo vencido."
           />
           <ContratosVencimentoTable
             titulo={`A vencer (próximos ${PROXIMO_VENCER_DIAS} dias)`}
             linhas={contratosVencimento.aVencer}
             hojeIso={hojeIso}
+            clientes={clientes}
             vazio="Nenhum contrato a vencer nos próximos 14 dias."
           />
         </section>
