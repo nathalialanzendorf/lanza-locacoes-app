@@ -127,9 +127,11 @@ export type Contrato = {
   dataFim?: string;
   dataFimPrevista?: string;
   dataEncerramento?: string | null;
+  prazoDias?: number | null;
   cpf?: string | null;
   tipoContrato?: string | null;
   valorSemanal?: number | null;
+  valorCaucao?: number | null;
   valorMensal?: number | null;
   valorDiaria?: number | null;
   diaPagamentoSemana?: string | null;

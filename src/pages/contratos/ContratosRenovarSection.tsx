@@ -18,6 +18,7 @@ import {
   rotuloAlertaVencimento,
   rowClassVencimentoContrato,
 } from "@/lib/contratoVencimento";
+import { labelTempoContrato } from "@/lib/contratoPrazo";
 import type { Contrato } from "@/api/types";
 
 export function ContratosRenovarSection() {
@@ -174,12 +175,17 @@ export function ContratosRenovarSection() {
                 contratoSelecionado.clienteNome,
               )}
             </strong>{" "}
-            · {formatPlaca(contratoSelecionado.placa)} · fim{" "}
+            · {formatPlaca(contratoSelecionado.placa)} · início {contratoSelecionado.dataInicio ?? "—"} · fim{" "}
             {dataFimPrevistaContrato(contratoSelecionado) ?? "—"}
+            {contratoSelecionado.prazoDias != null
+              ? ` · ${labelTempoContrato("", contratoSelecionado.prazoDias)}`
+              : ""}
           </p>
           <ContratosCadastroSection
+            key={contratoSelecionado.id}
             modo="renovar"
             contratoId={contratoSelecionado.id}
+            contratoOrigem={contratoSelecionado}
             titulo="Renovar contrato"
             submitLabel="Gerar renovação"
             backTo="/contratos/renovar"

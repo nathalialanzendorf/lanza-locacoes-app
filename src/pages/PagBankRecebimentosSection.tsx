@@ -49,6 +49,11 @@ export function PagBankRecebimentosSection() {
         if (!p?.plano?.linhas?.length) continue;
         const r = await lanzaApi.executarRecebimento({
           linhas: p.plano.linhas,
+          clienteId: p.plano.cliente?.id,
+          veiculoId:
+            p.plano.despesaAlvo?.veiculoId?.trim() ||
+            p.plano.linhas.map((l) => l.veiculoId?.trim()).find(Boolean),
+          despesaId: p.plano.linhas.map((l) => l.despesaId?.trim()).find(Boolean),
           syncRastreame: false,
         });
         resultados.push({ credito: p.pagbank.id, cliente: p.clienteQuery, resultado: r.data });

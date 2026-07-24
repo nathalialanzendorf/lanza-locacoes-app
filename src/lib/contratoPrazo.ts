@@ -56,6 +56,58 @@ export function dataFimDePeriodo(inicioBr: string, periodo: string): string {
   return somarDiasDataBr(inicioBr, dias);
 }
 
+export type PrazoRenovacaoPreenchido = {
+  dataInicio: string;
+  dataFim: string;
+  periodo: string;
+  periodoPersonalizado: boolean;
+  prazoDias: number | null;
+};
+
+/** Preenche início, fim e tempo do contrato a partir do registro anterior (renovação). */
+export function preencherPrazoRenovacao(c: {
+  dataInicio?: string | null;
+  dataFimPrevista?: string | null;
+  dataFim?: string | null;
+  prazoDias?: number | null;
+}): PrazoRenovacaoPreenchido {
+  const inicio = c.dataInicio?.trim() || hojeDataBr();
+  const fimInformado = c.dataFimPrevista?.trim() || c.dataFim?.trim() || "";
+
+  let prazoDias: number | null =
+    c.prazoDias != null && c.prazoDias > 0 ? Math.round(c.prazoDias) : null;
+  if (prazoDias == null && inicio && fimInformado) {
+    prazoDias = diasEntreDatasBr(inicio, fimInformado);
+  }
+
+  let periodo = prazoDias != null ? periodoDeDias(prazoDias) : "";
+  let periodoPersonalizado = false;
+
+  if (!periodo && inicio && fimInformado) {
+    periodoPersonalizado = true;
+    periodo = "";
+  } else if (!periodo) {
+    periodo = "3 meses";
+    prazoDias = prazoDias ?? periodoParaDias(periodo);
+  }
+
+  const dataFim =
+    fimInformado ||
+    (periodo && !periodoPersonalizado ? dataFimDePeriodo(inicio, periodo) : "");
+
+  return { dataInicio: inicio, dataFim, periodo, periodoPersonalizado, prazoDias };
+}
+
+/** Rótulo do tempo de contrato para exibição (select ou dias personalizados). */
+export function labelTempoContrato(periodo: string, prazoDias: number | null): string {
+  if (periodo.trim()) {
+    const opt = PERIODOS_CONTRATO.find((p) => p.value === periodo);
+    return opt?.label ?? periodo;
+  }
+  if (prazoDias != null && prazoDias > 0) return `${prazoDias} dias`;
+  return "—";
+}
+
 /** Texto da cláusula 3.2 — `--dia-pagamento` / `montarDadosContrato`. */
 export const DIAS_PAGAMENTO_SEMANAL = [
   { value: "todos os sábados", label: "Sábado" },

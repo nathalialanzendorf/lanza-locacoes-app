@@ -171,11 +171,19 @@ export const lanzaApi = {
   montarPlanoRecebimento: (body: {
     clienteId: string;
     veiculoId?: string;
+    placa?: string;
     despesaId: string;
     valor: number;
     dataBr: string;
   }) => apiRequest<{ data: PlanoBaixa }>("/api/recebimentos/plano", { method: "POST", body }),
-  executarRecebimento: (body: { linhas: PlanoBaixa["linhas"]; syncRastreame?: boolean }) =>
+  executarRecebimento: (body: {
+    linhas: PlanoBaixa["linhas"];
+    clienteId?: string;
+    veiculoId?: string;
+    despesaId?: string;
+    placa?: string;
+    syncRastreame?: boolean;
+  }) =>
     apiRequest<{ data: unknown }>("/api/recebimentos/executar", { method: "POST", body }),
 
   metaSync: () => apiRequest<SyncMeta>("/api/sync"),

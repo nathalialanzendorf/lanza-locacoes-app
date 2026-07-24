@@ -13,7 +13,7 @@ import { LanzaApiError } from "@/api/client";
 import { FlashError, FlashSuccess } from "@/context/ScreenFlashContext";
 import type { LinhaPlanoBaixa, PlanoBaixa, ClienteDespesa } from "@/api/types";
 import { formatBrl, formatValorInput, parseValorInput } from "@/lib/format";
-import { despesaElegivelBaixaCliente } from "@/lib/despesaClienteStatus";
+import { montarOpcoesPendenciaDespesa } from "@/lib/pendenciaDespesaOpcoes";
 import { isEntityUuid } from "@/lib/uuid";
 
 const ROTULO_TIPO_BAIXA: Record<NonNullable<PlanoBaixa["tipoBaixa"]>, string> = {
@@ -33,11 +33,6 @@ function rotuloEfeitoLinha(l: LinhaPlanoBaixa): string {
   if (l.operacao === "atualizar" && patch.paga === true) return "Quitado";
   if (l.operacao === "atualizar") return "Saldo em atraso";
   return "—";
-}
-
-function valorDespesaCliente(d: ClienteDespesa): number {
-  const v = Number(d.valorMulta);
-  return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
 function placaDespesa(d: ClienteDespesa): string {
@@ -81,24 +76,10 @@ export function RecebimentosManualSection() {
   const loadingDespesas =
     Boolean(clienteSelecionado) && despesasQuery.isLoading && !despesasQuery.data;
 
-  const opcoesDespesa = useMemo(() => {
-    return (despesasQuery.data?.items ?? [])
-      .filter((d) => despesaElegivelBaixaCliente(d))
-      .map((d) => {
-        const valorDevido = valorDespesaCliente(d);
-        if (valorDevido <= 0) return null;
-        const rotulo = d.descricao?.trim() || d.categoria?.trim() || d.id;
-        const placa = d.placa?.trim() || d.veiculoId?.trim() || "";
-        return {
-          id: d.id,
-          placa,
-          valor: valorDevido,
-          label: `${formatBrl(valorDevido)} · ${rotulo}${placa ? ` · ${placa}` : ""}`,
-        };
-      })
-      .filter((o): o is NonNullable<typeof o> => o != null)
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [despesasQuery.data]);
+  const opcoesDespesa = useMemo(
+    () => montarOpcoesPendenciaDespesa(despesasQuery.data?.items ?? []),
+    [despesasQuery.data],
+  );
 
   const despesaSel = useMemo(
     () => opcoesDespesa.find((o) => o.id === despesaId) ?? null,

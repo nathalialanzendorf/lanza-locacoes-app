@@ -52,9 +52,16 @@ function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): str
   return formatVeiculoLabel({ placa: d.placa ?? d.veiculoId });
 }
 
+function vencimentoSortMs(vencimentoBr?: string | null): number {
+  const m = String(vencimentoBr ?? "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return 0;
+  const [, dd, mm, yyyy] = m;
+  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
 export function DespesasClienteListSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<FiltroPagamento>("todos");
+  const [pagamento, setPagamento] = useState<FiltroPagamento>("em_aberto");
   const [clienteId, setClienteId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -77,7 +84,7 @@ export function DespesasClienteListSection() {
 
   const rows = query.data?.items ?? [];
   const temFiltro = Boolean(
-    pagamento !== "todos" ||
+    pagamento !== "em_aberto" ||
       clienteId ||
       veiculoId ||
       categoria ||
@@ -148,8 +155,8 @@ export function DespesasClienteListSection() {
               allowEmpty={false}
               aria-label="Status"
             >
-              <option value="todos">{SELECT_LABEL_TODOS}</option>
               <option value="em_aberto">Em aberto</option>
+              <option value="todos">{SELECT_LABEL_TODOS}</option>
               <option value="pago">Pago</option>
             </NativeSelect>
           </label>
@@ -176,6 +183,7 @@ export function DespesasClienteListSection() {
         loading={query.isLoading}
         rows={rows}
         keyFn={(d) => d.id}
+        defaultSort={{ key: "vencimento", direction: "desc" }}
         rowClassName={(d) => (despesaCobravelCliente(d) ? "row--em-aberto" : undefined)}
         emptyMessage={temFiltro ? "Nenhuma despesa corresponde aos filtros." : "Nenhuma despesa registada."}
         columns={[
@@ -199,7 +207,7 @@ export function DespesasClienteListSection() {
           },
           { key: "desc", header: "Descrição", sortValue: (d) => d.descricao?.trim() || "", render: (d) => d.descricao?.trim() || "—" },
           { key: "categoria", header: "Categoria", sortValue: (d) => rotuloCategoriaDespesa(d.categoria), render: (d) => rotuloCategoriaDespesa(d.categoria) },
-          { key: "vencimento", header: "Vencimento", sortValue: (d) => d.vencimentoBr?.trim() || "", render: (d) => d.vencimentoBr?.trim() || "—" },
+          { key: "vencimento", header: "Vencimento", sortValue: (d) => vencimentoSortMs(d.vencimentoBr), render: (d) => d.vencimentoBr?.trim() || "—" },
           {
             key: "valor",
             header: "Valor",

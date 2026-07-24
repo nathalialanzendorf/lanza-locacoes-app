@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { ClienteSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue, placaDoVeiculo } from "@/components/EntitySelects";
@@ -11,6 +12,7 @@ import { ResultPanel } from "@/components/ResultPanel";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { useVeiculos, useClientes } from "@/api/hooks";
+import type { Contrato } from "@/api/types";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
   DIAS_PAGAMENTO_SEMANAL,
@@ -18,8 +20,9 @@ import {
   dataFimDePeriodo,
   diaPagamentoSemanaParaSelect,
   diasEntreDatasBr,
+  labelTempoContrato,
+  preencherPrazoRenovacao,
   hojeDataBr,
-  periodoDeDias,
 } from "@/lib/contratoPrazo";
 
 type ModoContrato = "criar" | "renovar";
@@ -27,10 +30,19 @@ type ModoContrato = "criar" | "renovar";
 type Props = {
   modo: ModoContrato;
   contratoId?: string;
+  /** Contrato selecionado na lista (renovar) — preenche a tela antes do GET /contratos/:id. */
+  contratoOrigem?: Contrato | null;
   titulo: string;
   submitLabel?: string;
   backTo?: string;
   backLabel?: string;
+};
+
+type ContratoRenovacaoFonte = Contrato & {
+  prazoDias?: number | null;
+  valorSemanal?: number | null;
+  valorCaucao?: number | null;
+  diaPagamentoSemana?: string | null;
 };
 
 function round2(n: number): number {
@@ -159,12 +171,14 @@ function ParcelamentoFields({
 export function ContratosCadastroSection({
   modo,
   contratoId,
+  contratoOrigem,
   titulo,
   submitLabel = "Gerar Word/PDF",
   backTo = "/contratos",
   backLabel,
 }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const editando = Boolean(contratoId);
   const veiculosQuery = useVeiculos();
   const clientesQuery = useClientes();
@@ -175,11 +189,20 @@ export function ContratosCadastroSection({
   const [caucao, setCaucao] = useState("");
   const [diaPagamento, setDiaPagamento] = useState<string>(DIAS_PAGAMENTO_SEMANAL[0]!.value);
   const periodoInicial = modo === "renovar" ? "3 meses" : "semana";
-  const inicioInicial = hojeDataBr();
-  const [periodo, setPeriodo] = useState(periodoInicial);
-  const [dataInicio, setDataInicio] = useState(inicioInicial);
-  const [dataFim, setDataFim] = useState(() => dataFimDePeriodo(inicioInicial, periodoInicial));
-  const [periodoPersonalizado, setPeriodoPersonalizado] = useState(false);
+  const hoje = hojeDataBr();
+  const prazoInicialRenovacao =
+    modo === "renovar" && contratoOrigem ? preencherPrazoRenovacao(contratoOrigem) : null;
+  const [periodo, setPeriodo] = useState(prazoInicialRenovacao?.periodo ?? periodoInicial);
+  const [dataInicio, setDataInicio] = useState(prazoInicialRenovacao?.dataInicio ?? hoje);
+  const [dataFim, setDataFim] = useState(
+    prazoInicialRenovacao?.dataFim ?? dataFimDePeriodo(hoje, periodoInicial),
+  );
+  const [periodoPersonalizado, setPeriodoPersonalizado] = useState(
+    prazoInicialRenovacao?.periodoPersonalizado ?? false,
+  );
+  const [prazoDiasContrato, setPrazoDiasContrato] = useState<number | null>(
+    prazoInicialRenovacao?.prazoDias ?? null,
+  );
   const [parcelarCaucao, setParcelarCaucao] = useState(false);
   const [parcelarSemana, setParcelarSemana] = useState(false);
   const [caucaoEntrada, setCaucaoEntrada] = useState("");
@@ -189,7 +212,7 @@ export function ContratosCadastroSection({
   const [semanaEntrada, setSemanaEntrada] = useState("");
   const [semanaParcelasN, setSemanaParcelasN] = useState("");
   const [semanaValorParcela, setSemanaValorParcela] = useState("");
-  const [carregando, setCarregando] = useState(editando);
+  const [carregando, setCarregando] = useState(editando && !contratoOrigem);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
@@ -229,6 +252,34 @@ export function ContratosCadastroSection({
     }
   }
 
+  function aplicarContratoRenovacao(c: ContratoRenovacaoFonte) {
+    const veiculoRef =
+      typeof c.veiculoId === "string" ? c.veiculoId : typeof c.placa === "string" ? c.placa : "";
+    if (veiculoRef) {
+      setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+    }
+    if (c.cpf) setCpf(c.cpf);
+    if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
+    if (c.valorCaucao != null) {
+      setCaucao(formatValorInput(c.valorCaucao));
+      setCaucaoAnterior(c.valorCaucao);
+    }
+    if (c.diaPagamentoSemana) {
+      setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
+    }
+    const prazo = preencherPrazoRenovacao(c);
+    setDataInicio(prazo.dataInicio);
+    setDataFim(prazo.dataFim);
+    setPeriodo(prazo.periodo);
+    setPeriodoPersonalizado(prazo.periodoPersonalizado);
+    setPrazoDiasContrato(prazo.prazoDias);
+  }
+
+  useEffect(() => {
+    if (modo !== "renovar" || !contratoOrigem) return;
+    aplicarContratoRenovacao(contratoOrigem);
+  }, [modo, contratoOrigem, veiculosQuery.data]);
+
   useEffect(() => {
     if (!contratoId) return;
     let cancelado = false;
@@ -238,33 +289,16 @@ export function ContratosCadastroSection({
       .obterContrato(contratoId)
       .then((r) => {
         if (cancelado) return;
-        const c = r.data as typeof r.data & {
-          prazoDias?: number;
-          valorSemanal?: number | null;
-          valorCaucao?: number;
-          diaPagamentoSemana?: string | null;
-        };
-        const veiculoRef =
-          typeof c.veiculoId === "string" ? c.veiculoId : typeof c.placa === "string" ? c.placa : "";
-        if (veiculoRef) {
-          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
-        }
-        if (c.cpf) setCpf(c.cpf);
-        if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
-        if (c.valorCaucao != null) {
-          setCaucao(formatValorInput(c.valorCaucao));
-          if (modo === "renovar") setCaucaoAnterior(c.valorCaucao);
-        }
-        if (c.diaPagamentoSemana) {
-          setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
-        }
         if (modo === "renovar") {
-          const inicio = hojeDataBr();
-          const per = c.prazoDias ? periodoDeDias(c.prazoDias) || "3 meses" : "3 meses";
-          setDataInicio(inicio);
-          setPeriodo(per);
-          setPeriodoPersonalizado(false);
-          setDataFim(dataFimDePeriodo(inicio, per));
+          aplicarContratoRenovacao(r.data as ContratoRenovacaoFonte);
+        } else {
+          const c = r.data as ContratoRenovacaoFonte;
+          const veiculoRef =
+            typeof c.veiculoId === "string" ? c.veiculoId : typeof c.placa === "string" ? c.placa : "";
+          if (veiculoRef) {
+            setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+          }
+          if (c.cpf) setCpf(c.cpf);
         }
       })
       .catch((err) => {
@@ -383,6 +417,9 @@ export function ContratosCadastroSection({
         caucao: caucaoTotal,
         diaPagamento: diaPagamento.trim(),
       };
+      if (modo === "renovar" && contratoId?.trim()) {
+        body.contratoRenovarId = contratoId.trim();
+      }
 
       const inicio = dataInicio.trim();
       const fim = dataFim.trim();
@@ -407,10 +444,7 @@ export function ContratosCadastroSection({
         );
         body.caucaoParcelasN = parcelas;
         body.caucaoValorParcela = valorParcela;
-        const entrada = parseValorInput(caucaoEntrada, { allowZero: true }) ?? 0;
-        if (entrada > 0) {
-          body.caucaoSaldoAberto = saldo;
-        }
+        body.caucaoSaldoAberto = saldo;
       }
 
       if (modo === "criar" && parcelarSemana) {
@@ -430,6 +464,9 @@ export function ContratosCadastroSection({
       const fn = modo === "criar" ? lanzaApi.criarContrato : lanzaApi.renovarContrato;
       const r = await fn(body);
       setResult(r);
+      void qc.invalidateQueries({ queryKey: ["contratos"] });
+      void qc.invalidateQueries({ queryKey: ["clientes"] });
+      void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
       navigate("/contratos");
     } catch (err) {
       setError(
@@ -459,7 +496,14 @@ export function ContratosCadastroSection({
     <>
       <CadastroBackLink to={backTo} label={backLabel} />
       <FormCard title={titulo} onSubmit={submit} loading={loading} submitLabel={submitLabel} error={error}>
-        <Field label="Veículo">
+        <Field
+          label="Veículo"
+          hint={
+            modo === "renovar"
+              ? "Troque o veículo para renovar com troca — o contrato anterior será encerrado como troca."
+              : undefined
+          }
+        >
           <VeiculoSelect
             value={veiculoId}
             onChange={setVeiculoId}
@@ -495,8 +539,8 @@ export function ContratosCadastroSection({
           </NativeSelect>
         </Field>
         <div className="field--full form-grid form-grid--contrato-prazo">
-          <Field label="Data início">
-            <DateInput
+        <Field label="Data início" hint={modo === "renovar" ? "Padrão: início do contrato anterior — altere se a troca for em outra data." : undefined}>
+          <DateInput
               value={dataInicio}
               onChange={handleDataInicioChange}
               disabled={loading}
@@ -508,7 +552,7 @@ export function ContratosCadastroSection({
               value={periodo}
               onChange={handlePeriodoChange}
               variant="cadastro"
-              allowEmpty={false}
+              allowEmpty={periodoPersonalizado}
               disabled={loading}
               aria-label="Tempo do contrato"
             >
@@ -519,6 +563,12 @@ export function ContratosCadastroSection({
                 </option>
               ))}
             </NativeSelect>
+            {modo === "renovar" && dataInicio.trim() && dataFim.trim() ? (
+              <span className="field__hint">
+                Vigência do contrato anterior: {dataInicio} → {dataFim}
+                {prazoDiasContrato != null ? ` · ${labelTempoContrato(periodo, prazoDiasContrato)}` : ""}
+              </span>
+            ) : null}
             {periodoPersonalizado && dataInicio.trim() && dataFim.trim() ? (
               <span className="field__hint">
                 {diasEntreDatasBr(dataInicio, dataFim)} dias (ajuste pela data fim)
