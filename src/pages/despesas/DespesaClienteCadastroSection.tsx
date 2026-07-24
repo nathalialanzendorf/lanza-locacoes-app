@@ -95,7 +95,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         else if (d.dataLimiteDefesa) setDataVencimento(d.dataLimiteDefesa);
         else if (d.limiteDefesa) setDataVencimento(d.limiteDefesa);
         setStatus(statusCadastroDeDespesa(d));
-        setPagaEm(d.pagaEmBr ?? d.pagaEm ?? null);
+        setPagaEm(d.pagaEmBr ?? null);
         const id = clienteIdDe(d);
         if (id) setClienteId(id);
       })

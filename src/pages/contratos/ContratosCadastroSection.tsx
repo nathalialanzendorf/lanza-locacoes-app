@@ -21,6 +21,7 @@ import {
   diaPagamentoSemanaParaSelect,
   diasEntreDatasBr,
   labelTempoContrato,
+  periodoDeDias,
   preencherPrazoRenovacao,
   hojeDataBr,
 } from "@/lib/contratoPrazo";
