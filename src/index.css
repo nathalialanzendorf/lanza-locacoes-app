@@ -768,6 +768,13 @@ code {
   margin: 0.75rem 0 0;
 }
 
+.form-card__action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

@@ -174,7 +174,7 @@ export function ContratosCadastroSection({
   contratoId,
   contratoOrigem,
   titulo,
-  submitLabel = "Gerar Word/PDF",
+  submitLabel,
   backTo = "/contratos",
   backLabel,
 }: Props) {
@@ -183,6 +183,8 @@ export function ContratosCadastroSection({
   const editando = Boolean(contratoId);
   const veiculosQuery = useVeiculos();
   const clientesQuery = useClientes();
+  const labelSubmit =
+    submitLabel ?? (modo === "renovar" ? "Confirmar renovação" : "Salvar contrato");
 
   const [veiculoId, setVeiculoId] = useState("");
   const [cpf, setCpf] = useState("");
@@ -216,6 +218,10 @@ export function ContratosCadastroSection({
   const [carregando, setCarregando] = useState(editando && !contratoOrigem);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [contratoSalvoId, setContratoSalvoId] = useState<string | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
 
   function handlePeriodoChange(valor: string) {
@@ -391,6 +397,8 @@ export function ContratosCadastroSection({
   async function submit() {
     setLoading(true);
     setError(null);
+    setSuccess(null);
+    setDocError(null);
     try {
       const caucaoTotal = parseValorInput(caucao);
       const semanaTotal = parseValorInput(semana);
@@ -466,20 +474,46 @@ export function ContratosCadastroSection({
       const fn = modo === "criar" ? lanzaApi.criarContrato : lanzaApi.renovarContrato;
       const r = await fn(body);
       setResult(r);
+      const payload = r as { data?: { contrato?: { id?: string } } };
+      const id = payload.data?.contrato?.id?.trim();
+      if (id) setContratoSalvoId(id);
+      setSuccess(
+        modo === "criar"
+          ? "Contrato salvo no banco. Gere o Word/PDF quando quiser."
+          : "Renovação salva no banco. Gere o Word/PDF quando quiser.",
+      );
       void qc.invalidateQueries({ queryKey: ["contratos"] });
       void qc.invalidateQueries({ queryKey: ["clientes"] });
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
-      navigate("/contratos");
     } catch (err) {
       setError(
         err instanceof LanzaApiError
           ? err.message
           : err instanceof Error
             ? err.message
-            : "Falha ao gerar contrato.",
+            : "Falha ao salvar contrato.",
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function gerarDocumento(formato: "docx" | "pdf") {
+    if (!contratoSalvoId) return;
+    setDocLoading(true);
+    setDocError(null);
+    try {
+      await lanzaApi.gerarDocumentoContrato(contratoSalvoId, formato);
+    } catch (err) {
+      setDocError(
+        err instanceof LanzaApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Falha ao gerar documento.",
+      );
+    } finally {
+      setDocLoading(false);
     }
   }
 
@@ -497,7 +531,14 @@ export function ContratosCadastroSection({
   return (
     <>
       <CadastroBackLink to={backTo} label={backLabel} />
-      <FormCard title={titulo} onSubmit={submit} loading={loading} submitLabel={submitLabel} error={error}>
+      <FormCard
+        title={titulo}
+        onSubmit={submit}
+        loading={loading}
+        submitLabel={labelSubmit}
+        error={error}
+        success={success}
+      >
         <Field
           label="Veículo"
           hint={
@@ -646,7 +687,40 @@ export function ContratosCadastroSection({
           />
         ) : null}
       </FormCard>
-      <ResultPanel title="Contrato gerado" data={result} />
+      {contratoSalvoId ? (
+        <div className="form-card form-card--actions">
+          <h2 className="form-card__title">Documento Word/PDF</h2>
+          <p className="field__hint">
+            O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura.
+            {typeof window !== "undefined" && !/Win/i.test(navigator.platform)
+              ? " PDF só está disponível no servidor Windows."
+              : ""}
+          </p>
+          <div className="form-card__action-row">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={docLoading}
+              onClick={() => void gerarDocumento("docx")}
+            >
+              {docLoading ? "Gerando…" : "Gerar Word (.docx)"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={docLoading}
+              onClick={() => void gerarDocumento("pdf")}
+            >
+              Gerar PDF
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={() => navigate("/contratos")}>
+              Ir para lista de contratos
+            </button>
+          </div>
+          {docError ? <p className="form-card__error">{docError}</p> : null}
+        </div>
+      ) : null}
+      <ResultPanel title="Resposta da API" data={result} />
     </>
   );
 }

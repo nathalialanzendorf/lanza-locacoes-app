@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiRequest, apiDownload } from "./client";
 import { lanzaApiExtra } from "./endpointsExtra";
 import type {
   Cliente,
@@ -72,6 +72,12 @@ export const lanzaApi = {
     motivoEncerramento: string;
     quebraContrato?: boolean;
   }) => apiRequest<{ data: unknown }>("/api/contratos/encerrar", { method: "POST", body }),
+  gerarDocumentoContrato: (id: string, formato: "docx" | "pdf" = "docx") =>
+    apiDownload(`/api/contratos/${encodeURIComponent(id)}/gerar-documento`, {
+      method: "POST",
+      params: { download: formato },
+      timeoutMs: 120_000,
+    }),
 
   listarDespesasCliente: (params?: {
     emAberto?: boolean;

@@ -187,7 +187,7 @@ export function ContratosRenovarSection() {
             contratoId={contratoSelecionado.id}
             contratoOrigem={contratoSelecionado}
             titulo="Renovar contrato"
-            submitLabel="Gerar renovação"
+            submitLabel="Confirmar renovação"
             backTo="/contratos/renovar"
             backLabel="Voltar à lista de renovação"
           />

@@ -2,7 +2,7 @@ import { ContratosCadastroSection } from "@/pages/contratos/ContratosCadastroSec
 
 export function ContratosCadastrarSection() {
   return (
-    <ContratosCadastroSection modo="criar" titulo="Cadastrar contrato" submitLabel="Gerar contrato" />
+    <ContratosCadastroSection modo="criar" titulo="Cadastrar contrato" submitLabel="Salvar contrato" />
   );
 }
 

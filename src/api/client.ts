@@ -121,3 +121,47 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   return payload as T;
 }
+
+/** Transferência de ficheiro (Word/PDF) com autenticação. */
+export async function apiDownload(
+  path: string,
+  options: Omit<RequestOptions, "body"> & { filename?: string } = {},
+): Promise<void> {
+  const headers: Record<string, string> = {};
+  const apiKey = getStoredApiKey().trim();
+  if (apiKey) headers["X-API-Key"] = apiKey;
+  const token = getStoredToken().trim();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const init: RequestInit = {
+    method: options.method ?? "GET",
+    headers,
+  };
+  if (options.timeoutMs != null && options.timeoutMs > 0) {
+    init.signal = AbortSignal.timeout(options.timeoutMs);
+  }
+
+  const res = await fetch(buildUrl(path, options.params), init);
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `Erro HTTP ${res.status}`;
+    try {
+      const payload = JSON.parse(text) as ApiError;
+      if (payload.error) message = payload.error;
+    } catch {
+      if (text.trim()) message = text.trim();
+    }
+    throw new LanzaApiError(res.status, message);
+  }
+
+  const blob = await res.blob();
+  const dispo = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/i.exec(dispo);
+  const filename = options.filename ?? match?.[1] ?? "documento";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
