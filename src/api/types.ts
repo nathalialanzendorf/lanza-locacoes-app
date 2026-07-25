@@ -313,6 +313,8 @@ export type CobrancasMeta = {
   outDirPadrao: string;
 };
 
+export type VeiculoConsultaFonte = "detran-sc" | "detran-rs" | "pedagio" | "sigapay";
+
 export type VeiculoConsultaPortalItem = {
   id: string;
   ref?: string;
@@ -338,9 +340,35 @@ export type VeiculoConsultaPortaisResultado = {
   renavam?: string | null;
   ufRegistro?: string | null;
   veiculoCadastrado: boolean;
-  detran: VeiculoConsultaPortalSecao;
+  fonte: VeiculoConsultaFonte;
+  detranSc: VeiculoConsultaPortalSecao;
+  detranRs: VeiculoConsultaPortalSecao;
   pedagio: VeiculoConsultaPortalSecao;
   estacionamento: VeiculoConsultaPortalSecao;
+};
+
+export type DetranScSessaoStatus = {
+  configured: boolean;
+  updatedAt?: string;
+  empresa?: string;
+  authPreview?: string;
+  origem?: "env" | "store";
+};
+
+export type DetranScCapturaStatus =
+  | "idle"
+  | "starting"
+  | "waiting"
+  | "captured"
+  | "error"
+  | "unavailable";
+
+export type DetranScCapturaState = {
+  status: DetranScCapturaStatus;
+  message?: string;
+  startedAt?: string;
+  capturedAt?: string;
+  available: boolean;
 };
 
 export type LinhaPlanoBaixa = {

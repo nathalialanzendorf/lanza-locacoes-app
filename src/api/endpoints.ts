@@ -83,11 +83,36 @@ export const lanzaApi = {
   consultarVeiculoPortais: (params: {
     placa?: string;
     renavam?: string;
-    status?: "em_aberto" | "todos";
+    fonte?: import("./types").VeiculoConsultaFonte;
   }) =>
     apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
       "/api/relatorios/veiculo/consulta",
       { params, timeoutMs: 180_000 },
+    ),
+  statusDetranScSessao: () =>
+    apiRequest<{ data: import("./types").DetranScSessaoStatus }>("/api/portais/detran-sc/sessao"),
+  gravarDetranScSessao: (body: { auth: string; empresa: string; appVersion?: string | null }) =>
+    apiRequest<{ data: import("./types").DetranScSessaoStatus & { ok?: boolean } }>(
+      "/api/portais/detran-sc/sessao",
+      { method: "PUT", body },
+    ),
+  removerDetranScSessao: () =>
+    apiRequest<{ data: { ok: boolean; configured: boolean } }>("/api/portais/detran-sc/sessao", {
+      method: "DELETE",
+    }),
+  statusCapturaDetranSc: () =>
+    apiRequest<{ data: import("./types").DetranScCapturaState }>(
+      "/api/portais/detran-sc/captura",
+    ),
+  iniciarCapturaDetranSc: () =>
+    apiRequest<{ data: import("./types").DetranScCapturaState }>(
+      "/api/portais/detran-sc/captura",
+      { method: "POST" },
+    ),
+  pararCapturaDetranSc: () =>
+    apiRequest<{ data: import("./types").DetranScCapturaState }>(
+      "/api/portais/detran-sc/captura",
+      { method: "DELETE" },
     ),
   downloadDocumento: (pathname: string, filename?: string) =>
     apiDownload("/api/documentos/download", { params: { pathname }, filename }),
