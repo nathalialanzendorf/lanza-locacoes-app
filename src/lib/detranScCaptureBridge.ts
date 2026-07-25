@@ -3,11 +3,21 @@ import type { DetranScCapturaState } from "@/api/types";
 const BRIDGE_BASE =
   import.meta.env.VITE_DETRAN_CAPTURE_BRIDGE?.trim() || "http://127.0.0.1:9234";
 
+export type BridgeCapturaStartOpts = {
+  apiUrl: string;
+  bearer?: string;
+  apiKey?: string;
+};
+
 async function bridgeFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   try {
     const res = await fetch(`${BRIDGE_BASE}${path}`, {
       ...init,
-      headers: { Accept: "application/json", ...(init?.headers ?? {}) },
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
     });
     if (!res.ok) return null;
     return (await res.json()) as T;
@@ -26,9 +36,12 @@ export async function bridgeCapturaStatus(): Promise<DetranScCapturaState | null
   return r?.data ?? null;
 }
 
-export async function bridgeCapturaIniciar(): Promise<DetranScCapturaState | null> {
+export async function bridgeCapturaIniciar(
+  opts: BridgeCapturaStartOpts,
+): Promise<DetranScCapturaState | null> {
   const r = await bridgeFetch<{ data: DetranScCapturaState }>("/capture/start", {
     method: "POST",
+    body: JSON.stringify(opts),
   });
   return r?.data ?? null;
 }
@@ -38,4 +51,8 @@ export async function bridgeCapturaParar(): Promise<DetranScCapturaState | null>
     method: "DELETE",
   });
   return r?.data ?? null;
+}
+
+export function bridgeStartHint(): string {
+  return "Abra um terminal em lanza-locacoes-services e rode: npm run detran-capture-bridge";
 }

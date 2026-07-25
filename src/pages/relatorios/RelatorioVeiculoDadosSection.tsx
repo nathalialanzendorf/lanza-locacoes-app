@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { DataTable } from "@/components/DataTable";
 import { lanzaApi } from "@/api/endpoints";
-import { LanzaApiError } from "@/api/client";
+import { LanzaApiError, getApiBaseUrl, getStoredApiKey } from "@/api/client";
+import { getStoredToken } from "@/api/authClient";
 import type {
   DetranScCapturaState,
   DetranScSessaoStatus,
@@ -13,6 +14,7 @@ import {
   bridgeCapturaIniciar,
   bridgeCapturaStatus,
   bridgeHealth,
+  bridgeStartHint,
 } from "@/lib/detranScCaptureBridge";
 import { formatBrl, formatPlaca } from "@/lib/format";
 
@@ -345,11 +347,23 @@ export function RelatorioVeiculoDadosSection() {
     setSessaoError(null);
     setSessaoMsg(null);
     try {
+      const apiUrl =
+        getApiBaseUrl().trim() || "https://api.lanzalocacoes.vercel.app";
+      const bridgeOpts = {
+        apiUrl,
+        bearer: getStoredToken().trim() || undefined,
+        apiKey: getStoredApiKey().trim() || undefined,
+      };
+
       let data: DetranScCapturaState | null = null;
       const bridge = bridgeAtivo ?? (await bridgeHealth());
       setBridgeAtivo(bridge);
+
       if (bridge) {
-        data = await bridgeCapturaIniciar();
+        data = await bridgeCapturaIniciar(bridgeOpts);
+        if (!data) {
+          throw new Error("Bridge local respondeu mas não iniciou a captura.");
+        }
       } else {
         try {
           const r = await lanzaApi.iniciarCapturaDetranSc();
@@ -357,17 +371,17 @@ export function RelatorioVeiculoDadosSection() {
         } catch (err) {
           if (err instanceof LanzaApiError && err.status === 501) {
             throw new Error(
-              "API remota sem Chrome. No Windows, rode `npm run detran-capture-bridge` na pasta lanza-locacoes-services e clique de novo.",
+              `Bridge local não detectado. ${bridgeStartHint()} — depois clique em Capturar sessão automaticamente.`,
             );
           }
           throw err;
         }
       }
-      if (!data) throw new Error("Não foi possível iniciar a captura automática.");
+
       setCaptura(data);
       setSessaoMsg(
         data.message ??
-          "Chrome aberto — faça login Gov.br; o token será guardado sozinho após a primeira consulta.",
+          "Chrome aberto — faça login Gov.br; o token será enviado à API após a primeira consulta.",
       );
     } catch (err) {
       setSessaoError(
