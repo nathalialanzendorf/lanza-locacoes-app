@@ -407,7 +407,8 @@ export function ContratosCadastroSection({
       const placa = placaDoVeiculo(veiculosQuery.data?.items, veiculoId);
       if (!placa) throw new Error("Selecione um veículo cadastrado.");
       const clienteIdBody =
-        clientesQuery.data?.items.find((c) => c.cpf?.trim() === cpf.trim())?.id ?? undefined;
+        clientesQuery.data?.items.find((c) => c.cpf?.trim() === cpf.trim())?.id ??
+        (modo === "renovar" ? contratoOrigem?.clienteId?.trim() : undefined);
 
       const body: Record<string, unknown> = {
         veiculoId: veiculoId.trim(),
