@@ -41,10 +41,10 @@ function ContratosCadastroRoute() {
   if (!id) return <Navigate to="/contratos" replace />;
   return (
     <ContratosCadastroSection
-      modo="renovar"
+      modo="editar"
       contratoId={id}
-      titulo="Renovar contrato"
-      submitLabel="Gerar renovação"
+      titulo="Editar contrato"
+      submitLabel="Salvar"
     />
   );
 }

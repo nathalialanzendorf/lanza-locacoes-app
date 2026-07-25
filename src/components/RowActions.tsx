@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { IconEdit, IconEncerrar, IconRecebimento, IconRenovar, IconTrash } from "@/components/icons";
+import { IconEdit, IconDownload, IconEncerrar, IconRecebimento, IconRenovar, IconTrash } from "@/components/icons";
 import { Toggle } from "@/components/Toggle";
 import { LABEL } from "@/lib/labels";
 
@@ -16,7 +16,9 @@ type Props = {
   onDelete: () => void;
   deleting?: boolean;
   deleteLabel?: string;
-  /** Contratos: encerrar → renovar → editar → excluir */
+  onDownloadAssinado?: () => void;
+  downloadingAssinado?: boolean;
+  /** Contratos: encerrar → renovar → assinado → editar → excluir */
   variant?: "default" | "contrato";
   /** Veículos: rótulo «Inativar» em vez de «Desabilitar». */
   toggleAtivoMode?: "desabilitar" | "inativar";
@@ -33,10 +35,12 @@ export function RowActions({
   onDelete,
   deleting,
   deleteLabel = LABEL.excluir,
+  onDownloadAssinado,
+  downloadingAssinado,
   variant = "default",
   toggleAtivoMode = "desabilitar",
 }: Props) {
-  const busy = deleting || togglingAtivo;
+  const busy = deleting || togglingAtivo || downloadingAssinado;
 
   const recebimento = recebimentoTo ? (
     <Link
@@ -86,6 +90,19 @@ export function RowActions({
     </Link>
   ) : null;
 
+  const assinado = onDownloadAssinado ? (
+    <button
+      type="button"
+      className="btn btn--icon btn--icon-ok"
+      disabled={busy}
+      onClick={onDownloadAssinado}
+      aria-label="Baixar contrato assinado"
+      title="Baixar contrato assinado"
+    >
+      <IconDownload className="row-actions__icon" />
+    </button>
+  ) : null;
+
   const excluir = (
     <button
       type="button"
@@ -101,7 +118,7 @@ export function RowActions({
 
   const actions =
     variant === "contrato"
-      ? [encerrar, renovar, editar, excluir]
+      ? [encerrar, renovar, assinado, editar, excluir]
       : [recebimento, toggleAtivo, editar, renovar, encerrar, excluir];
 
   return <div className="row-actions">{actions}</div>;

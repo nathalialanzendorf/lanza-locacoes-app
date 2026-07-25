@@ -26,7 +26,7 @@ import {
   hojeDataBr,
 } from "@/lib/contratoPrazo";
 
-type ModoContrato = "criar" | "renovar";
+type ModoContrato = "criar" | "renovar" | "editar";
 
 type Props = {
   modo: ModoContrato;
@@ -44,7 +44,22 @@ type ContratoRenovacaoFonte = Contrato & {
   valorSemanal?: number | null;
   valorCaucao?: number | null;
   diaPagamentoSemana?: string | null;
+  contratoAssinadoStorageKey?: string | null;
+  contratoAssinadoNome?: string | null;
 };
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const raw = String(reader.result ?? "");
+      const base64 = raw.includes(",") ? raw.split(",")[1]! : raw;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler o arquivo"));
+    reader.readAsDataURL(file);
+  });
+}
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -184,7 +199,8 @@ export function ContratosCadastroSection({
   const veiculosQuery = useVeiculos();
   const clientesQuery = useClientes();
   const labelSubmit =
-    submitLabel ?? (modo === "renovar" ? "Confirmar renovação" : "Salvar contrato");
+    submitLabel ??
+    (modo === "editar" ? "Salvar" : modo === "renovar" ? "Confirmar renovação" : "Salvar contrato");
 
   const [veiculoId, setVeiculoId] = useState("");
   const [cpf, setCpf] = useState("");
@@ -223,6 +239,13 @@ export function ContratosCadastroSection({
   const [docLoading, setDocLoading] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
+  const [assinadoStorageKey, setAssinadoStorageKey] = useState<string | null>(null);
+  const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
+  const [assinadoPendente, setAssinadoPendente] = useState<{
+    nomeArquivo: string;
+    conteudoBase64: string;
+    contentType?: string;
+  } | null>(null);
 
   function handlePeriodoChange(valor: string) {
     setPeriodo(valor);
@@ -257,6 +280,44 @@ export function ContratosCadastroSection({
       setPeriodo("");
       setPeriodoPersonalizado(true);
     }
+  }
+
+  function aplicarContratoEdicao(c: ContratoRenovacaoFonte) {
+    const veiculoRef =
+      typeof c.veiculoId === "string" ? c.veiculoId : typeof c.placa === "string" ? c.placa : "";
+    if (veiculoRef) {
+      setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+    }
+    if (c.cpf) setCpf(c.cpf);
+    if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
+    if (c.valorCaucao != null) setCaucao(formatValorInput(c.valorCaucao));
+    if (c.diaPagamentoSemana) {
+      setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
+    }
+    const inicio = c.dataInicio?.trim() ?? "";
+    const fim = c.dataFimPrevista?.trim() || c.dataFim?.trim() || "";
+    if (inicio) setDataInicio(inicio);
+    if (fim) setDataFim(fim);
+    const dias =
+      c.prazoDias ?? (inicio && fim ? diasEntreDatasBr(inicio, fim) : null);
+    if (dias != null && dias > 0) {
+      setPrazoDiasContrato(dias);
+      const per = periodoDeDias(dias);
+      if (per) {
+        setPeriodo(per);
+        setPeriodoPersonalizado(false);
+      } else {
+        setPeriodo("");
+        setPeriodoPersonalizado(true);
+      }
+    }
+    if (c.contratoAssinadoStorageKey?.trim()) {
+      setAssinadoStorageKey(c.contratoAssinadoStorageKey.trim());
+    }
+    if (c.contratoAssinadoNome?.trim()) {
+      setAssinadoNome(c.contratoAssinadoNome.trim());
+    }
+    if (c.id?.trim()) setContratoSalvoId(c.id.trim());
   }
 
   function aplicarContratoRenovacao(c: ContratoRenovacaoFonte) {
@@ -298,6 +359,8 @@ export function ContratosCadastroSection({
         if (cancelado) return;
         if (modo === "renovar") {
           aplicarContratoRenovacao(r.data as ContratoRenovacaoFonte);
+        } else if (modo === "editar") {
+          aplicarContratoEdicao(r.data as ContratoRenovacaoFonte);
         } else {
           const c = r.data as ContratoRenovacaoFonte;
           const veiculoRef =
@@ -439,6 +502,37 @@ export function ContratosCadastroSection({
       if (dias == null || dias <= 0) {
         throw new Error("A data fim deve ser posterior à data de início.");
       }
+
+      if (modo === "editar") {
+        if (!contratoId?.trim()) throw new Error("Contrato não identificado.");
+        const patch: Record<string, unknown> = {
+          dataInicio: inicio,
+          dataFimPrevista: fim,
+          prazoDias: dias,
+          valorSemanal: semanaTotal,
+          valorCaucao: caucaoTotal,
+          diaPagamentoSemana: diaPagamento.trim(),
+          tipoContrato: "semanal",
+        };
+        if (assinadoPendente) {
+          patch.contratoAssinado = assinadoPendente;
+        }
+        const r = await lanzaApi.atualizarContrato(contratoId.trim(), patch);
+        setResult(r);
+        const contrato = r.data?.contrato;
+        if (contrato?.id) setContratoSalvoId(contrato.id);
+        if (contrato?.contratoAssinadoStorageKey) {
+          setAssinadoStorageKey(contrato.contratoAssinadoStorageKey);
+        }
+        if (contrato?.contratoAssinadoNome) {
+          setAssinadoNome(contrato.contratoAssinadoNome);
+        }
+        setAssinadoPendente(null);
+        setSuccess("Contrato atualizado.");
+        void qc.invalidateQueries({ queryKey: ["contratos"] });
+        return;
+      }
+
       body.inicio = inicio;
       body.dias = dias;
       const per = periodoDeDias(dias);
@@ -499,11 +593,12 @@ export function ContratosCadastroSection({
   }
 
   async function gerarDocumento(formato: "docx" | "pdf") {
-    if (!contratoSalvoId) return;
+    const id = contratoSalvoId ?? contratoId;
+    if (!id) return;
     setDocLoading(true);
     setDocError(null);
     try {
-      await lanzaApi.gerarDocumentoContrato(contratoSalvoId, formato);
+      await lanzaApi.gerarDocumentoContrato(id, formato);
     } catch (err) {
       setDocError(
         err instanceof LanzaApiError
@@ -527,6 +622,43 @@ export function ContratosCadastroSection({
   }
 
   const mostrarToggleCaucao = modo === "criar" || mostrarParcelarCaucaoRenovacao;
+  const idDocumento = contratoSalvoId ?? (modo === "editar" ? contratoId : null);
+
+  async function handleAssinadoFile(file: File | null) {
+    if (!file) return;
+    try {
+      const conteudoBase64 = await fileToBase64(file);
+      setAssinadoPendente({
+        nomeArquivo: file.name,
+        conteudoBase64,
+        contentType: file.type || undefined,
+      });
+      setAssinadoNome(file.name);
+      setError(null);
+    } catch {
+      setError("Falha ao ler o arquivo do contrato assinado.");
+    }
+  }
+
+  async function baixarContratoAssinado() {
+    const id = contratoId ?? contratoSalvoId;
+    if (!id?.trim()) return;
+    setDocLoading(true);
+    setDocError(null);
+    try {
+      await lanzaApi.downloadContratoAssinado(id.trim(), assinadoNome ?? undefined);
+    } catch (err) {
+      setDocError(
+        err instanceof LanzaApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Falha ao baixar contrato assinado.",
+      );
+    } finally {
+      setDocLoading(false);
+    }
+  }
 
   return (
     <>
@@ -544,7 +676,9 @@ export function ContratosCadastroSection({
           hint={
             modo === "renovar"
               ? "Troque o veículo para renovar com troca — o contrato anterior será encerrado como troca."
-              : undefined
+              : modo === "editar"
+                ? "Veículo não pode ser alterado na edição."
+                : undefined
           }
         >
           <VeiculoSelect
@@ -553,11 +687,17 @@ export function ContratosCadastroSection({
             valueField="id"
             required
             variant="cadastro"
-            disabled={loading}
+            disabled={loading || modo === "editar"}
           />
         </Field>
-        <Field label="Cliente">
-          <ClienteSelect value={cpf} onChange={setCpf} valueField="cpf" variant="cadastro" disabled={loading} />
+        <Field label="Cliente" hint={modo === "editar" ? "Cliente não pode ser alterado na edição." : undefined}>
+          <ClienteSelect
+            value={cpf}
+            onChange={setCpf}
+            valueField="cpf"
+            variant="cadastro"
+            disabled={loading || modo === "editar"}
+          />
         </Field>
         <Field label="Valor semanal (R$)">
           <ValorInput value={semana} onChange={setSemana} required disabled={loading} />
@@ -686,12 +826,52 @@ export function ContratosCadastroSection({
             disabled={loading}
           />
         ) : null}
+
+        {modo === "editar" ? (
+          <div className="form-section field--full">
+            <h3 className="form-section-title">Contrato assinado</h3>
+            <p className="form-section__lead">
+              Envie o PDF ou Word do contrato já assinado pelo cliente.
+            </p>
+            <div className="form-grid">
+              <Field label="Arquivo assinado" hint="PDF ou Word (.doc/.docx)">
+                <input
+                  className="input"
+                  type="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  disabled={loading}
+                  onChange={(e) => void handleAssinadoFile(e.target.files?.[0] ?? null)}
+                />
+              </Field>
+            </div>
+            {assinadoNome ? (
+              <p className="field__hint">
+                {assinadoPendente ? "Será enviado ao salvar: " : "Arquivo: "}
+                <strong>{assinadoNome}</strong>
+              </p>
+            ) : null}
+            {assinadoStorageKey && !assinadoPendente ? (
+              <div className="form-card__action-row">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={docLoading}
+                  onClick={() => void baixarContratoAssinado()}
+                >
+                  {docLoading ? "Baixando…" : "Baixar contrato assinado"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </FormCard>
-      {contratoSalvoId ? (
+      {idDocumento ? (
         <div className="form-card form-card--actions">
           <h2 className="form-card__title">Documento Word/PDF</h2>
           <p className="field__hint">
-            O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura.
+            {modo === "editar"
+              ? "Gere o Word para impressão ou baixe o contrato assinado acima."
+              : "O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura."}
             {typeof window !== "undefined" && !/Win/i.test(navigator.platform)
               ? " PDF só está disponível no servidor Windows."
               : ""}

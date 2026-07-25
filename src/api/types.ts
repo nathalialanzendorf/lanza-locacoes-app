@@ -137,6 +137,8 @@ export type Contrato = {
   diaPagamentoSemana?: string | null;
   diaPagamentoMes?: number | null;
   diaPagamentoTexto?: string | null;
+  contratoAssinadoStorageKey?: string | null;
+  contratoAssinadoNome?: string | null;
 };
 
 /** Resposta completa de GET /api/contratos/:id */

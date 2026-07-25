@@ -217,6 +217,11 @@ export const lanzaApiExtra = {
     apiRequest<{ data: unknown }>(`/api/contratos/${encodeURIComponent(id)}`, { method: "DELETE" }),
   obterContrato: (id: string) =>
     apiRequest<DataEnvelope<import("./types").ContratoDetalhe>>(`/api/contratos/${encodeURIComponent(id)}`),
+  atualizarContrato: (id: string, body: Record<string, unknown>) =>
+    apiRequest<{ data: { contrato: import("./types").ContratoDetalhe } }>(
+      `/api/contratos/${encodeURIComponent(id)}`,
+      { method: "PATCH", body },
+    ),
 
   obterParceiroDespesa: (id: string) =>
     apiRequest<DataEnvelope<import("./types").ParceiroDespesa>>(`/api/parceiro-despesas/${encodeURIComponent(id)}`),

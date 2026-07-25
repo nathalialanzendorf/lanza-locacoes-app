@@ -28,6 +28,7 @@ function veiculoUuid(contrato: Contrato, placaParaId: Map<string, string>): stri
 export function ContratosListSection() {
   const qc = useQueryClient();
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [baixandoAssinadoId, setBaixandoAssinadoId] = useState<string | null>(null);
   const query = useContratos();
   const parceirosQuery = useParceiros();
   const vinculosQuery = useVinculosParceiro();
@@ -64,6 +65,22 @@ export function ContratosListSection() {
     const id = veiculoUuid(contrato, placaParaVeiculoId);
     if (!id) return "—";
     return parceiroPorVeiculoId.get(id) ?? "—";
+  }
+
+  async function baixarAssinado(contrato: Contrato) {
+    setBaixandoAssinadoId(contrato.id);
+    try {
+      await lanzaApi.downloadContratoAssinado(
+        contrato.id,
+        contrato.contratoAssinadoNome ?? undefined,
+      );
+    } catch (err) {
+      window.alert(
+        err instanceof LanzaApiError ? err.message : "Falha ao baixar contrato assinado.",
+      );
+    } finally {
+      setBaixandoAssinadoId(null);
+    }
   }
 
   async function excluir(contrato: Contrato) {
@@ -150,6 +167,19 @@ export function ContratosListSection() {
               </span>
             ),
           },
+          {
+            key: "assinado",
+            header: "Assinado",
+            sortValue: (c) => (c.contratoAssinadoStorageKey ? "1" : "0"),
+            render: (c) =>
+              c.contratoAssinadoStorageKey ? (
+                <span className="badge badge--ok" title={c.contratoAssinadoNome ?? "Contrato assinado"}>
+                  Sim
+                </span>
+              ) : (
+                <span className="muted">—</span>
+              ),
+          },
           { key: "inicio", header: "Início", sortValue: (c) => c.dataInicio ?? "", render: (c) => c.dataInicio ?? "—" },
           { key: "termino", header: "Término", sortValue: (c) => terminoContrato(c), render: (c) => terminoContrato(c) },
           {
@@ -166,6 +196,12 @@ export function ContratosListSection() {
                     : undefined
                 }
                 renovarTo={c.status === "ativo" ? `/contratos/renovar?id=${encodeURIComponent(c.id)}` : undefined}
+                onDownloadAssinado={
+                  c.contratoAssinadoStorageKey
+                    ? () => void baixarAssinado(c)
+                    : undefined
+                }
+                downloadingAssinado={baixandoAssinadoId === c.id}
                 deleting={excluindoId === c.id}
                 onDelete={() => void excluir(c)}
               />

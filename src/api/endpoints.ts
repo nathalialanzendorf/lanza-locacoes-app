@@ -78,6 +78,10 @@ export const lanzaApi = {
       params: { download: formato },
       timeoutMs: 120_000,
     }),
+  downloadContratoAssinado: (id: string, filename?: string) =>
+    apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, { filename }),
+  downloadDocumento: (pathname: string, filename?: string) =>
+    apiDownload("/api/documentos/download", { params: { pathname }, filename }),
 
   listarDespesasCliente: (params?: {
     emAberto?: boolean;
