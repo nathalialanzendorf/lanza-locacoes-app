@@ -11,13 +11,13 @@ export function RelatoriosShell() {
       <PageTabs
         ariaLabel="Relatórios"
         tabs={[
-          { to: "/relatorios/cobrancas", label: "Cobranças", end: true },
+          { to: "/relatorios/veiculo", label: "Dados do veículo", end: true },
+          { to: "/relatorios/cobrancas", label: "Cobranças" },
           { to: "/relatorios/prestacao-contas", label: "Prestação de contas" },
           { to: "/relatorios/encerramento", label: "Encerramento" },
           { to: "/relatorios/infracoes", label: "Infrações" },
           { to: "/relatorios/pedagios", label: "Pedágio Digital" },
           { to: "/relatorios/estacionamento", label: "SigaPay" },
-          { to: "/relatorios/veiculo", label: "Dados do veículo" },
           { to: "/relatorios/fipe", label: "FIPE" },
         ]}
       />
@@ -27,5 +27,5 @@ export function RelatoriosShell() {
 }
 
 export function RelatoriosIndexRedirect() {
-  return <Navigate to="cobrancas" replace />;
+  return <Navigate to="veiculo" replace />;
 }

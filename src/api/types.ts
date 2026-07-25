@@ -313,6 +313,36 @@ export type CobrancasMeta = {
   outDirPadrao: string;
 };
 
+export type VeiculoConsultaPortalItem = {
+  id: string;
+  ref?: string;
+  descricao: string;
+  local?: string | null;
+  data?: string | null;
+  valor: number;
+  situacao: string;
+  emAberto?: boolean;
+  fonte?: string;
+};
+
+export type VeiculoConsultaPortalSecao = {
+  total: number;
+  valorTotal: number;
+  items: VeiculoConsultaPortalItem[];
+  error?: string;
+  avisos?: string[];
+};
+
+export type VeiculoConsultaPortaisResultado = {
+  placa: string;
+  renavam?: string | null;
+  ufRegistro?: string | null;
+  veiculoCadastrado: boolean;
+  detran: VeiculoConsultaPortalSecao;
+  pedagio: VeiculoConsultaPortalSecao;
+  estacionamento: VeiculoConsultaPortalSecao;
+};
+
 export type LinhaPlanoBaixa = {
   num: number;
   operacao: string;

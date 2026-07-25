@@ -80,6 +80,15 @@ export const lanzaApi = {
     }),
   downloadContratoAssinado: (id: string, filename?: string) =>
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, { filename }),
+  consultarVeiculoPortais: (params: {
+    placa?: string;
+    renavam?: string;
+    status?: "em_aberto" | "todos";
+  }) =>
+    apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
+      "/api/relatorios/veiculo/consulta",
+      { params, timeoutMs: 180_000 },
+    ),
   downloadDocumento: (pathname: string, filename?: string) =>
     apiDownload("/api/documentos/download", { params: { pathname }, filename }),
 
