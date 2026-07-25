@@ -21,6 +21,7 @@ import { RelatorioFipeSection } from "@/pages/relatorios/RelatorioFipeSection";
 import { RelatorioInfracoesSection } from "@/pages/relatorios/RelatorioInfracoesSection";
 import { RelatorioPedagiosSection } from "@/pages/relatorios/RelatorioPedagiosSection";
 import { RelatorioEstacionamentoSection } from "@/pages/relatorios/RelatorioEstacionamentoSection";
+import { RelatorioVeiculoDadosSection } from "@/pages/relatorios/RelatorioVeiculoDadosSection";
 
 import { LoginPage } from "@/pages/LoginPage";
 
@@ -129,6 +130,7 @@ export default function App() {
 
                   <Route path="pedagios" element={<RelatorioPedagiosSection />} />
                   <Route path="estacionamento" element={<RelatorioEstacionamentoSection />} />
+                  <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
 
                   <Route path="fipe" element={<RelatorioFipeSection />} />
 

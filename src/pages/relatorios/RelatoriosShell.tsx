@@ -6,7 +6,7 @@ export function RelatoriosShell() {
   return (
     <PageHeader
       title="Relatórios"
-      description="Cobranças, prestação de contas, encerramento de contrato, infrações DETRAN, pedágio digital, estacionamento SigaPay e consulta FIPE."
+      description="Cobranças, prestação de contas, encerramento de contrato, infrações DETRAN, pedágio digital, estacionamento SigaPay, dados do veículo e consulta FIPE."
     >
       <PageTabs
         ariaLabel="Relatórios"
@@ -17,6 +17,7 @@ export function RelatoriosShell() {
           { to: "/relatorios/infracoes", label: "Infrações" },
           { to: "/relatorios/pedagios", label: "Pedágio Digital" },
           { to: "/relatorios/estacionamento", label: "SigaPay" },
+          { to: "/relatorios/veiculo", label: "Dados do veículo" },
           { to: "/relatorios/fipe", label: "FIPE" },
         ]}
       />

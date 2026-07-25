@@ -131,20 +131,24 @@ export function useVinculosParceiro(params?: { veiculoId?: string; parceiroId?: 
   });
 }
 
-export function useInfracoes(params?: {
-  placa?: string;
-  veiculoId?: string;
-  clienteId?: string;
-  parceiroId?: string;
-  dataInicial?: string;
-  dataFinal?: string;
-  emAberto?: boolean;
-  semCliente?: boolean;
-  ativo?: boolean;
-}) {
+export function useInfracoes(
+  params?: {
+    placa?: string;
+    veiculoId?: string;
+    clienteId?: string;
+    parceiroId?: string;
+    dataInicial?: string;
+    dataFinal?: string;
+    emAberto?: boolean;
+    semCliente?: boolean;
+    ativo?: boolean;
+  },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["infracoes", params],
     queryFn: () => lanzaApi.listarInfracoes(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
