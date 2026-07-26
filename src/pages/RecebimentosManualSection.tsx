@@ -1,38 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ClienteSelect, NativeSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
-import { Toggle } from "@/components/Toggle";
 import { useDespesasCliente } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError, FlashSuccess } from "@/context/ScreenFlashContext";
-import type { LinhaPlanoBaixa, PlanoBaixa, ClienteDespesa } from "@/api/types";
+import type { ClienteDespesa } from "@/api/types";
 import { formatBrl, formatValorInput, parseValorInput } from "@/lib/format";
 import { montarOpcoesPendenciaDespesa } from "@/lib/pendenciaDespesaOpcoes";
 import { isEntityUuid } from "@/lib/uuid";
 
-const ROTULO_TIPO_BAIXA: Record<NonNullable<PlanoBaixa["tipoBaixa"]>, string> = {
-  integral: "Baixa integral",
-  parcial: "Baixa parcial",
-  integral_desconto: "Baixa integral com desconto",
-};
-
 function compactPlaca(placa: string): string {
   return placa.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-}
-
-function rotuloEfeitoLinha(l: LinhaPlanoBaixa): string {
-  const patch = l.patch ?? {};
-  if (l.operacao === "criar" && patch.paga === true) return "Quitado (valor pago)";
-  if (l.operacao === "criar") return "Nova parcela em aberto";
-  if (l.operacao === "atualizar" && patch.paga === true) return "Quitado";
-  if (l.operacao === "atualizar") return "Saldo em atraso";
-  return "—";
 }
 
 function placaDespesa(d: ClienteDespesa): string {
@@ -56,11 +39,8 @@ export function RecebimentosManualSection() {
   const [despesaId, setDespesaId] = useState("");
   const [dataBr, setDataBr] = useState(dataBrUrl);
   const [valor, setValor] = useState("");
-  const [loadingPlano, setLoadingPlano] = useState(false);
-  const [planoError, setPlanoError] = useState<string | null>(null);
-  const [plano, setPlano] = useState<PlanoBaixa | null>(null);
-  const [linhasSel, setLinhasSel] = useState<Set<number>>(new Set());
-  const [loadingExec, setLoadingExec] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [execError, setExecError] = useState<string | null>(null);
   const [execSuccess, setExecSuccess] = useState<string | null>(null);
 
@@ -130,7 +110,6 @@ export function RecebimentosManualSection() {
 
   function onDespesaChange(id: string) {
     setDespesaId(id);
-    setPlano(null);
     setExecSuccess(null);
     if (!id) {
       setValor("");
@@ -161,82 +140,59 @@ export function RecebimentosManualSection() {
     return escopo?.veiculoId?.trim() || null;
   }
 
-  async function montarPlano() {
+  async function executarBaixa() {
     if (!clienteId.trim()) {
-      setPlanoError("Selecione um cliente.");
+      setFormError("Selecione um cliente.");
       return;
     }
     if (!despesaSel) {
-      setPlanoError(
+      setFormError(
         "Selecione uma pendência em aberto. Cadastre a despesa em Despesas → Cliente antes da baixa.",
       );
       return;
     }
     const escopoVeiculo = despesaRegistro ? escopoVeiculoDespesa(despesaRegistro) : null;
     if (!escopoVeiculo) {
-      setPlanoError("A pendência selecionada não tem veículo associado.");
+      setFormError("A pendência selecionada não tem veículo associado.");
       return;
     }
     const valorNum = parseValorInput(valor);
     if (valorNum == null || valorNum <= 0) {
-      setPlanoError("Informe o valor recebido.");
+      setFormError("Informe o valor recebido.");
       return;
     }
     if (valorNum > despesaSel.valor + 0.009) {
-      setPlanoError(
+      setFormError(
         `Valor recebido (${formatBrl(valorNum)}) não pode ser maior que o devido (${formatBrl(despesaSel.valor)}).`,
       );
       return;
     }
     if (!dataBr.trim()) {
-      setPlanoError("Informe a data do pagamento.");
+      setFormError("Informe a data do pagamento.");
       return;
     }
 
-    setLoadingPlano(true);
-    setPlanoError(null);
-    setPlano(null);
+    setLoading(true);
+    setFormError(null);
+    setExecError(null);
     setExecSuccess(null);
     try {
-      const r = await lanzaApi.montarPlanoRecebimento({
+      const planoRes = await lanzaApi.montarPlanoRecebimento({
         clienteId: clienteId.trim(),
         ...escopoVeiculo,
         despesaId: despesaSel.id,
         valor: valorNum,
         dataBr: dataBr.trim(),
       });
-      if (!r.data.linhas.length) {
-        setPlanoError(
-          r.data.avisos?.[0] ?? "Nenhuma linha de baixa gerada para este pagamento.",
+      const plano = planoRes.data;
+      if (!plano.linhas.length) {
+        setFormError(
+          plano.avisos?.[0] ?? "Nenhuma linha de baixa gerada para este pagamento.",
         );
-        setPlano(null);
         return;
       }
-      setPlano(r.data);
-      setLinhasSel(new Set(r.data.linhas.map((l) => l.num)));
-    } catch (err) {
-      setPlanoError(err instanceof LanzaApiError ? err.message : "Falha ao montar plano.");
-    } finally {
-      setLoadingPlano(false);
-    }
-  }
 
-  function toggleLinha(num: number) {
-    setLinhasSel((prev) => {
-      const next = new Set(prev);
-      if (next.has(num)) next.delete(num);
-      else next.add(num);
-      return next;
-    });
-  }
-
-  async function executar() {
-    if (!plano) return;
-    setLoadingExec(true);
-    setExecError(null);
-    setExecSuccess(null);
-    try {
-      const linhas = plano.linhas.filter((l) => linhasSel.has(l.num));
+      const linhas = plano.linhas;
       const escopoVeiculoId =
         plano.despesaAlvo?.veiculoId?.trim() ||
         plano.linhas.map((l) => l.veiculoId?.trim()).find((id) => id && isEntityUuid(id)) ||
@@ -246,7 +202,7 @@ export function RecebimentosManualSection() {
         linhas,
         clienteId: plano.cliente.id,
         veiculoId: escopoVeiculoId,
-        despesaId: despesaSel?.id,
+        despesaId: despesaSel.id,
         syncRastreame: false,
       });
       const aplicadas =
@@ -259,23 +215,27 @@ export function RecebimentosManualSection() {
       setExecSuccess(
         `Baixa aplicada com sucesso (${aplicadas} linha${aplicadas === 1 ? "" : "s"}).`,
       );
+      setDespesaId("");
+      setValor("");
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
     } catch (err) {
       setExecError(err instanceof LanzaApiError ? err.message : "Falha ao executar baixa.");
     } finally {
-      setLoadingExec(false);
+      setLoading(false);
     }
   }
 
   return (
     <>
+      <FlashError message={execError} />
+      <FlashSuccess message={execSuccess} />
       <FormCard
         className="form-card--compact"
-        title="Montar plano de baixa"
-        onSubmit={montarPlano}
-        loading={loadingPlano}
-        submitLabel="Montar plano"
-        error={planoError}
+        title="Baixa manual"
+        onSubmit={executarBaixa}
+        loading={loading}
+        submitLabel="Executar baixa"
+        error={formError}
       >
         <Field label="Cliente">
           <ClienteSelect
@@ -283,7 +243,7 @@ export function RecebimentosManualSection() {
             onChange={onClienteChange}
             variant="cadastro"
             required
-            disabled={loadingPlano}
+            disabled={loading}
           />
         </Field>
         {despesasQuery.isError ? (
@@ -296,7 +256,7 @@ export function RecebimentosManualSection() {
           />
         ) : null}
         <Field label="Data do pagamento">
-          <DateInput value={dataBr} onChange={setDataBr} required disabled={loadingPlano} />
+          <DateInput value={dataBr} onChange={setDataBr} required disabled={loading} />
         </Field>
         <Field
           label="Pendência em aberto"
@@ -322,7 +282,7 @@ export function RecebimentosManualSection() {
               onChange={onDespesaChange}
               variant="cadastro"
               required
-              disabled={loadingPlano || !clienteSelecionado || loadingDespesas}
+              disabled={loading || !clienteSelecionado || loadingDespesas}
               loading={loadingDespesas}
               emptyLabel={
                 clienteSelecionado && !loadingDespesas && opcoesDespesa.length === 0
@@ -344,7 +304,7 @@ export function RecebimentosManualSection() {
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               required
-              disabled={loadingPlano || !clienteSelecionado || !despesaId}
+              disabled={loading || !clienteSelecionado || !despesaId}
               placeholder="0,00"
               aria-label="Valor recebido"
             />
@@ -352,71 +312,6 @@ export function RecebimentosManualSection() {
           {valorParcialHint ? <p className="field__hint">{valorParcialHint}</p> : null}
         </Field>
       </FormCard>
-
-      {plano ? (
-        <section className="form-card">
-          <h2 className="form-card__title">Confirmar linhas ({plano.linhas.length})</h2>
-          {plano.tipoBaixa ? (
-            <p className="field__hint">
-              <strong>{ROTULO_TIPO_BAIXA[plano.tipoBaixa]}</strong>
-              {plano.despesaAlvo
-                ? ` · devido ${formatBrl(plano.despesaAlvo.valorDevido)} · recebido ${formatBrl(plano.pagamento?.valor ?? parseValorInput(valor) ?? 0)}`
-                : null}
-            </p>
-          ) : null}
-          {plano.avisos?.map((a) => (
-            <p key={a} className="field__hint">
-              {a}
-            </p>
-          ))}
-          <DataTable
-            rows={plano.linhas}
-            keyFn={(l) => String(l.num)}
-            columns={[
-              {
-                key: "sel",
-                header: "",
-                sortable: false,
-                render: (l) => (
-                  <Toggle
-                    checked={linhasSel.has(l.num)}
-                    onChange={() => toggleLinha(l.num)}
-                    size="compact"
-                    aria-label={`Selecionar linha ${l.num}`}
-                  />
-                ),
-              },
-              { key: "num", header: "#", sortValue: (l) => l.num, render: (l) => l.num },
-              { key: "operacao", header: "Operação", sortValue: (l) => l.operacao, render: (l) => l.operacao },
-              { key: "descricao", header: "Descrição", sortValue: (l) => l.descricao ?? "", render: (l) => l.descricao ?? "—" },
-              {
-                key: "efeito",
-                header: "Efeito",
-                sortValue: (l) => rotuloEfeitoLinha(l),
-                render: (l) => rotuloEfeitoLinha(l),
-              },
-              {
-                key: "valor",
-                header: "Valor",
-                className: "num",
-                sortValue: (l) => l.total ?? 0,
-                render: (l) => formatBrl(l.total ?? 0),
-              },
-            ]}
-          />
-          <p className="field__hint">Valor recebido: {formatBrl(parseValorInput(valor) ?? 0)}</p>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={loadingExec || linhasSel.size === 0}
-            onClick={() => void executar()}
-          >
-            {loadingExec ? "A aplicar…" : `Executar baixa (${linhasSel.size})`}
-          </button>
-          <FlashError message={execError} />
-          <FlashSuccess message={execSuccess} />
-        </section>
-      ) : null}
     </>
   );
 }

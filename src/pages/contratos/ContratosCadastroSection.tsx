@@ -9,7 +9,6 @@ import { TimeInput, HORA_INICIO_PADRAO, normalizeHoraBr } from "@/components/Tim
 import { Field, FormCard } from "@/components/FormCard";
 import { Toggle } from "@/components/Toggle";
 import { ValorInput } from "@/components/ValorInput";
-import { ResultPanel } from "@/components/ResultPanel";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { useVeiculos } from "@/api/hooks";
@@ -242,7 +241,6 @@ export function ContratosCadastroSection({
   const [contratoSalvoId, setContratoSalvoId] = useState<string | null>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
-  const [result, setResult] = useState<unknown>(null);
   const [assinadoStorageKey, setAssinadoStorageKey] = useState<string | null>(null);
   const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
   const [assinadoPendente, setAssinadoPendente] = useState<File | null>(null);
@@ -592,7 +590,6 @@ export function ContratosCadastroSection({
           const uploadRes = await lanzaApi.uploadContratoAssinado(idSalvo, assinadoPendente);
           contrato = uploadRes.data?.contrato ?? contrato;
         }
-        setResult(r);
         if (idSalvo) setContratoSalvoId(idSalvo);
         if (contrato?.contratoAssinadoStorageKey) {
           setAssinadoStorageKey(contrato.contratoAssinadoStorageKey);
@@ -603,7 +600,6 @@ export function ContratosCadastroSection({
         setAssinadoPendente(null);
         setSuccess("Contrato atualizado.");
         void qc.invalidateQueries({ queryKey: ["contratos"] });
-        void qc.invalidateQueries({ queryKey: ["clientes"] });
         void qc.invalidateQueries({ queryKey: ["veiculos"] });
         return;
       }
@@ -644,7 +640,6 @@ export function ContratosCadastroSection({
 
       const fn = modo === "criar" ? lanzaApi.criarContrato : lanzaApi.renovarContrato;
       const r = await fn(body);
-      setResult(r);
       const payload = r as {
         data?: {
           contrato?: { id?: string };
@@ -662,7 +657,6 @@ export function ContratosCadastroSection({
             : "Renovação salva no banco. Gere o Word/PDF quando quiser.",
       );
       void qc.invalidateQueries({ queryKey: ["contratos"] });
-      void qc.invalidateQueries({ queryKey: ["clientes"] });
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
     } catch (err) {
       setError(
@@ -1070,7 +1064,6 @@ export function ContratosCadastroSection({
           {docError ? <p className="form-card__error">{docError}</p> : null}
         </div>
       ) : null}
-      <ResultPanel title="Resposta da API" data={result} />
     </>
   );
 }
