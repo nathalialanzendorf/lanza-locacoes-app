@@ -99,8 +99,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   try {
     res = await fetch(buildUrl(path, options.params), init);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Falha na ligação à API";
-    throw new LanzaApiError(0, msg || "Sem ligação à API");
+    const raw = err instanceof Error ? err.message : "Falha na ligação à API";
+    const msg =
+      /timeout|connection terminated/i.test(raw)
+        ? "A API demorou demais ou perdeu ligação ao banco. Aguarde alguns segundos e verifique a lista de contratos antes de tentar de novo."
+        : raw || "Sem ligação à API";
+    throw new LanzaApiError(0, msg);
   }
   const text = await res.text();
   let payload: unknown = null;

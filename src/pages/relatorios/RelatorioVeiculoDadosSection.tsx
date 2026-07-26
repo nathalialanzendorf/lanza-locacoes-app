@@ -38,10 +38,16 @@ type PortalSecao = {
   avisos?: string[];
 };
 
+import {
+  DETRAN_SC_GOV_CERT_LOGIN_URL,
+  DETRAN_SC_PORTAL_URL,
+} from "@/lib/detranScPortais";
+
 const PORTAIS_EXTERNOS = {
   detranSc: {
     label: "DETRAN SC",
-    url: "https://servicos.detran.sc.gov.br/",
+    url: DETRAN_SC_PORTAL_URL,
+    govCertUrl: DETRAN_SC_GOV_CERT_LOGIN_URL,
   },
   detranRs: {
     label: "DETRAN RS",
@@ -525,9 +531,16 @@ export function RelatorioVeiculoDadosSection() {
           <section className="form-section veiculo-dados-sessao">
             <h3 className="form-section-title">Sessão DETRAN SC</h3>
             <p className="field__hint">
-              A captura abre o Chrome no portal oficial, escuta a rede e grava o JWT no servidor
-              automaticamente — sem copiar do DevTools. Com certificado A1 no Windows, o login
-              Gov.br costuma ser quase automático. O perfil fica em cache para renovações (~5 h).
+              Login Gov.br do DETRAN SC (certificado A1):{" "}
+              <a href={DETRAN_SC_GOV_CERT_LOGIN_URL} target="_blank" rel="noopener noreferrer">
+                certificado.sso.acesso.gov.br
+              </a>
+              . Se aparecer erro de link expirado, abra primeiro o{" "}
+              <a href={DETRAN_SC_PORTAL_URL} target="_blank" rel="noopener noreferrer">
+                portal DETRAN
+              </a>{" "}
+              e clique em Entrar com gov.br — o{" "}
+              <code>authorization_id</code> muda a cada sessão.
             </p>
             {bridgeAtivo ? (
               <p className="field__hint">
@@ -578,6 +591,22 @@ export function RelatorioVeiculoDadosSection() {
                     Remover sessão
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => abrirPortal(DETRAN_SC_GOV_CERT_LOGIN_URL)}
+                  disabled={loading || sessaoLoading || capturaEmCurso}
+                >
+                  Abrir login Gov.br (certificado)
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => abrirPortal(DETRAN_SC_PORTAL_URL)}
+                  disabled={loading || sessaoLoading || capturaEmCurso}
+                >
+                  Abrir portal DETRAN SC
+                </button>
                 <button
                   type="button"
                   className="btn btn--ghost"

@@ -220,7 +220,7 @@ export const lanzaApiExtra = {
   atualizarContrato: (id: string, body: Record<string, unknown>) =>
     apiRequest<{ data: { contrato: import("./types").ContratoDetalhe } }>(
       `/api/contratos/${encodeURIComponent(id)}`,
-      { method: "PATCH", body },
+      { method: "PATCH", body, timeoutMs: 120_000 },
     ),
 
   obterParceiroDespesa: (id: string) =>

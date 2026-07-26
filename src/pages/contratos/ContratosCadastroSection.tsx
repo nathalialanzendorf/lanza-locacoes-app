@@ -44,9 +44,17 @@ type ContratoRenovacaoFonte = Contrato & {
   valorSemanal?: number | null;
   valorCaucao?: number | null;
   diaPagamentoSemana?: string | null;
+  diaPagamentoMes?: number | null;
+  diaPagamentoTexto?: string | null;
+  tipoContrato?: string | null;
   contratoAssinadoStorageKey?: string | null;
   contratoAssinadoNome?: string | null;
+  motivoEncerramento?: string | null;
+  quebraContrato?: boolean | null;
 };
+
+type StatusContrato = "ativo" | "encerrado";
+type MotivoEncerramento = "devolvido" | "recuperado" | "troca";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -207,6 +215,8 @@ export function ContratosCadastroSection({
   const [semana, setSemana] = useState("");
   const [caucao, setCaucao] = useState("");
   const [diaPagamento, setDiaPagamento] = useState<string>(DIAS_PAGAMENTO_SEMANAL[0]!.value);
+  const [tipoContrato, setTipoContrato] = useState<"semanal" | "mensal" | "diaria">("semanal");
+  const [diaPagamentoMes, setDiaPagamentoMes] = useState("");
   const periodoInicial = modo === "renovar" ? "3 meses" : "semana";
   const hoje = hojeDataBr();
   const prazoInicialRenovacao =
@@ -246,6 +256,10 @@ export function ContratosCadastroSection({
     conteudoBase64: string;
     contentType?: string;
   } | null>(null);
+  const [statusContrato, setStatusContrato] = useState<StatusContrato>("ativo");
+  const [dataEncerramento, setDataEncerramento] = useState("");
+  const [motivoEncerramento, setMotivoEncerramento] = useState<MotivoEncerramento>("devolvido");
+  const [quebraContrato, setQuebraContrato] = useState(false);
 
   function handlePeriodoChange(valor: string) {
     setPeriodo(valor);
@@ -294,6 +308,13 @@ export function ContratosCadastroSection({
     if (c.diaPagamentoSemana) {
       setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
     }
+    const tipo = (c.tipoContrato ?? "semanal").toLowerCase();
+    if (tipo === "mensal" || tipo === "diaria" || tipo === "semanal") {
+      setTipoContrato(tipo);
+    }
+    if (c.diaPagamentoMes != null && c.diaPagamentoMes > 0) {
+      setDiaPagamentoMes(String(c.diaPagamentoMes));
+    }
     const inicio = c.dataInicio?.trim() ?? "";
     const fim = c.dataFimPrevista?.trim() || c.dataFim?.trim() || "";
     if (inicio) setDataInicio(inicio);
@@ -318,6 +339,14 @@ export function ContratosCadastroSection({
       setAssinadoNome(c.contratoAssinadoNome.trim());
     }
     if (c.id?.trim()) setContratoSalvoId(c.id.trim());
+    const st = (c.status ?? "ativo").toLowerCase();
+    if (st === "ativo" || st === "encerrado") setStatusContrato(st);
+    setDataEncerramento(c.dataEncerramento?.trim() ?? "");
+    const motivo = c.motivoEncerramento?.trim().toLowerCase();
+    if (motivo === "devolvido" || motivo === "recuperado" || motivo === "troca") {
+      setMotivoEncerramento(motivo);
+    }
+    setQuebraContrato(c.quebraContrato === true);
   }
 
   function aplicarContratoRenovacao(c: ContratoRenovacaoFonte) {
@@ -335,6 +364,13 @@ export function ContratosCadastroSection({
     if (c.diaPagamentoSemana) {
       setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
     }
+    const tipo = (c.tipoContrato ?? "semanal").toLowerCase();
+    if (tipo === "mensal" || tipo === "diaria" || tipo === "semanal") {
+      setTipoContrato(tipo);
+    }
+    if (c.diaPagamentoMes != null && c.diaPagamentoMes > 0) {
+      setDiaPagamentoMes(String(c.diaPagamentoMes));
+    }
     const prazo = preencherPrazoRenovacao(c);
     setDataInicio(prazo.dataInicio);
     setDataFim(prazo.dataFim);
@@ -347,6 +383,10 @@ export function ContratosCadastroSection({
     if (modo !== "renovar" || !contratoOrigem) return;
     aplicarContratoRenovacao(contratoOrigem);
   }, [modo, contratoOrigem, veiculosQuery.data]);
+
+  useEffect(() => {
+    if (modo === "editar" && motivoEncerramento === "troca") setQuebraContrato(false);
+  }, [modo, motivoEncerramento]);
 
   useEffect(() => {
     if (!contratoId) return;
@@ -471,8 +511,14 @@ export function ContratosCadastroSection({
       if (semanaTotal == null) {
         throw new Error("Informe o valor semanal.");
       }
-      if (!diaPagamento.trim()) {
+      if (!diaPagamento.trim() && tipoContrato !== "mensal") {
         throw new Error("Informe o dia de pagamento semanal.");
+      }
+      if (tipoContrato === "mensal") {
+        const diaMes = Number.parseInt(diaPagamentoMes.trim(), 10);
+        if (!Number.isFinite(diaMes) || diaMes < 1 || diaMes > 31) {
+          throw new Error("Informe o dia de pagamento mensal (1 a 31).");
+        }
       }
 
       const placa = placaDoVeiculo(veiculosQuery.data?.items, veiculoId);
@@ -488,7 +534,10 @@ export function ContratosCadastroSection({
         cpf: cpf.trim() || undefined,
         semana: semanaTotal,
         caucao: caucaoTotal,
-        diaPagamento: diaPagamento.trim(),
+        diaPagamento:
+          tipoContrato === "mensal"
+            ? `dia ${Number.parseInt(diaPagamentoMes.trim(), 10)}`
+            : diaPagamento.trim(),
       };
       if (modo === "renovar" && contratoId?.trim()) {
         body.contratoRenovarId = contratoId.trim();
@@ -511,11 +560,33 @@ export function ContratosCadastroSection({
           prazoDias: dias,
           valorSemanal: semanaTotal,
           valorCaucao: caucaoTotal,
-          diaPagamentoSemana: diaPagamento.trim(),
-          tipoContrato: "semanal",
+          tipoContrato,
         };
+        if (tipoContrato === "mensal") {
+          const diaMes = Number.parseInt(diaPagamentoMes.trim(), 10);
+          patch.diaPagamentoMes = diaMes;
+          patch.diaPagamentoTexto = `dia ${diaMes}`;
+          patch.diaPagamentoSemana = null;
+        } else {
+          patch.diaPagamentoSemana = diaPagamento.trim();
+          patch.diaPagamentoMes = null;
+          patch.diaPagamentoTexto = diaPagamento.trim();
+        }
         if (assinadoPendente) {
           patch.contratoAssinado = assinadoPendente;
+        }
+        patch.status = statusContrato;
+        if (statusContrato === "encerrado") {
+          if (!dataEncerramento.trim()) {
+            throw new Error("Informe a data de encerramento para contratos encerrados.");
+          }
+          patch.dataEncerramento = dataEncerramento.trim();
+          patch.motivoEncerramento = motivoEncerramento;
+          patch.quebraContrato = motivoEncerramento === "troca" ? false : quebraContrato;
+        } else {
+          patch.dataEncerramento = null;
+          patch.motivoEncerramento = null;
+          patch.quebraContrato = false;
         }
         const r = await lanzaApi.atualizarContrato(contratoId.trim(), patch);
         setResult(r);
@@ -530,6 +601,8 @@ export function ContratosCadastroSection({
         setAssinadoPendente(null);
         setSuccess("Contrato atualizado.");
         void qc.invalidateQueries({ queryKey: ["contratos"] });
+        void qc.invalidateQueries({ queryKey: ["clientes"] });
+        void qc.invalidateQueries({ queryKey: ["veiculos"] });
         return;
       }
 
@@ -568,13 +641,21 @@ export function ContratosCadastroSection({
       const fn = modo === "criar" ? lanzaApi.criarContrato : lanzaApi.renovarContrato;
       const r = await fn(body);
       setResult(r);
-      const payload = r as { data?: { contrato?: { id?: string } } };
+      const payload = r as {
+        data?: {
+          contrato?: { id?: string };
+          despesasIniciaisAviso?: string | null;
+        };
+      };
       const id = payload.data?.contrato?.id?.trim();
       if (id) setContratoSalvoId(id);
+      const avisoDespesas = payload.data?.despesasIniciaisAviso?.trim();
       setSuccess(
-        modo === "criar"
-          ? "Contrato salvo no banco. Gere o Word/PDF quando quiser."
-          : "Renovação salva no banco. Gere o Word/PDF quando quiser.",
+        avisoDespesas
+          ? `Contrato salvo no banco. Aviso: despesas iniciais não geradas — ${avisoDespesas}`
+          : modo === "criar"
+            ? "Contrato salvo no banco. Gere o Word/PDF quando quiser."
+            : "Renovação salva no banco. Gere o Word/PDF quando quiser.",
       );
       void qc.invalidateQueries({ queryKey: ["contratos"] });
       void qc.invalidateQueries({ queryKey: ["clientes"] });
@@ -582,7 +663,9 @@ export function ContratosCadastroSection({
     } catch (err) {
       setError(
         err instanceof LanzaApiError
-          ? err.message
+          ? err.status === 0
+            ? "Sem resposta da API (timeout ou ligação). O contrato pode ter sido salvo — confira a lista antes de tentar de novo."
+            : err.message
           : err instanceof Error
             ? err.message
             : "Falha ao salvar contrato.",
@@ -705,21 +788,42 @@ export function ContratosCadastroSection({
         <Field label="Caução (R$)">
           <ValorInput value={caucao} onChange={setCaucao} required disabled={loading} />
         </Field>
-        <Field label="Dia de pagamento semanal" hint="Confirme o dia da cláusula 3.2 do contrato">
-          <NativeSelect
-            value={diaPagamento}
-            onChange={setDiaPagamento}
-            variant="cadastro"
-            allowEmpty={false}
-            disabled={loading}
-            aria-label="Dia de pagamento semanal"
-          >
-            {DIAS_PAGAMENTO_SEMANAL.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </NativeSelect>
+        <Field
+          label={tipoContrato === "mensal" ? "Dia de pagamento mensal" : "Dia de pagamento semanal"}
+          hint={
+            tipoContrato === "mensal"
+              ? "Dia do mês em que o locatário paga (ex.: 15)"
+              : "Confirme o dia da cláusula 3.2 do contrato"
+          }
+        >
+          {tipoContrato === "mensal" ? (
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={31}
+              value={diaPagamentoMes}
+              onChange={(e) => setDiaPagamentoMes(e.target.value)}
+              required
+              disabled={loading}
+              aria-label="Dia de pagamento mensal"
+            />
+          ) : (
+            <NativeSelect
+              value={diaPagamento}
+              onChange={setDiaPagamento}
+              variant="cadastro"
+              allowEmpty={false}
+              disabled={loading}
+              aria-label="Dia de pagamento semanal"
+            >
+              {DIAS_PAGAMENTO_SEMANAL.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </NativeSelect>
+          )}
         </Field>
         <div className="field--full form-grid form-grid--contrato-prazo">
         <Field label="Data início" hint={modo === "renovar" ? "Padrão: início do contrato anterior — altere se a troca for em outra data." : undefined}>
@@ -825,6 +929,70 @@ export function ContratosCadastroSection({
             onValorParcelaChange={setSemanaValorParcela}
             disabled={loading}
           />
+        ) : null}
+
+        {modo === "editar" ? (
+          <div className="form-section field--full">
+            <h3 className="form-section-title">Status do contrato</h3>
+            <div className="form-grid">
+              <Field label="Status">
+                <NativeSelect
+                  value={statusContrato}
+                  onChange={(v) => setStatusContrato(v as StatusContrato)}
+                  variant="cadastro"
+                  allowEmpty={false}
+                  disabled={loading}
+                  aria-label="Status do contrato"
+                >
+                  <option value="ativo">Ativo</option>
+                  <option value="encerrado">Encerrado</option>
+                </NativeSelect>
+              </Field>
+              {statusContrato === "encerrado" ? (
+                <>
+                  <Field label="Data de encerramento">
+                    <DateInput
+                      value={dataEncerramento}
+                      onChange={setDataEncerramento}
+                      required
+                      disabled={loading}
+                    />
+                  </Field>
+                  <Field label="Motivo do encerramento">
+                    <NativeSelect
+                      value={motivoEncerramento}
+                      onChange={(v) => setMotivoEncerramento(v as MotivoEncerramento)}
+                      variant="cadastro"
+                      allowEmpty={false}
+                      disabled={loading}
+                      aria-label="Motivo do encerramento"
+                    >
+                      <option value="devolvido">Devolvido</option>
+                      <option value="recuperado">Recuperado</option>
+                      <option value="troca">Troca de veículo</option>
+                    </NativeSelect>
+                  </Field>
+                  <Field label="Quebra de contrato">
+                    <Toggle
+                      checked={quebraContrato}
+                      onChange={setQuebraContrato}
+                      disabled={loading || motivoEncerramento === "troca"}
+                      label="Registrar quebra (retenção proporcional de caução)"
+                    />
+                    {motivoEncerramento === "troca" ? (
+                      <span className="field__hint">
+                        Troca de veículo não é quebra — a caução transfere para o novo contrato.
+                      </span>
+                    ) : null}
+                  </Field>
+                </>
+              ) : (
+                <p className="field__hint">
+                  Ao marcar como ativo, data e motivo de encerramento são removidos do registro.
+                </p>
+              )}
+            </div>
+          </div>
         ) : null}
 
         {modo === "editar" ? (
