@@ -261,7 +261,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             required
           />
         </Field>
-        <Field label="Vencimento" hint="DD/MM/AAAA">
+        <Field label="Vencimento" hint="Digite ou use o calendário">
           <DateInput
             value={dataVencimento}
             onChange={setDataVencimento}

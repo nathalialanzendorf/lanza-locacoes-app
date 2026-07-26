@@ -178,3 +178,13 @@ export function IconX({ className, title = "Reprovar" }: IconProps) {
     </svg>
   );
 }
+
+export function IconCalendar({ className, title = "Calendário" }: IconProps) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden={!title}>
+      {title ? <title>{title}</title> : null}
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M8 3v4M16 3v4M3 10h18" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}

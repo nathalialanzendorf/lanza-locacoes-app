@@ -749,6 +749,65 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+.date-input {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: 16rem;
+  position: relative;
+}
+
+.date-input__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+}
+
+.date-input__calendar-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: #f8fafc;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.date-input__calendar-btn:hover:not(:disabled) {
+  background: #eef2ff;
+  color: var(--primary, #1d4ed8);
+}
+
+.date-input__calendar-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.date-input__native {
+  position: absolute;
+  width: 2.5rem;
+  height: 100%;
+  right: 0;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.date-input--invalid .date-input__text {
+  border-color: var(--danger);
+}
+
+.date-input--invalid .date-input__calendar-btn {
+  border-color: var(--danger);
+}
+
 .form-card {
   background: var(--surface);
   border: 1px solid var(--border);
