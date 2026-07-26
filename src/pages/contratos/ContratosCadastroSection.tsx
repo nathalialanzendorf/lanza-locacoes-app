@@ -3,15 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { ClienteSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue, placaDoVeiculo } from "@/components/EntitySelects";
+import { ClienteSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
+import { TimeInput, HORA_INICIO_PADRAO, normalizeHoraBr } from "@/components/TimeInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { Toggle } from "@/components/Toggle";
 import { ValorInput } from "@/components/ValorInput";
 import { ResultPanel } from "@/components/ResultPanel";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { useVeiculos, useClientes } from "@/api/hooks";
+import { useVeiculos } from "@/api/hooks";
 import type { Contrato } from "@/api/types";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
@@ -58,6 +59,12 @@ type MotivoEncerramento = "devolvido" | "recuperado" | "troca";
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function parseDataInicioComHora(raw: string): { data: string; hora: string } {
+  const m = raw.trim().match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+(\d{2}:\d{2}))?$/);
+  if (m) return { data: m[1]!, hora: m[2] ?? HORA_INICIO_PADRAO };
+  return { data: raw.trim(), hora: HORA_INICIO_PADRAO };
 }
 
 function resolverParcelas(
@@ -192,13 +199,12 @@ export function ContratosCadastroSection({
   const qc = useQueryClient();
   const editando = Boolean(contratoId);
   const veiculosQuery = useVeiculos();
-  const clientesQuery = useClientes();
   const labelSubmit =
     submitLabel ??
     (modo === "editar" ? "Salvar" : modo === "renovar" ? "Confirmar renovação" : "Salvar contrato");
 
   const [veiculoId, setVeiculoId] = useState("");
-  const [cpf, setCpf] = useState("");
+  const [clienteId, setClienteId] = useState("");
   const [semana, setSemana] = useState("");
   const [caucao, setCaucao] = useState("");
   const [diaPagamento, setDiaPagamento] = useState<string>(DIAS_PAGAMENTO_SEMANAL[0]!.value);
@@ -210,6 +216,7 @@ export function ContratosCadastroSection({
     modo === "renovar" && contratoOrigem ? preencherPrazoRenovacao(contratoOrigem) : null;
   const [periodo, setPeriodo] = useState(prazoInicialRenovacao?.periodo ?? periodoInicial);
   const [dataInicio, setDataInicio] = useState(prazoInicialRenovacao?.dataInicio ?? hoje);
+  const [horaInicio, setHoraInicio] = useState(HORA_INICIO_PADRAO);
   const [dataFim, setDataFim] = useState(
     prazoInicialRenovacao?.dataFim ?? dataFimDePeriodo(hoje, periodoInicial),
   );
@@ -285,7 +292,9 @@ export function ContratosCadastroSection({
     if (veiculoRef) {
       setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
     }
-    if (c.cpf) setCpf(c.cpf);
+    if (c.clienteId?.trim()) {
+      setClienteId(c.clienteId.trim());
+    }
     if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
     if (c.valorCaucao != null) setCaucao(formatValorInput(c.valorCaucao));
     if (c.diaPagamentoSemana) {
@@ -298,12 +307,18 @@ export function ContratosCadastroSection({
     if (c.diaPagamentoMes != null && c.diaPagamentoMes > 0) {
       setDiaPagamentoMes(String(c.diaPagamentoMes));
     }
-    const inicio = c.dataInicio?.trim() ?? "";
+    const inicioRaw = c.dataInicio?.trim() ?? "";
     const fim = c.dataFimPrevista?.trim() || c.dataFim?.trim() || "";
-    if (inicio) setDataInicio(inicio);
+    if (inicioRaw) {
+      const parsed = parseDataInicioComHora(inicioRaw);
+      setDataInicio(parsed.data);
+      setHoraInicio(normalizeHoraBr(c.horaInicio?.trim() ?? parsed.hora) || HORA_INICIO_PADRAO);
+    } else if (c.horaInicio?.trim()) {
+      setHoraInicio(normalizeHoraBr(c.horaInicio) || HORA_INICIO_PADRAO);
+    }
     if (fim) setDataFim(fim);
     const dias =
-      c.prazoDias ?? (inicio && fim ? diasEntreDatasBr(inicio, fim) : null);
+      c.prazoDias ?? (inicioRaw && fim ? diasEntreDatasBr(parseDataInicioComHora(inicioRaw).data, fim) : null);
     if (dias != null && dias > 0) {
       setPrazoDiasContrato(dias);
       const per = periodoDeDias(dias);
@@ -338,7 +353,9 @@ export function ContratosCadastroSection({
     if (veiculoRef) {
       setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
     }
-    if (c.cpf) setCpf(c.cpf);
+    if (c.clienteId?.trim()) {
+      setClienteId(c.clienteId.trim());
+    }
     if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
     if (c.valorCaucao != null) {
       setCaucao(formatValorInput(c.valorCaucao));
@@ -391,7 +408,9 @@ export function ContratosCadastroSection({
           if (veiculoRef) {
             setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
           }
-          if (c.cpf) setCpf(c.cpf);
+          if (c.clienteId?.trim()) {
+      setClienteId(c.clienteId.trim());
+    }
         }
       })
       .catch((err) => {
@@ -504,17 +523,12 @@ export function ContratosCadastroSection({
         }
       }
 
-      const placa = placaDoVeiculo(veiculosQuery.data?.items, veiculoId);
-      if (!placa) throw new Error("Selecione um veículo cadastrado.");
-      const clienteIdBody =
-        clientesQuery.data?.items.find((c) => c.cpf?.trim() === cpf.trim())?.id ??
-        (modo === "renovar" ? contratoOrigem?.clienteId?.trim() : undefined);
+      if (!veiculoId.trim()) throw new Error("Selecione um veículo cadastrado.");
+      if (!clienteId.trim()) throw new Error("Selecione um cliente cadastrado.");
 
       const body: Record<string, unknown> = {
         veiculoId: veiculoId.trim(),
-        clienteId: clienteIdBody,
-        placa,
-        cpf: cpf.trim() || undefined,
+        clienteId: clienteId.trim(),
         semana: semanaTotal,
         caucao: caucaoTotal,
         diaPagamento:
@@ -527,8 +541,10 @@ export function ContratosCadastroSection({
       }
 
       const inicio = dataInicio.trim();
+      const hora = normalizeHoraBr(horaInicio) || HORA_INICIO_PADRAO;
       const fim = dataFim.trim();
       if (!inicio) throw new Error("Informe a data de início.");
+      if (!hora) throw new Error("Informe o horário de início (HH:MM).");
       if (!fim) throw new Error("Informe a data fim.");
       const dias = diasEntreDatasBr(inicio, fim);
       if (dias == null || dias <= 0) {
@@ -539,6 +555,7 @@ export function ContratosCadastroSection({
         if (!contratoId?.trim()) throw new Error("Contrato não identificado.");
         const patch: Record<string, unknown> = {
           dataInicio: inicio,
+          horaInicio: hora,
           dataFimPrevista: fim,
           prazoDias: dias,
           valorSemanal: semanaTotal,
@@ -592,6 +609,8 @@ export function ContratosCadastroSection({
       }
 
       body.inicio = inicio;
+      body.hora = hora;
+      body.fim = fim;
       body.dias = dias;
       const per = periodoDeDias(dias);
       if (per) body.periodo = per;
@@ -751,11 +770,12 @@ export function ContratosCadastroSection({
         </Field>
         <Field label="Cliente" hint={modo === "editar" ? "Cliente não pode ser alterado na edição." : undefined}>
           <ClienteSelect
-            value={cpf}
-            onChange={setCpf}
-            valueField="cpf"
+            value={clienteId}
+            onChange={setClienteId}
+            valueField="id"
             variant="cadastro"
             disabled={loading || modo === "editar"}
+            required
           />
         </Field>
         <Field label="Valor semanal (R$)">
@@ -810,6 +830,15 @@ export function ContratosCadastroSection({
               required
             />
           </Field>
+          <Field label="Horário" hint="Horário de retirada/devolução no contrato (cláusula 1.2).">
+            <TimeInput
+              value={horaInicio}
+              onChange={setHoraInicio}
+              disabled={loading}
+              required
+              aria-label="Horário de início"
+            />
+          </Field>
           <Field label="Tempo do contrato">
             <NativeSelect
               value={periodo}
@@ -838,7 +867,7 @@ export function ContratosCadastroSection({
               </span>
             ) : null}
           </Field>
-          <Field label="Data fim">
+          <Field label="Término previsto">
             <DateInput value={dataFim} onChange={handleDataFimChange} disabled={loading} required />
           </Field>
         </div>

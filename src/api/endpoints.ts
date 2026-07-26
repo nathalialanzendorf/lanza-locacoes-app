@@ -66,13 +66,13 @@ export const lanzaApi = {
     apiRequest<{ data: unknown }>("/api/contratos/criar", {
       method: "POST",
       body,
-      timeoutMs: 180_000,
+      timeoutMs: 30_000,
     }),
   renovarContrato: (body: Record<string, unknown>) =>
     apiRequest<{ data: unknown }>("/api/contratos/renovar", {
       method: "POST",
       body,
-      timeoutMs: 180_000,
+      timeoutMs: 30_000,
     }),
   encerrarContrato: (body: {
     idOuPasta: string;

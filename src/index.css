@@ -749,6 +749,11 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+.input--time {
+  min-height: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .date-input {
   display: flex;
   align-items: stretch;

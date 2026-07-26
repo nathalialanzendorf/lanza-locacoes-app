@@ -124,6 +124,7 @@ export type Contrato = {
   clienteNome?: string;
   veiculo?: ContratoVeiculoSnapshot;
   dataInicio?: string;
+  horaInicio?: string | null;
   dataFim?: string;
   dataFimPrevista?: string;
   dataEncerramento?: string | null;
