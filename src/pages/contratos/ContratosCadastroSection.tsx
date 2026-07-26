@@ -1015,8 +1015,7 @@ export function ContratosCadastroSection({
           <p className="field__hint">
             {modo === "editar"
               ? "Gere o Word para impressão ou baixe o contrato assinado acima."
-              : "O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura."}{" "}
-            PDF na API de produção precisa de ConvertAPI configurado na Vercel; caso contrário, baixe o Word (.docx).
+              : "O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura."}
           </p>
           <div className="form-card__action-row">
             <button
