@@ -7,6 +7,7 @@ import { ContratosCadastroSection } from "@/pages/contratos/ContratosCadastroSec
 import { ContratosVencimentoLegenda } from "@/pages/contratos/ContratosVencimentoLegenda";
 import { colunasVeiculoContrato } from "@/pages/contratos/contratosVeiculoGridColumns";
 import { useClientes, useContratos } from "@/api/hooks";
+import { StatusContrato } from "@/lib/domain";
 import { LanzaApiError } from "@/api/client";
 import { formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import {
@@ -26,7 +27,7 @@ export function ContratosRenovarSection() {
   const contratoIdUrl = searchParams.get("id")?.trim() || null;
   const [contratoSelecionadoId, setContratoSelecionadoId] = useState<string | null>(contratoIdUrl);
 
-  const query = useContratos({ status: "ativo" });
+  const query = useContratos({ status: StatusContrato.Ativo });
   const clientesQuery = useClientes();
   const hojeIso = hojeIsoBr();
 

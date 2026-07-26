@@ -1,5 +1,10 @@
 /** Extrai texto plano de respostas de relatório para download / visualização. */
 
+import {
+  RotuloTipoCobrancaAction,
+  type TipoCobrancaActionValor,
+} from "@/lib/domain";
+
 export type CobrancaMensagemBloco = {
   titulo?: string;
   texto: string;
@@ -13,17 +18,10 @@ export type CobrancaTipoBloco = {
   mensagens: CobrancaMensagemBloco[];
 };
 
-const ROTULO_TIPO_COBRANCA: Record<string, string> = {
-  "pagamento-semanal": "Pagamento semanal",
-  renegociacao: "Renegociação",
-  infracoes: "Infrações",
-  pedagio: "Pedágio Digital",
-  "estacionamento-rotativo": "Estacionamento rotativo",
-  manutencao: "Manutenção",
-};
-
 function rotuloTipo(tipo: string, rotulos?: Record<string, string>): string {
-  return rotulos?.[tipo] ?? ROTULO_TIPO_COBRANCA[tipo] ?? tipo;
+  if (rotulos?.[tipo]) return rotulos[tipo];
+  const rotulo = RotuloTipoCobrancaAction[tipo as TipoCobrancaActionValor];
+  return rotulo ?? tipo;
 }
 
 export function extrairBlocosCobrancas(

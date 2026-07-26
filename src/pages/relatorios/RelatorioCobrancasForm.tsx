@@ -14,6 +14,7 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { LABEL } from "@/lib/labels";
+import { TIPOS_COBRANCA_ACTION_PADRAO, rotuloTipoCobrancaAction } from "@/lib/domain";
 import {
   downloadArquivoTexto,
   downloadPdfViaImpressao,
@@ -21,15 +22,6 @@ import {
   textoCobrancas,
   type RelatorioModoEntrega,
 } from "@/lib/relatorioDownload";
-
-const TIPOS_PADRAO = [
-  "pagamento-semanal",
-  "renegociacao",
-  "infracoes",
-  "pedagio",
-  "estacionamento-rotativo",
-  "manutencao",
-];
 
 type FiltroSituacao = "em_aberto" | "pago" | "todos";
 
@@ -45,7 +37,9 @@ export function RelatorioCobrancasForm() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
 
-  const opcoes = meta.data?.tipos ?? TIPOS_PADRAO.map((id) => ({ id, rotulo: id }));
+  const opcoes =
+    meta.data?.tipos ??
+    TIPOS_COBRANCA_ACTION_PADRAO.map((id) => ({ id, rotulo: rotuloTipoCobrancaAction(id) }));
   const rotulosTipo = Object.fromEntries(opcoes.map((t) => [t.id, t.rotulo]));
 
   function onClienteChange(id: string) {

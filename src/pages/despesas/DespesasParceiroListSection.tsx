@@ -19,11 +19,15 @@ import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatVeiculoLabel } from "@/lib/format";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import { CATEGORIAS_DESPESA_PARCEIRO } from "@/lib/parceiroDespesaCategorias";
+import {
+  STATUS_DESPESA_FILTRO_OPCOES,
+  StatusDespesaFiltro,
+  filtroPagamentoParaEmAberto,
+  type StatusDespesaFiltroValor,
+} from "@/lib/domain";
 import type { ParceiroDespesa, Veiculo } from "@/api/types";
 
 const CATEGORIAS = CATEGORIAS_DESPESA_PARCEIRO;
-
-type FiltroPagamento = "em_aberto" | "pago" | "todos";
 
 function compactPlaca(placa: string | null | undefined): string {
   return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
@@ -40,7 +44,7 @@ function veiculoDespesa(d: ParceiroDespesa, veiculos: Veiculo[] | undefined): st
 
 export function DespesasParceiroListSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<FiltroPagamento>("em_aberto");
+  const [pagamento, setPagamento] = useState<StatusDespesaFiltroValor>(StatusDespesaFiltro.EmAberto);
   const [parceiroId, setParceiroId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -48,7 +52,7 @@ export function DespesasParceiroListSection() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasParceiro({
-    emAberto: pagamento === "em_aberto" ? true : pagamento === "pago" ? false : undefined,
+    emAberto: filtroPagamentoParaEmAberto(pagamento),
     parceiroId: parceiroId || undefined,
     veiculoId: veiculoId || undefined,
     categoria: categoria || undefined,
@@ -60,7 +64,7 @@ export function DespesasParceiroListSection() {
 
   const rows = query.data?.items ?? [];
   const temFiltro =
-    pagamento !== "em_aberto" ||
+    pagamento !== StatusDespesaFiltro.EmAberto ||
     Boolean(parceiroId || veiculoId || categoria || periodoPreenchido(periodo));
 
   const total = useMemo(
@@ -128,14 +132,16 @@ export function DespesasParceiroListSection() {
             <span className="field__label">Pagamento</span>
             <NativeSelect
               value={pagamento}
-              onChange={(v) => setPagamento(v as FiltroPagamento)}
+              onChange={(v) => setPagamento(v as StatusDespesaFiltroValor)}
               variant="filtro"
               allowEmpty={false}
               aria-label="Pagamento"
             >
-              <option value="em_aberto">Em aberto</option>
-              <option value="pago">Pago</option>
-              <option value="todos">{SELECT_LABEL_TODOS}</option>
+              {STATUS_DESPESA_FILTRO_OPCOES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.value === StatusDespesaFiltro.Todos ? SELECT_LABEL_TODOS : opt.label}
+                </option>
+              ))}
             </NativeSelect>
           </label>
           <RelatorioPeriodoFiltro

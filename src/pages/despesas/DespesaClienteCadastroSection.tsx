@@ -12,43 +12,17 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { clienteIdDe } from "@/lib/clienteCampo";
 import { brToIsoDate } from "@/lib/dateBr";
-import { CATEGORIA_PEDAGIO } from "@/lib/pedagioLabels";
-
-const CATEGORIAS = [
-  "Manutenção",
-  "Locação semanal",
-  "Caução",
-  "Outros",
-  CATEGORIA_PEDAGIO,
-  "Infração",
-  "Estacionamento",
-];
-
-type StatusDespesaCadastro = "em_aberto" | "pago";
-
-function statusCadastroDeDespesa(d: {
-  paga?: boolean;
-  situacao?: string | null;
-}): StatusDespesaCadastro {
-  if (d.paga === true) return "pago";
-  const sit = String(d.situacao ?? "").trim().toLowerCase();
-  if (sit === "pago" || sit === "registrado") return "pago";
-  return "em_aberto";
-}
-
-function camposStatusDespesa(
-  status: StatusDespesaCadastro,
-  pagaEmAtual?: string | null,
-): { paga: boolean; situacao: string; pagaEm: string | null } {
-  if (status === "pago") {
-    return {
-      paga: true,
-      situacao: "Pago",
-      pagaEm: pagaEmAtual?.trim() || new Date().toLocaleDateString("pt-BR"),
-    };
-  }
-  return { paga: false, situacao: "Em aberto", pagaEm: null };
-}
+import {
+  CategoriaDespesaCliente,
+  CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
+  STATUS_DESPESA_CADASTRO_OPCOES,
+  StatusDespesaFiltro,
+  camposStatusDespesaDeCadastro,
+  statusCadastroDeDespesa,
+  type CategoriaDespesaClienteCadastro,
+  type StatusDespesaCadastro,
+} from "@/lib/domain";
+import { descricaoPagamentoSemanalDeVencimentoBr } from "@/lib/pagamentoSemanal";
 
 type Props = {
   despesaId?: string;
@@ -61,11 +35,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const veiculosQuery = useVeiculos();
 
   const [veiculoId, setVeiculoId] = useState("");
-  const [categoria, setCategoria] = useState("Manutenção");
+  const [categoria, setCategoria] = useState<CategoriaDespesaClienteCadastro>(
+    CategoriaDespesaCliente.Manutencao,
+  );
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
-  const [status, setStatus] = useState<StatusDespesaCadastro>("em_aberto");
+  const [status, setStatus] = useState<StatusDespesaCadastro>(StatusDespesaFiltro.EmAberto);
   const [pagaEm, setPagaEm] = useState<string | null>(null);
   const [clienteId, setClienteId] = useState("");
   const [carregando, setCarregando] = useState(editando);
@@ -87,7 +63,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         if (veiculoRef) {
           setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
         }
-        if (d.categoria) setCategoria(d.categoria);
+        if (d.categoria) setCategoria(d.categoria as CategoriaDespesaClienteCadastro);
         if (d.descricao) setDescricao(d.descricao);
         if (d.valorMulta != null) setValor(String(d.valorMulta));
         if (d.vencimentoBr) setDataVencimento(d.vencimentoBr);
@@ -110,6 +86,12 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
       cancelado = true;
     };
   }, [despesaId, veiculosQuery.data]);
+
+  useEffect(() => {
+    if (editando || categoria !== CategoriaDespesaCliente.LocacaoSemanal) return;
+    const auto = descricaoPagamentoSemanalDeVencimentoBr(dataVencimento);
+    if (auto) setDescricao(auto);
+  }, [categoria, dataVencimento, editando]);
 
   function onVeiculoChange(id: string) {
     setVeiculoId(id);
@@ -142,7 +124,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     }
     setLoading(true);
     setError(null);
-    const statusCampos = camposStatusDespesa(status, pagaEm);
+    const statusCampos = camposStatusDespesaDeCadastro(status, pagaEm);
     try {
       if (editando) {
         const r = await lanzaApi.atualizarDespesaCliente(despesaId!, {
@@ -157,7 +139,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
       } else {
         const r = await lanzaApi.criarDespesaCliente(veiculoId.trim(), {
           autoInfracao: `WEB-${Date.now()}`,
-          descricao: descricao.trim() || (categoria === "Manutenção" ? "Acionamento Franquia" : "Despesa cliente"),
+          descricao:
+            descricao.trim() ||
+            (categoria === CategoriaDespesaCliente.Manutencao
+              ? "Acionamento Franquia"
+              : categoria === CategoriaDespesaCliente.LocacaoSemanal
+                ? descricaoPagamentoSemanalDeVencimentoBr(vencimento) ?? "Despesa cliente"
+                : "Despesa cliente"),
           localInfracao: "",
           dataAutuacao: new Date().toLocaleDateString("pt-BR"),
           valorMulta: Number(valor),
@@ -165,7 +153,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           dataVencimentoOriginal: vencimento,
           categoria,
           condutorId: clienteId.trim() || undefined,
-          rastreameTipo: categoria === "Manutenção" ? "ALIMENTACAO" : "OUTROS",
+          rastreameTipo: categoria === CategoriaDespesaCliente.Manutencao ? "ALIMENTACAO" : "OUTROS",
           ...statusCampos,
         });
         setResult(r);
@@ -237,11 +225,11 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         <Field label="Categoria">
           <NativeSelect
             value={categoria}
-            onChange={setCategoria}
+            onChange={(v) => setCategoria(v as CategoriaDespesaClienteCadastro)}
             variant="cadastro"
             allowEmpty={false}
           >
-            {CATEGORIAS.map((c) => (
+            {CATEGORIAS_DESPESA_CLIENTE_CADASTRO.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -278,8 +266,11 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             disabled={loading}
             aria-label="Status"
           >
-            <option value="em_aberto">Em aberto</option>
-            <option value="pago">Pago</option>
+            {STATUS_DESPESA_CADASTRO_OPCOES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
       </FormCard>

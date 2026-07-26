@@ -1,8 +1,10 @@
+import { registroEstaAtivo } from "@/lib/domain";
+
 const LOCALE = "pt-BR";
 
 /** Cadastro Lanza: omitido ou true = ativo; só `false` = inativo. */
 export function registroAtivo(ativo?: boolean): boolean {
-  return ativo !== false;
+  return registroEstaAtivo(ativo);
 }
 
 export function ordenarAtivoDepoisAlfabetico<T>(

@@ -8,6 +8,7 @@ import { useContratos, useClientes, useParceiros, useVeiculos, useVinculosParcei
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatPlaca, clienteExibicaoPorId } from "@/lib/format";
+import { StatusContrato } from "@/lib/domain";
 import { ordenarAtivoDepoisAlfabetico } from "@/lib/listagemCadastro";
 import type { Contrato } from "@/api/types";
 
@@ -38,7 +39,7 @@ export function ContratosListSection() {
   const rows = useMemo(() => {
     const items = query.data?.items ?? [];
     return ordenarAtivoDepoisAlfabetico(items, {
-      ativoDe: (c) => c.status === "ativo",
+      ativoDe: (c) => c.status === StatusContrato.Ativo,
       rotuloDe: (c) => formatPlaca(c.placa ?? c.veiculo?.placa ?? c.id),
     });
   }, [query.data]);
@@ -122,7 +123,7 @@ export function ContratosListSection() {
         rows={rows}
         keyFn={(c) => c.id}
         rowClassName={(c) =>
-          c.status === "ativo" ? undefined : "row--inativo row--inativo-amber"
+          c.status === StatusContrato.Ativo ? undefined : "row--inativo row--inativo-amber"
         }
         emptyMessage="Nenhum contrato registado."
         columns={[
@@ -162,7 +163,7 @@ export function ContratosListSection() {
             header: "Status",
             sortValue: (c) => c.status ?? "",
             render: (c) => (
-              <span className={c.status === "ativo" ? "badge badge--ok" : "badge badge--amber"}>
+              <span className={c.status === StatusContrato.Ativo ? "badge badge--ok" : "badge badge--amber"}>
                 {c.status ?? "—"}
               </span>
             ),
@@ -191,11 +192,15 @@ export function ContratosListSection() {
                 variant="contrato"
                 editTo={`/contratos/${c.id}/editar`}
                 encerrarTo={
-                  c.status === "ativo"
+                  c.status === StatusContrato.Ativo
                     ? `/contratos/encerrar?id=${encodeURIComponent(c.id)}`
                     : undefined
                 }
-                renovarTo={c.status === "ativo" ? `/contratos/renovar?id=${encodeURIComponent(c.id)}` : undefined}
+                renovarTo={
+                  c.status === StatusContrato.Ativo
+                    ? `/contratos/renovar?id=${encodeURIComponent(c.id)}`
+                    : undefined
+                }
                 onDownloadAssinado={
                   c.contratoAssinadoStorageKey
                     ? () => void baixarAssinado(c)

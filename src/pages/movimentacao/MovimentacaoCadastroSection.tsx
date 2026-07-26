@@ -10,6 +10,16 @@ import { ResultPanel } from "@/components/ResultPanel";
 import { useVeiculos, useVinculosParceiro } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
+import {
+  CATEGORIA_MOVIMENTACAO_OPCOES,
+  CategoriaMovimentacao,
+  TIPO_LOCACAO_OPCOES,
+  TipoLocacao,
+  isCategoriaMovimentacaoValor,
+  isTipoLocacaoValor,
+  type CategoriaMovimentacaoValor,
+  type TipoLocacaoValor,
+} from "@/lib/domain";
 
 type Props = {
   locacaoId?: string;
@@ -24,8 +34,8 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
 
   const [veiculoId, setVeiculoId] = useState("");
   const [parceiroId, setParceiroId] = useState("");
-  const [situacao, setSituacao] = useState("locado");
-  const [tipoLocacao, setTipoLocacao] = useState("semanal");
+  const [categoria, setCategoria] = useState<CategoriaMovimentacaoValor>(CategoriaMovimentacao.Locado);
+  const [tipoLocacao, setTipoLocacao] = useState<TipoLocacaoValor>(TipoLocacao.Semanal);
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
   const [clienteId, setClienteId] = useState("");
@@ -54,8 +64,10 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
         if (veiculoRef) {
           setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
         }
-        if (typeof l.situacao === "string") setSituacao(l.situacao);
-        if (typeof l.tipoLocacao === "string") setTipoLocacao(l.tipoLocacao);
+        const categoriaRaw = typeof l.situacao === "string" ? l.situacao : undefined;
+        if (isCategoriaMovimentacaoValor(categoriaRaw)) setCategoria(categoriaRaw);
+        const tipoRaw = typeof l.tipoLocacao === "string" ? l.tipoLocacao : undefined;
+        if (isTipoLocacaoValor(tipoRaw)) setTipoLocacao(tipoRaw);
         if (typeof l.inicio === "string") setInicio(l.inicio);
         if (typeof l.fim === "string") setFim(l.fim);
         if (typeof l.clienteId === "string") setClienteId(l.clienteId);
@@ -112,11 +124,11 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
       if (!veiculoId.trim()) throw new Error("Selecione um veículo.");
       const body = {
         veiculoId: veiculoId.trim(),
-        situacao,
+        situacao: categoria,
         inicio: inicio.trim(),
         fim: fim.trim() || null,
         clienteId: clienteId.trim() || null,
-        tipoLocacao: situacao === "locado" ? tipoLocacao : null,
+        tipoLocacao: categoria === CategoriaMovimentacao.Locado ? tipoLocacao : null,
         observacao: observacao.trim() || null,
       };
 
@@ -181,33 +193,41 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
               disabled={loading}
             />
           </Field>
-          <Field label="Tipo">
+          <Field label="Categoria">
             <NativeSelect
-              value={situacao}
-              onChange={setSituacao}
+              value={categoria}
+              onChange={(v) => {
+                if (isCategoriaMovimentacaoValor(v)) setCategoria(v);
+              }}
               variant="cadastro"
               allowEmpty={false}
               disabled={loading}
-              aria-label="Tipo"
+              aria-label="Categoria"
             >
-              <option value="locado">Locado</option>
-              <option value="reserva">Reserva</option>
-              <option value="manutencao">Manutenção</option>
+              {CATEGORIA_MOVIMENTACAO_OPCOES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </NativeSelect>
           </Field>
         </div>
-        {situacao === "locado" ? (
+        {categoria === CategoriaMovimentacao.Locado ? (
           <Field label="Tipo de locação">
             <NativeSelect
               value={tipoLocacao}
-              onChange={setTipoLocacao}
+              onChange={(v) => {
+                if (isTipoLocacaoValor(v)) setTipoLocacao(v);
+              }}
               variant="cadastro"
               allowEmpty={false}
               disabled={loading}
             >
-              <option value="diaria">Diária</option>
-              <option value="semanal">Semanal</option>
-              <option value="mensal">Mensal</option>
+              {TIPO_LOCACAO_OPCOES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </NativeSelect>
           </Field>
         ) : null}

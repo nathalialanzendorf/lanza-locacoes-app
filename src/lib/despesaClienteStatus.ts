@@ -1,4 +1,5 @@
 import type { ClienteDespesa } from "@/api/types";
+import { SituacaoDespesa } from "@/lib/domain";
 
 export type BadgeStatusDespesa = "ok" | "warn" | "danger" | "muted";
 
@@ -16,7 +17,12 @@ function isCategoriaInfracao(categoria?: string | null): boolean {
 
 function situacaoGenerica(s?: string | null): boolean {
   const t = norm(s);
-  return !t || t === "em aberto" || t === "registrado" || t === "pago";
+  return (
+    !t ||
+    t === norm(SituacaoDespesa.EmAberto) ||
+    t === norm(SituacaoDespesa.Registrado) ||
+    t === norm(SituacaoDespesa.Pago)
+  );
 }
 
 function parseDataBr(data?: string | null): Date | null {
@@ -57,7 +63,7 @@ function justificada(d: ClienteDespesa): boolean {
 
 /** Rótulo exibido na coluna Status da listagem de despesas cliente. */
 export function rotuloStatusDespesaCliente(d: ClienteDespesa): string {
-  if (pagaLanza(d)) return "Pago";
+  if (pagaLanza(d)) return SituacaoDespesa.Pago;
 
   const situacao = d.situacao?.trim();
   if (situacao && !situacaoGenerica(situacao)) {
@@ -76,7 +82,7 @@ export function rotuloStatusDespesaCliente(d: ClienteDespesa): string {
   }
 
   if (situacao) return situacao;
-  return "Em aberto";
+  return SituacaoDespesa.EmAberto;
 }
 
 export function badgeStatusDespesaCliente(d: ClienteDespesa): BadgeStatusDespesa {

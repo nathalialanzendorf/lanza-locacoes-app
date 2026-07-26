@@ -17,6 +17,12 @@ import { LanzaApiError } from "@/api/client";
 import { formatPlaca, formatClienteLabel, formatClienteNomeExibicao } from "@/lib/format";
 import { clienteNomeDe } from "@/lib/clienteCampo";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
+import {
+  CATEGORIA_MOVIMENTACAO_OPCOES,
+  rotuloCategoriaMovimentacao,
+  isCategoriaMovimentacaoValor,
+  type CategoriaMovimentacaoValor,
+} from "@/lib/domain";
 import type { Locacao, Veiculo } from "@/api/types";
 
 function normPlaca(placa?: string | null): string {
@@ -39,13 +45,13 @@ export function MovimentacaoListSection() {
   const qc = useQueryClient();
   const [veiculoId, setVeiculoId] = useState("");
   const [parceiroId, setParceiroId] = useState("");
-  const [situacao, setSituacao] = useState("");
+  const [categoria, setCategoria] = useState<CategoriaMovimentacaoValor | "">("");
   const [clienteId, setClienteId] = useState("");
   const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const query = useLocacoes({
     veiculoId: veiculoId || undefined,
-    situacao: situacao || undefined,
+    situacao: categoria || undefined,
     clienteId: clienteId || undefined,
     dataInicial: periodo.dataInicial.trim() || undefined,
     dataFinal: periodo.dataFinal.trim() || undefined,
@@ -110,7 +116,7 @@ export function MovimentacaoListSection() {
   }, [query.data, parceiroId, veiculoPorId, veiculoPorPlaca, parceiroIdPorVeiculoId]);
 
   const temFiltro = Boolean(
-    veiculoId || parceiroId || situacao || clienteId || periodoPreenchido(periodo),
+    veiculoId || parceiroId || categoria || clienteId || periodoPreenchido(periodo),
   );
 
   function veiculoDaLocacao(locacao: Locacao): Veiculo | undefined {
@@ -201,16 +207,21 @@ export function MovimentacaoListSection() {
             <ClienteSelect value={clienteId} onChange={onClienteChange} variant="filtro" />
           </label>
           <label className="field">
-            <span className="field__label">Tipo</span>
+            <span className="field__label">Categoria</span>
             <NativeSelect
-              value={situacao}
-              onChange={setSituacao}
+              value={categoria}
+              onChange={(v) => {
+                if (!v) setCategoria("");
+                else if (isCategoriaMovimentacaoValor(v)) setCategoria(v);
+              }}
               variant="filtro"
-              aria-label="Tipo"
+              aria-label="Categoria"
             >
-              <option value="locado">Locado</option>
-              <option value="reserva">Reserva</option>
-              <option value="manutencao">Manutenção</option>
+              {CATEGORIA_MOVIMENTACAO_OPCOES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </NativeSelect>
           </label>
           <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} />
@@ -247,7 +258,18 @@ export function MovimentacaoListSection() {
             render: (l) => veiculoDaLocacao(l)?.anoModelo ?? "—",
           },
           { key: "parceiro", header: "Parceiro", sortValue: (l) => parceiroDaLocacao(l), render: (l) => parceiroDaLocacao(l) },
-          { key: "situacao", header: "Situação", sortValue: (l) => l.situacao ?? l.tipo ?? "", render: (l) => l.situacao ?? l.tipo ?? "—" },
+          {
+            key: "categoria",
+            header: "Categoria",
+            sortValue: (l) =>
+              isCategoriaMovimentacaoValor(l.situacao)
+                ? rotuloCategoriaMovimentacao(l.situacao)
+                : l.situacao ?? l.tipo ?? "",
+            render: (l) =>
+              isCategoriaMovimentacaoValor(l.situacao)
+                ? rotuloCategoriaMovimentacao(l.situacao)
+                : l.situacao ?? l.tipo ?? "—",
+          },
           { key: "inicio", header: "Início", sortValue: (l) => l.inicio ?? "", render: (l) => l.inicio ?? "—" },
           { key: "fim", header: "Fim", sortValue: (l) => l.fim ?? "Em aberto", render: (l) => l.fim ?? "Em aberto" },
           { key: "cliente", header: "Cliente", sortValue: (l) => clienteDaLocacao(l), render: (l) => clienteDaLocacao(l) },

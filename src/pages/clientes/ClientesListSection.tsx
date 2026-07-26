@@ -11,6 +11,7 @@ import { LanzaApiError } from "@/api/client";
 import { formatPlaca, formatClienteLabel, statusClass, statusLabel } from "@/lib/format";
 import { pagamentoContratoExibicao } from "@/lib/contratoPrazo";
 import { ordenarAtivoDepoisAlfabetico, registroAtivo, rowClassInativo } from "@/lib/listagemCadastro";
+import { StatusContrato } from "@/lib/domain";
 import {
   clienteOperacionalAtivo,
   contratoOperacionalDoCliente,
@@ -44,7 +45,7 @@ export function ClientesListSection() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [togglingAtivoId, setTogglingAtivoId] = useState<string | null>(null);
   const query = useClientes();
-  const contratosQuery = useContratos({ status: "ativo" });
+  const contratosQuery = useContratos({ status: StatusContrato.Ativo });
 
   const contratosAtivos = useMemo(
     () => indexarContratosOperacionaisAtivos(contratosQuery.data?.items),

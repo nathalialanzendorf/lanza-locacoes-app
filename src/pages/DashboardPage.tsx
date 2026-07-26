@@ -6,6 +6,7 @@ import { StatCard } from "@/components/StatCard";
 import { PageHeader, QueryError } from "@/components/PageHeader";
 import { IconRecebimento, IconRenovar } from "@/components/icons";
 import { useResumo, useClientes, useContratos } from "@/api/hooks";
+import { StatusContrato } from "@/lib/domain";
 import { formatBrl, formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import { LABEL } from "@/lib/labels";
 import { urlLancarRecebimento } from "@/lib/recebimentoUrl";
@@ -282,7 +283,7 @@ function ContratosVencimentoTable({
 export function DashboardPage() {
   const resumo = useResumo();
   const clientesQuery = useClientes();
-  const contratosQuery = useContratos({ status: "ativo" });
+  const contratosQuery = useContratos({ status: StatusContrato.Ativo });
   const rec = resumo.data?.recebimentos ?? RECEBIMENTOS_VAZIO;
   const clientes = clientesQuery.data?.items;
   const hojeIso = hojeIsoBr();

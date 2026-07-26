@@ -11,6 +11,7 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatPlaca, statusClass, statusLabel } from "@/lib/format";
 import { ordenarAtivoDepoisAlfabetico, registroAtivo } from "@/lib/listagemCadastro";
+import { StatusContrato } from "@/lib/domain";
 import {
   placasComContratoAtivo,
   situacaoLocacaoVeiculo,
@@ -26,7 +27,7 @@ export function VeiculosListSection() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [togglingAtivoId, setTogglingAtivoId] = useState<string | null>(null);
   const query = useVeiculos();
-  const contratosQuery = useContratos({ status: "ativo" });
+  const contratosQuery = useContratos({ status: StatusContrato.Ativo });
   const parceirosQuery = useParceiros();
   const vinculosQuery = useVinculosParceiro();
 

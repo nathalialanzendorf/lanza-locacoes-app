@@ -98,10 +98,7 @@ export function clienteExibicaoPorId(
   return formatClienteNomeExibicao(fallbackNome);
 }
 
-export function statusLabel(ativo?: boolean): string {
-  return ativo === false ? "Inativo" : "Ativo";
-}
-
-export function statusClass(ativo?: boolean): string {
-  return ativo === false ? "badge badge--muted" : "badge badge--ok";
-}
+export {
+  rotuloStatusRegistro as statusLabel,
+  classeStatusRegistro as statusClass,
+} from "@/lib/domain";

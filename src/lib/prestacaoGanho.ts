@@ -1,4 +1,5 @@
 import type { Contrato, PrestacaoSugestaoVeiculo, Veiculo } from "@/api/types";
+import { StatusContrato, TipoContrato, parseTipoContrato } from "@/lib/domain";
 
 export type GanhoVeiculoLinha = {
   veiculoId: string;
@@ -28,7 +29,7 @@ export function contratoVigenteDoVeiculo(
   veiculoId: string,
 ): Contrato | null {
   const doVeiculo = contratos.filter((c) => c.veiculoId === veiculoId);
-  const ativo = doVeiculo.find((c) => c.status === "ativo");
+  const ativo = doVeiculo.find((c) => c.status === StatusContrato.Ativo);
   if (ativo) return ativo;
   return (
     [...doVeiculo].sort((a, b) => (b.dataInicio ?? "").localeCompare(a.dataInicio ?? "", "pt-BR"))[0] ??
@@ -41,8 +42,8 @@ export function ganhoFromContrato(contrato: Contrato): { valor: number; descrica
   if (normPlaca(placa) === "PWH3A45") {
     return { valor: 1100, descricao: "Locação mensal (Doblo)" };
   }
-  const tipo = (contrato.tipoContrato ?? "semanal").toLowerCase();
-  if (tipo === "mensal" && contrato.valorMensal != null && contrato.valorMensal > 0) {
+  const tipo = parseTipoContrato(contrato.tipoContrato);
+  if (tipo === TipoContrato.Mensal && contrato.valorMensal != null && contrato.valorMensal > 0) {
     return { valor: contrato.valorMensal, descricao: "Locação mensal (contrato)" };
   }
   if (contrato.valorSemanal != null && contrato.valorSemanal > 0) {

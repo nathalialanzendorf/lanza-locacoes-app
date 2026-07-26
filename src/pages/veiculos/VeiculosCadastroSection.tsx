@@ -16,6 +16,7 @@ import {
   situacaoVeiculoLabel,
 } from "@/lib/statusVeiculo";
 import { statusLabel } from "@/lib/format";
+import { StatusContrato } from "@/lib/domain";
 
 type Props = {
   veiculoId?: string;
@@ -29,7 +30,7 @@ export function VeiculosCadastroSection({ veiculoId }: Props) {
   const vinculosQuery = useVinculosParceiro(
     veiculoId ? { veiculoId } : undefined,
   );
-  const contratosQuery = useContratos({ status: "ativo" });
+  const contratosQuery = useContratos({ status: StatusContrato.Ativo });
   const placasContratoAtivo = useMemo(
     () => placasComContratoAtivo(contratosQuery.data?.items ?? []),
     [contratosQuery.data],

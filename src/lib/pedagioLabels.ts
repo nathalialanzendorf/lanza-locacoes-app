@@ -4,7 +4,9 @@
  * - Categoria do débito / filtros API: `Pedágio`
  * - Rótulo do portal na UI: `Pedágio Digital`
  */
-export const CATEGORIA_PEDAGIO = "Pedágio";
+import { CategoriaDespesaCliente } from "@/lib/domain";
+
+export const CATEGORIA_PEDAGIO = CategoriaDespesaCliente.Pedagio;
 
 export const ROTULO_PEDAGIO_DIGITAL = "Pedágio Digital";
 

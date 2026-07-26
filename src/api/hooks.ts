@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { lanzaApi } from "./endpoints";
+import type { StatusContratoValor, CategoriaMovimentacaoValor } from "@/lib/domain";
 
 export function useHealth() {
   return useQuery({
@@ -34,7 +35,7 @@ export function useVeiculos(params?: { ativo?: boolean; placa?: string }) {
 
 export function useContratos(
   params?: {
-    status?: "ativo" | "encerrado";
+    status?: StatusContratoValor;
     placa?: string;
     clienteId?: string;
     veiculoId?: string;
@@ -106,7 +107,7 @@ export function useLocacoes(params?: {
   abertas?: boolean;
   veiculoId?: string;
   placa?: string;
-  situacao?: string;
+  situacao?: CategoriaMovimentacaoValor;
   clienteId?: string;
   dataInicial?: string;
   dataFinal?: string;

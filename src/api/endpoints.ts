@@ -1,5 +1,6 @@
 import { apiRequest, apiDownload, apiUpload } from "./client";
 import { lanzaApiExtra } from "./endpointsExtra";
+import type { StatusContratoValor, CategoriaMovimentacaoValor } from "@/lib/domain";
 import type {
   Cliente,
   ClienteDespesa,
@@ -55,7 +56,7 @@ export const lanzaApi = {
     }),
 
   listarContratos: (params?: {
-    status?: "ativo" | "encerrado";
+    status?: StatusContratoValor;
     clienteId?: string;
     veiculoId?: string;
     placa?: string;
@@ -164,7 +165,7 @@ export const lanzaApi = {
     abertas?: boolean;
     veiculoId?: string;
     placa?: string;
-    situacao?: string;
+    situacao?: CategoriaMovimentacaoValor;
     clienteId?: string;
     dataInicial?: string;
     dataFinal?: string;

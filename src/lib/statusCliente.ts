@@ -1,16 +1,11 @@
 import type { Cliente, Contrato } from "@/api/types";
+import { contratoOperacionalAtivo } from "@/lib/domain";
 
 function normCpf(cpf?: string | null): string {
   return (cpf ?? "").replace(/\D/g, "");
 }
 
-/** Contrato em locação ativa (status ativo e sem data de encerramento). */
-export function contratoOperacionalAtivo(
-  c: Pick<Contrato, "status" | "dataEncerramento">,
-): boolean {
-  if (c.status !== "ativo") return false;
-  return !String(c.dataEncerramento ?? "").trim();
-}
+export { contratoOperacionalAtivo };
 
 export type ContratosAtivosPorCliente = {
   porClienteId: Map<string, Contrato>;

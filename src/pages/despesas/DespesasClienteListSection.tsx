@@ -24,20 +24,15 @@ import {
 } from "@/lib/despesaClienteStatus";
 import { urlLancarRecebimentoDespesa } from "@/lib/recebimentoUrl";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
-import { CATEGORIA_PEDAGIO, rotuloCategoriaDespesa } from "@/lib/pedagioLabels";
+import { rotuloCategoriaDespesa } from "@/lib/pedagioLabels";
+import {
+  CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
+  STATUS_DESPESA_FILTRO_OPCOES,
+  StatusDespesaFiltro,
+  filtroPagamentoParaEmAberto,
+  type StatusDespesaFiltroValor,
+} from "@/lib/domain";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
-
-const CATEGORIAS = [
-  "Manutenção",
-  "Locação semanal",
-  "Caução",
-  "Outros",
-  CATEGORIA_PEDAGIO,
-  "Infração",
-  "Estacionamento",
-] as const;
-
-type FiltroPagamento = "em_aberto" | "pago" | "todos";
 
 function compactPlaca(placa: string | null | undefined): string {
   return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
@@ -61,7 +56,7 @@ function vencimentoSortMs(vencimentoBr?: string | null): number {
 
 export function DespesasClienteListSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<FiltroPagamento>("em_aberto");
+  const [pagamento, setPagamento] = useState<StatusDespesaFiltroValor>(StatusDespesaFiltro.EmAberto);
   const [clienteId, setClienteId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -70,7 +65,7 @@ export function DespesasClienteListSection() {
 
   const query = useDespesasCliente({
     ativo: true,
-    emAberto: pagamento === "em_aberto" ? true : pagamento === "pago" ? false : undefined,
+    emAberto: filtroPagamentoParaEmAberto(pagamento),
     clienteId: clienteId || undefined,
     veiculoId: veiculoId || undefined,
     categoria: categoria || undefined,
@@ -84,7 +79,7 @@ export function DespesasClienteListSection() {
 
   const rows = query.data?.items ?? [];
   const temFiltro = Boolean(
-    pagamento !== "em_aberto" ||
+    pagamento !== StatusDespesaFiltro.EmAberto ||
       clienteId ||
       veiculoId ||
       categoria ||
@@ -139,7 +134,7 @@ export function DespesasClienteListSection() {
               variant="filtro"
               aria-label="Categoria"
             >
-              {CATEGORIAS.map((c) => (
+              {CATEGORIAS_DESPESA_CLIENTE_CADASTRO.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -150,14 +145,16 @@ export function DespesasClienteListSection() {
             <span className="field__label">Status</span>
             <NativeSelect
               value={pagamento}
-              onChange={(v) => setPagamento(v as FiltroPagamento)}
+              onChange={(v) => setPagamento(v as StatusDespesaFiltroValor)}
               variant="filtro"
               allowEmpty={false}
               aria-label="Status"
             >
-              <option value="em_aberto">Em aberto</option>
-              <option value="todos">{SELECT_LABEL_TODOS}</option>
-              <option value="pago">Pago</option>
+              {STATUS_DESPESA_FILTRO_OPCOES.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.value === StatusDespesaFiltro.Todos ? SELECT_LABEL_TODOS : opt.label}
+                </option>
+              ))}
             </NativeSelect>
           </label>
           <RelatorioPeriodoFiltro

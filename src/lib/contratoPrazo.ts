@@ -1,5 +1,9 @@
 import type { Contrato } from "@/api/types";
 import { brToIsoDate, isoDateToBr } from "@/lib/dateBr";
+import {
+  DIA_PAGAMENTO_POR_CHAVE,
+  DIAS_PAGAMENTO_SEMANAL,
+} from "@/lib/domain";
 import { hojeIsoBr } from "@/lib/contratoVencimento";
 
 export const PERIODOS_CONTRATO = [
@@ -109,25 +113,7 @@ export function labelTempoContrato(periodo: string, prazoDias: number | null): s
 }
 
 /** Texto da cláusula 3.2 — `--dia-pagamento` / `montarDadosContrato`. */
-export const DIAS_PAGAMENTO_SEMANAL = [
-  { value: "todos os sábados", label: "Sábado" },
-  { value: "todas as segundas-feiras", label: "Segunda-feira" },
-  { value: "todas as terças-feiras", label: "Terça-feira" },
-  { value: "todas as quartas-feiras", label: "Quarta-feira" },
-  { value: "todas as quintas-feiras", label: "Quinta-feira" },
-  { value: "todas as sextas-feiras", label: "Sexta-feira" },
-  { value: "todos os domingos", label: "Domingo" },
-] as const;
-
-const DIA_PAGAMENTO_POR_CHAVE: Record<string, string> = {
-  sabado: "todos os sábados",
-  segunda: "todas as segundas-feiras",
-  terca: "todas as terças-feiras",
-  quarta: "todas as quartas-feiras",
-  quinta: "todas as quintas-feiras",
-  sexta: "todas as sextas-feiras",
-  domingo: "todos os domingos",
-};
+export { DIAS_PAGAMENTO_SEMANAL };
 
 /** Rótulo curto do dia de pagamento semanal (ex.: "Segunda-feira"). */
 export function labelDiaPagamentoSemanal(raw: string | null | undefined): string {

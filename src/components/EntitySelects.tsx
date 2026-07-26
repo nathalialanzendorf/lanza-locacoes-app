@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 
 import { useClientes, useContratos, useParceiros, useVeiculos, useVinculosParceiro } from "@/api/hooks";
+import { StatusContrato } from "@/lib/domain";
 import { formatClienteLabel, formatVeiculoLabel } from "@/lib/format";
 import { selectEmptyLabel, type SelectEmptyVariant } from "@/lib/selectLabels";
 import type { Cliente, Parceiro, Veiculo } from "@/api/types";
@@ -173,7 +174,7 @@ export function VeiculoSelect({
   const query = useVeiculos({ ativo });
   const clienteRef = clienteId?.trim() ?? "";
   const contratosQuery = useContratos(
-    { status: "ativo", clienteId: clienteRef || undefined },
+    { status: StatusContrato.Ativo, clienteId: clienteRef || undefined },
     { enabled: Boolean(clienteRef) },
   );
   const vinculosQuery = useVinculosParceiro(

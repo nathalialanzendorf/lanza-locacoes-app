@@ -13,13 +13,17 @@ import { FlashError } from "@/context/ScreenFlashContext";
 import { CATEGORIA_ESTACIONAMENTO, isCategoriaEstacionamento } from "@/lib/estacionamentoLabels";
 import { formatBrl, formatPlaca } from "@/lib/format";
 import { CATEGORIA_PEDAGIO, isCategoriaPedagio } from "@/lib/pedagioLabels";
+import { CategoriaDespesaCliente } from "@/lib/domain";
 import { precisaConfirmacao } from "@/lib/responsavelDebitoUi";
 import { bodySyncGlobal, opcoesSyncCompleto } from "@/lib/syncUi";
 import type { ClienteDespesa, Infracao } from "@/api/types";
 
 type SyncRegistroLinha = {
   id: string;
-  tipo: "Infração" | "Pedágio" | "Estacionamento";
+  tipo:
+    | typeof CategoriaDespesaCliente.Infracao
+    | typeof CategoriaDespesaCliente.Pedagio
+    | typeof CategoriaDespesaCliente.Estacionamento;
   placa: string;
   ref: string;
   descricao: string;
@@ -37,9 +41,11 @@ function valorDespesa(d: ClienteDespesa): number {
   return Number(d.valorMulta) || 0;
 }
 
-function categoriaDespesaSync(d: ClienteDespesa): "Pedágio" | "Estacionamento" | null {
-  if (isCategoriaPedagio(d.categoria)) return "Pedágio";
-  if (isCategoriaEstacionamento(d.categoria)) return "Estacionamento";
+function categoriaDespesaSync(
+  d: ClienteDespesa,
+): typeof CategoriaDespesaCliente.Pedagio | typeof CategoriaDespesaCliente.Estacionamento | null {
+  if (isCategoriaPedagio(d.categoria)) return CategoriaDespesaCliente.Pedagio;
+  if (isCategoriaEstacionamento(d.categoria)) return CategoriaDespesaCliente.Estacionamento;
   return null;
 }
 
@@ -81,7 +87,7 @@ export function SyncRegistrosSection() {
     for (const i of infracoesQuery.data?.items ?? []) {
       out.push({
         id: `infracao:${i.numeroAuto ?? i.id}`,
-        tipo: "Infração",
+        tipo: CategoriaDespesaCliente.Infracao,
         placa: formatPlaca(i.veiculoId),
         ref: i.numeroAuto ?? i.id,
         descricao: i.descricao?.trim() || "—",

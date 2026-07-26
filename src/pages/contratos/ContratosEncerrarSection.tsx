@@ -24,9 +24,13 @@ import {
   rowClassVencimentoContrato,
 } from "@/lib/contratoVencimento";
 import { mensagemErroApi, mensagemSucessoEncerramento } from "@/lib/encerramentoFeedback";
+import {
+  MOTIVO_ENCERRAMENTO_OPCOES,
+  MotivoEncerramento,
+  StatusContrato,
+  type MotivoEncerramentoValor,
+} from "@/lib/domain";
 import type { Contrato } from "@/api/types";
-
-type MotivoEncerramento = "devolvido" | "recuperado" | "troca";
 
 export function ContratosEncerrarSection() {
   const qc = useQueryClient();
@@ -34,13 +38,13 @@ export function ContratosEncerrarSection() {
   const contratoIdUrl = searchParams.get("id")?.trim() || null;
   const [contratoSelecionadoId, setContratoSelecionadoId] = useState<string | null>(contratoIdUrl);
   const [dataEncerramento, setDataEncerramento] = useState("");
-  const [motivo, setMotivo] = useState<MotivoEncerramento>("devolvido");
+  const [motivo, setMotivo] = useState<MotivoEncerramentoValor>(MotivoEncerramento.Devolvido);
   const [quebraContrato, setQuebraContrato] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const query = useContratos({ status: "ativo" });
+  const query = useContratos({ status: StatusContrato.Ativo });
   const clientesQuery = useClientes();
   const hojeIso = hojeIsoBr();
 
@@ -82,7 +86,7 @@ export function ContratosEncerrarSection() {
   }, [rows, contratoSelecionadoId, query.isLoading, contratoIdUrl, setSearchParams]);
 
   useEffect(() => {
-    if (motivo === "troca") setQuebraContrato(false);
+    if (motivo === MotivoEncerramento.Troca) setQuebraContrato(false);
   }, [motivo]);
 
   function selecionarContrato(contrato: Contrato) {
@@ -116,7 +120,7 @@ export function ContratosEncerrarSection() {
         idOuPasta: contratoSelecionado.id,
         dataEncerramento: dataEncerramento.trim(),
         motivoEncerramento: motivo,
-        quebraContrato: motivo === "troca" ? false : quebraContrato,
+        quebraContrato: motivo === MotivoEncerramento.Troca ? false : quebraContrato,
       });
       setSuccess(mensagemSucessoEncerramento(r.data));
       setContratoSelecionadoId(null);
@@ -248,25 +252,27 @@ export function ContratosEncerrarSection() {
             <Field label="Motivo do encerramento">
               <NativeSelect
                 value={motivo}
-                onChange={(v) => setMotivo(v as MotivoEncerramento)}
+                onChange={(v) => setMotivo(v as MotivoEncerramentoValor)}
                 variant="cadastro"
                 allowEmpty={false}
                 disabled={loading}
                 aria-label="Motivo do encerramento"
               >
-                <option value="devolvido">Devolvido</option>
-                <option value="recuperado">Recuperado</option>
-                <option value="troca">Troca de veículo</option>
+                {MOTIVO_ENCERRAMENTO_OPCOES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </NativeSelect>
             </Field>
             <Field label="Quebra de contrato">
               <Toggle
                 checked={quebraContrato}
                 onChange={setQuebraContrato}
-                disabled={loading || motivo === "troca"}
+                disabled={loading || motivo === MotivoEncerramento.Troca}
                 label="Registrar quebra (retenção proporcional de caução)"
               />
-              {motivo === "troca" ? (
+              {motivo === MotivoEncerramento.Troca ? (
                 <span className="field__hint">Troca de veículo não é quebra — a caução transfere para o novo contrato.</span>
               ) : null}
             </Field>

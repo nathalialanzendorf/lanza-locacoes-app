@@ -21,6 +21,12 @@ import {
 } from "@/lib/relatorioDownload";
 import { formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import { mensagemErroApi, mensagemSucessoEncerramento } from "@/lib/encerramentoFeedback";
+import {
+  MOTIVO_ENCERRAMENTO_OPCOES,
+  MotivoEncerramento,
+  StatusContrato,
+  type MotivoEncerramentoValor,
+} from "@/lib/domain";
 import type { Contrato } from "@/api/types";
 
 type EncerramentoPayload = {
@@ -30,8 +36,6 @@ type EncerramentoPayload = {
   avisos?: string[];
   arquivos?: unknown;
 };
-
-type MotivoEncerramento = "devolvido" | "recuperado" | "troca";
 
 function normalizarEncerramento(r: EncerramentoPayload & { data?: EncerramentoPayload }): EncerramentoPayload {
   if (r.texto != null || r.whatsapp != null) return r;
@@ -64,14 +68,14 @@ export function RelatorioEncerramentoForm() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EncerramentoPayload | null>(null);
 
-  const [motivo, setMotivo] = useState<MotivoEncerramento>("devolvido");
+  const [motivo, setMotivo] = useState<MotivoEncerramentoValor>(MotivoEncerramento.Devolvido);
   const [quebraContrato, setQuebraContrato] = useState(false);
   const [loadingEncerrar, setLoadingEncerrar] = useState(false);
   const [encerrarError, setEncerrarError] = useState<string | null>(null);
   const [encerrarSuccess, setEncerrarSuccess] = useState<string | null>(null);
 
   const query = useContratos({
-    status: "ativo",
+    status: StatusContrato.Ativo,
     clienteId: clienteId || undefined,
     veiculoId: veiculoId || undefined,
   });
@@ -94,7 +98,7 @@ export function RelatorioEncerramentoForm() {
   }, [rows, contratoSelecionadoId]);
 
   useEffect(() => {
-    if (motivo === "troca") setQuebraContrato(false);
+    if (motivo === MotivoEncerramento.Troca) setQuebraContrato(false);
   }, [motivo]);
 
   const paramsValidos = Boolean(contratoSelecionadoId && dataEncerramento.trim());
@@ -157,7 +161,7 @@ export function RelatorioEncerramentoForm() {
         idOuPasta: contratoSelecionado.id,
         dataEncerramento: dataEncerramento.trim(),
         motivoEncerramento: motivo,
-        quebraContrato: motivo === "troca" ? false : quebraContrato,
+        quebraContrato: motivo === MotivoEncerramento.Troca ? false : quebraContrato,
       });
       setEncerrarSuccess(mensagemSucessoEncerramento(r.data));
       setContratoSelecionadoId(null);
@@ -326,25 +330,27 @@ export function RelatorioEncerramentoForm() {
         <Field label="Motivo do encerramento">
           <NativeSelect
             value={motivo}
-            onChange={(v) => setMotivo(v as MotivoEncerramento)}
+            onChange={(v) => setMotivo(v as MotivoEncerramentoValor)}
             variant="cadastro"
             allowEmpty={false}
             disabled={loadingEncerrar}
             aria-label="Motivo do encerramento"
           >
-            <option value="devolvido">Devolvido</option>
-            <option value="recuperado">Recuperado</option>
-            <option value="troca">Troca de veículo</option>
+            {MOTIVO_ENCERRAMENTO_OPCOES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
         <Field label="Quebra de contrato">
           <Toggle
             checked={quebraContrato}
             onChange={setQuebraContrato}
-            disabled={loadingEncerrar || motivo === "troca"}
+            disabled={loadingEncerrar || motivo === MotivoEncerramento.Troca}
             label="Registrar quebra (retenção proporcional de caução)"
           />
-          {motivo === "troca" ? (
+          {motivo === MotivoEncerramento.Troca ? (
             <span className="field__hint">Troca de veículo não é quebra — a caução transfere para o novo contrato.</span>
           ) : null}
         </Field>
