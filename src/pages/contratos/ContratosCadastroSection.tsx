@@ -56,19 +56,6 @@ type ContratoRenovacaoFonte = Contrato & {
 type StatusContrato = "ativo" | "encerrado";
 type MotivoEncerramento = "devolvido" | "recuperado" | "troca";
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const raw = String(reader.result ?? "");
-      const base64 = raw.includes(",") ? raw.split(",")[1]! : raw;
-      resolve(base64);
-    };
-    reader.onerror = () => reject(new Error("Falha ao ler o arquivo"));
-    reader.readAsDataURL(file);
-  });
-}
-
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -251,11 +238,7 @@ export function ContratosCadastroSection({
   const [result, setResult] = useState<unknown>(null);
   const [assinadoStorageKey, setAssinadoStorageKey] = useState<string | null>(null);
   const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
-  const [assinadoPendente, setAssinadoPendente] = useState<{
-    nomeArquivo: string;
-    conteudoBase64: string;
-    contentType?: string;
-  } | null>(null);
+  const [assinadoPendente, setAssinadoPendente] = useState<File | null>(null);
   const [statusContrato, setStatusContrato] = useState<StatusContrato>("ativo");
   const [dataEncerramento, setDataEncerramento] = useState("");
   const [motivoEncerramento, setMotivoEncerramento] = useState<MotivoEncerramento>("devolvido");
@@ -572,9 +555,6 @@ export function ContratosCadastroSection({
           patch.diaPagamentoMes = null;
           patch.diaPagamentoTexto = diaPagamento.trim();
         }
-        if (assinadoPendente) {
-          patch.contratoAssinado = assinadoPendente;
-        }
         patch.status = statusContrato;
         if (statusContrato === "encerrado") {
           if (!dataEncerramento.trim()) {
@@ -589,9 +569,14 @@ export function ContratosCadastroSection({
           patch.quebraContrato = false;
         }
         const r = await lanzaApi.atualizarContrato(contratoId.trim(), patch);
+        let contrato = r.data?.contrato;
+        const idSalvo = contrato?.id ?? contratoId.trim();
+        if (assinadoPendente && idSalvo) {
+          const uploadRes = await lanzaApi.uploadContratoAssinado(idSalvo, assinadoPendente);
+          contrato = uploadRes.data?.contrato ?? contrato;
+        }
         setResult(r);
-        const contrato = r.data?.contrato;
-        if (contrato?.id) setContratoSalvoId(contrato.id);
+        if (idSalvo) setContratoSalvoId(idSalvo);
         if (contrato?.contratoAssinadoStorageKey) {
           setAssinadoStorageKey(contrato.contratoAssinadoStorageKey);
         }
@@ -707,20 +692,11 @@ export function ContratosCadastroSection({
   const mostrarToggleCaucao = modo === "criar" || mostrarParcelarCaucaoRenovacao;
   const idDocumento = contratoSalvoId ?? (modo === "editar" ? contratoId : null);
 
-  async function handleAssinadoFile(file: File | null) {
+  function handleAssinadoFile(file: File | null) {
     if (!file) return;
-    try {
-      const conteudoBase64 = await fileToBase64(file);
-      setAssinadoPendente({
-        nomeArquivo: file.name,
-        conteudoBase64,
-        contentType: file.type || undefined,
-      });
-      setAssinadoNome(file.name);
-      setError(null);
-    } catch {
-      setError("Falha ao ler o arquivo do contrato assinado.");
-    }
+    setAssinadoPendente(file);
+    setAssinadoNome(file.name);
+    setError(null);
   }
 
   async function baixarContratoAssinado() {
@@ -1039,10 +1015,8 @@ export function ContratosCadastroSection({
           <p className="field__hint">
             {modo === "editar"
               ? "Gere o Word para impressão ou baixe o contrato assinado acima."
-              : "O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura."}
-            {typeof window !== "undefined" && !/Win/i.test(navigator.platform)
-              ? " PDF só está disponível no servidor Windows."
-              : ""}
+              : "O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura."}{" "}
+            PDF na API de produção precisa de ConvertAPI configurado na Vercel; caso contrário, baixe o Word (.docx).
           </p>
           <div className="form-card__action-row">
             <button

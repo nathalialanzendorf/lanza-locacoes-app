@@ -1,4 +1,4 @@
-import { apiRequest, apiDownload } from "./client";
+import { apiRequest, apiDownload, apiUpload } from "./client";
 import { lanzaApiExtra } from "./endpointsExtra";
 import type {
   Cliente,
@@ -88,6 +88,16 @@ export const lanzaApi = {
     }),
   downloadContratoAssinado: (id: string, filename?: string) =>
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, { filename }),
+  uploadContratoAssinado: (id: string, file: File) =>
+    apiUpload<{ data: { contrato: import("./types").ContratoDetalhe } }>(
+      `/api/contratos/${encodeURIComponent(id)}/contrato-assinado`,
+      file,
+      {
+        filename: file.name,
+        contentType: file.type || "application/pdf",
+        timeoutMs: 120_000,
+      },
+    ),
   consultarVeiculoPortais: (params: {
     placa?: string;
     renavam?: string;

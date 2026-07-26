@@ -169,3 +169,52 @@ export async function apiDownload(
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** Envio de ficheiro binário (ex.: PDF do contrato assinado). */
+export async function apiUpload<T>(
+  path: string,
+  file: Blob,
+  options: Omit<RequestOptions, "body"> & { filename: string; contentType?: string } = {
+    filename: "arquivo",
+  },
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": options.contentType?.trim() || file.type || "application/octet-stream",
+    "X-Filename": options.filename,
+  };
+  const apiKey = getStoredApiKey().trim();
+  if (apiKey) headers["X-API-Key"] = apiKey;
+  const token = getStoredToken().trim();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const init: RequestInit = {
+    method: options.method ?? "PUT",
+    headers,
+    body: file,
+  };
+  if (options.timeoutMs != null && options.timeoutMs > 0) {
+    init.signal = AbortSignal.timeout(options.timeoutMs);
+  }
+
+  const params = { ...options.params, filename: options.filename };
+  const res = await fetch(buildUrl(path, params), init);
+  const text = await res.text();
+  let payload: unknown = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { error: text };
+    }
+  }
+
+  if (!res.ok) {
+    const message =
+      (payload as ApiError | null)?.error ??
+      (res.status ? `Erro HTTP ${res.status}` : "Erro sem status code");
+    throw new LanzaApiError(res.status, message);
+  }
+
+  return payload as T;
+}
