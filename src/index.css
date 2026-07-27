@@ -113,7 +113,23 @@ code {
 .nav {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
   gap: 0.35rem;
+}
+
+.nav-section__title {
+  margin: 0.15rem 0 0;
+  padding: 0 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
 }
 
 .nav__link {

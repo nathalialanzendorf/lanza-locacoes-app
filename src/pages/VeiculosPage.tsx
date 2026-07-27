@@ -17,20 +17,19 @@ export function VeiculosPage() {
   return (
     <PageHeader
       title="Veículos"
-      description="Frota de locação e veículos particulares — cadastro, consulta FIPE e importação de CRLV."
+      description="Frota de locação — cadastro, consulta FIPE e importação de CRLV."
     >
       <PageTabs
         ariaLabel="Veículos"
         tabs={[
           { to: veiculosBasePath(TipoVeiculoFrota.Locacao), label: "Locação", end: true },
-          { to: veiculosBasePath(TipoVeiculoFrota.Particular), label: "Particular", end: true },
           { to: "/veiculos/fipe", label: "FIPE" },
         ]}
       />
       <Routes>
         <Route index element={<Navigate to={TipoVeiculoFrota.Locacao} replace />} />
         <Route path="locacao/*" element={<VeiculosTipoRoutes tipoFrota={TipoVeiculoFrota.Locacao} />} />
-        <Route path="particular/*" element={<VeiculosTipoRoutes tipoFrota={TipoVeiculoFrota.Particular} />} />
+        <Route path="particular/*" element={<RedirectVeiculosParticular />} />
         <Route path="venda/*" element={<RedirectVeiculosVenda />} />
         <Route path="fipe" element={<VeiculosFipeSection />} />
         <Route path="novo" element={<Navigate to={`${veiculosBasePath(TipoVeiculoFrota.Locacao)}/novo`} replace />} />
@@ -62,6 +61,12 @@ function VeiculosCadastroRoute({ tipoFrota }: { tipoFrota: TipoVeiculoFrotaValor
   const { id } = useParams<{ id: string }>();
   if (!id) return <Navigate to={veiculosBasePath(tipoFrota)} replace />;
   return <VeiculosCadastroSection veiculoId={id} tipoFrota={tipoFrota} />;
+}
+
+function RedirectVeiculosParticular() {
+  const { pathname, search } = useLocation();
+  const suffix = pathname.replace(/^\/veiculos\/particular/, "");
+  return <Navigate to={`/particular${suffix}${search}`} replace />;
 }
 
 function RedirectVeiculosVenda() {

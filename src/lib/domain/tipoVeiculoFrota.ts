@@ -49,6 +49,7 @@ export function tipoFrotaDeVeiculo(v: VeiculoTipoInput): TipoVeiculoFrotaValor {
 
 export function veiculosBasePath(tipo: TipoVeiculoFrotaValor): string {
   if (tipo === TipoVeiculoFrota.Venda) return "/venda/veiculos";
+  if (tipo === TipoVeiculoFrota.Particular) return "/particular";
   return `/veiculos/${tipo}`;
 }
 

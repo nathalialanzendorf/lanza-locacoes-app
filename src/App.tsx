@@ -48,6 +48,7 @@ import {
 } from "@/pages/relatorios/RelatoriosShell";
 
 import { VeiculosPage } from "@/pages/VeiculosPage";
+import { ParticularPage } from "@/pages/ParticularPage";
 import { VendaPage } from "@/pages/VendaPage";
 import { SyncPage } from "@/pages/SyncPage";
 
@@ -102,6 +103,8 @@ export default function App() {
                 <Route path="clientes/*" element={<ClientesPage />} />
 
                 <Route path="veiculos/*" element={<VeiculosPage />} />
+
+                <Route path="particular/*" element={<ParticularPage />} />
 
                 <Route path="venda/*" element={<VendaPage />} />
 
