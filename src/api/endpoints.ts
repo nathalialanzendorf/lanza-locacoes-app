@@ -67,13 +67,11 @@ export const lanzaApi = {
     apiRequest<{ data: unknown }>("/api/contratos/criar", {
       method: "POST",
       body,
-      timeoutMs: 30_000,
     }),
   renovarContrato: (body: Record<string, unknown>) =>
     apiRequest<{ data: unknown }>("/api/contratos/renovar", {
       method: "POST",
       body,
-      timeoutMs: 30_000,
     }),
   encerrarContrato: (body: {
     idOuPasta: string;
@@ -85,7 +83,6 @@ export const lanzaApi = {
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/gerar-documento`, {
       method: "POST",
       params: { download: formato },
-      timeoutMs: 120_000,
     }),
   downloadContratoAssinado: (id: string, filename?: string) =>
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, { filename }),
@@ -96,7 +93,6 @@ export const lanzaApi = {
       {
         filename: file.name,
         contentType: file.type || "application/pdf",
-        timeoutMs: 120_000,
       },
     ),
   consultarVeiculoPortais: (params: {
@@ -106,7 +102,7 @@ export const lanzaApi = {
   }) =>
     apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
       "/api/relatorios/veiculo/consulta",
-      { params, timeoutMs: 180_000 },
+      { params },
     ),
   statusDetranScSessao: () =>
     apiRequest<{ data: import("./types").DetranScSessaoStatus }>("/api/portais/detran-sc/sessao"),

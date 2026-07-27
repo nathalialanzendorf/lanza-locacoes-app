@@ -1,3 +1,4 @@
+import { API_TIMEOUT_MS } from "@/api/client";
 import type { DetranScCapturaState } from "@/api/types";
 
 const BRIDGE_BASE =
@@ -13,6 +14,7 @@ async function bridgeFetch<T>(path: string, init?: RequestInit): Promise<T | nul
   try {
     const res = await fetch(`${BRIDGE_BASE}${path}`, {
       ...init,
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",

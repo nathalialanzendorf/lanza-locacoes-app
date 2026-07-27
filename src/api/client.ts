@@ -50,13 +50,32 @@ export class LanzaApiError extends Error {
   }
 }
 
+/** Timeout padrão de todas as chamadas HTTP do frontend à API (ms). */
+export const API_TIMEOUT_MS = 30_000;
+
 type RequestOptions = {
   method?: string;
   body?: unknown;
   params?: Record<string, string | number | boolean | undefined | null>;
-  /** Timeout HTTP (ms). Útil para OCR de documentos. */
+  /** Timeout HTTP (ms). Default: {@link API_TIMEOUT_MS}. */
   timeoutMs?: number;
 };
+
+function requestTimeoutMs(options: RequestOptions): number {
+  const ms = options.timeoutMs ?? API_TIMEOUT_MS;
+  return ms > 0 ? ms : API_TIMEOUT_MS;
+}
+
+function timeoutSignal(ms: number): AbortSignal {
+  return AbortSignal.timeout(ms);
+}
+
+function timeoutErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : "Falha na ligação à API";
+  return /timeout|connection terminated/i.test(raw)
+    ? "A API demorou demais ou perdeu ligação ao banco. Aguarde alguns segundos e tente novamente."
+    : raw || "Sem ligação à API";
+}
 
 function buildUrl(path: string, params?: RequestOptions["params"]): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
@@ -84,6 +103,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const init: RequestInit = {
     method: options.method ?? "GET",
     headers,
+    signal: timeoutSignal(requestTimeoutMs(options)),
   };
 
   if (options.body !== undefined) {
@@ -91,20 +111,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     init.body = JSON.stringify(options.body);
   }
 
-  if (options.timeoutMs != null && options.timeoutMs > 0) {
-    init.signal = AbortSignal.timeout(options.timeoutMs);
-  }
-
   let res: Response;
   try {
     res = await fetch(buildUrl(path, options.params), init);
   } catch (err) {
-    const raw = err instanceof Error ? err.message : "Falha na ligação à API";
-    const msg =
-      /timeout|connection terminated/i.test(raw)
-        ? "A API demorou demais ou perdeu ligação ao banco. Aguarde alguns segundos e verifique a lista de contratos antes de tentar de novo."
-        : raw || "Sem ligação à API";
-    throw new LanzaApiError(0, msg);
+    throw new LanzaApiError(0, timeoutErrorMessage(err));
   }
   const text = await res.text();
   let payload: unknown = null;
@@ -140,12 +151,15 @@ export async function apiDownload(
   const init: RequestInit = {
     method: options.method ?? "GET",
     headers,
+    signal: timeoutSignal(requestTimeoutMs(options)),
   };
-  if (options.timeoutMs != null && options.timeoutMs > 0) {
-    init.signal = AbortSignal.timeout(options.timeoutMs);
-  }
 
-  const res = await fetch(buildUrl(path, options.params), init);
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, options.params), init);
+  } catch (err) {
+    throw new LanzaApiError(0, timeoutErrorMessage(err));
+  }
   if (!res.ok) {
     const text = await res.text();
     let message = `Erro HTTP ${res.status}`;
@@ -192,13 +206,16 @@ export async function apiUpload<T>(
     method: options.method ?? "PUT",
     headers,
     body: file,
+    signal: timeoutSignal(requestTimeoutMs(options)),
   };
-  if (options.timeoutMs != null && options.timeoutMs > 0) {
-    init.signal = AbortSignal.timeout(options.timeoutMs);
-  }
 
   const params = { ...options.params, filename: options.filename };
-  const res = await fetch(buildUrl(path, params), init);
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, params), init);
+  } catch (err) {
+    throw new LanzaApiError(0, timeoutErrorMessage(err));
+  }
   const text = await res.text();
   let payload: unknown = null;
   if (text) {

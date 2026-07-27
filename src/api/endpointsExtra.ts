@@ -52,7 +52,7 @@ export const lanzaApiExtra = {
         avisos: string[];
         textoChars: number;
       };
-    }>("/api/importacoes/documento/ler", { method: "POST", body, timeoutMs: 180_000 }),
+    }>("/api/importacoes/documento/ler", { method: "POST", body }),
 
   extrairImagemDocumento: (body: { tipo: string; nomeArquivo: string; conteudoBase64: string }) =>
     apiRequest<{
@@ -62,7 +62,7 @@ export const lanzaApiExtra = {
         mime: string;
         avisos: string[];
       };
-    }>("/api/importacoes/documento/extrair-imagem", { method: "POST", body, timeoutMs: 30_000 }),
+    }>("/api/importacoes/documento/extrair-imagem", { method: "POST", body }),
 
   parseTextoDocumento: (body: { tipo: string; text: string }) =>
     apiRequest<{
@@ -220,7 +220,7 @@ export const lanzaApiExtra = {
   atualizarContrato: (id: string, body: Record<string, unknown>) =>
     apiRequest<{ data: { contrato: import("./types").ContratoDetalhe } }>(
       `/api/contratos/${encodeURIComponent(id)}`,
-      { method: "PATCH", body, timeoutMs: 120_000 },
+      { method: "PATCH", body },
     ),
 
   obterParceiroDespesa: (id: string) =>
