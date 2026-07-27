@@ -30,6 +30,7 @@ const navSections: NavSection[] = [
       { to: "/clientes", label: "Clientes" },
       { to: "/veiculos", label: "Veículos" },
       { to: "/parceiros", label: "Parceiros" },
+      { to: "/sync", label: "Syncs" },
     ],
   },
   {
@@ -40,7 +41,6 @@ const navSections: NavSection[] = [
       { to: "/despesas", label: "Despesas" },
       { to: "/movimentacao", label: "Movimentação" },
       { to: "/relatorios", label: "Relatórios" },
-      { to: "/sync", label: "Syncs" },
     ],
   },
   {
