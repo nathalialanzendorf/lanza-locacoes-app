@@ -115,6 +115,23 @@ export type Veiculo = {
   rastreameRastreavelKey?: string | number | null;
 };
 
+export type Venda = {
+  id: string;
+  veiculoId?: string | null;
+  placa?: string;
+  clienteId?: string | null;
+  compradorNome?: string | null;
+  dataVenda?: string;
+  valorVenda?: number;
+  valorEntrada?: number | null;
+  dataPagamentoParcelas?: string | null;
+  valorParcela?: number | null;
+  quantidadeParcelas?: number | null;
+  formaPagamento?: string | null;
+  observacao?: string | null;
+  ativo?: boolean;
+};
+
 export type ContratoVeiculoSnapshot = {
   id?: string | null;
   placa?: string;

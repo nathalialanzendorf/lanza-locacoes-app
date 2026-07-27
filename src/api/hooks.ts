@@ -127,6 +127,28 @@ export function useDespesasParceiro(params?: {
   });
 }
 
+export function useVendas(params?: {
+  veiculoId?: string;
+  clienteId?: string;
+  placa?: string;
+  ativo?: boolean;
+  dataInicial?: string;
+  dataFinal?: string;
+}) {
+  return useQuery({
+    queryKey: ["vendas", params],
+    queryFn: () => lanzaApi.listarVendas(params),
+  });
+}
+
+export function useVenda(id: string | undefined) {
+  return useQuery({
+    queryKey: ["vendas", id],
+    queryFn: () => lanzaApi.obterVenda(id!),
+    enabled: Boolean(id),
+  });
+}
+
 export function useLocacoes(params?: {
   abertas?: boolean;
   veiculoId?: string;

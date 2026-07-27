@@ -13,6 +13,7 @@ import type {
   Infracao,
   ListEnvelope,
   Locacao,
+  Venda,
   Parceiro,
   ParceiroDespesa,
   PlanoBaixa,
@@ -192,6 +193,26 @@ export const lanzaApi = {
     apiRequest<DataEnvelope<Parceiro>>(`/api/parceiros/${encodeURIComponent(id)}`),
   listarVinculosParceiro: (params?: { veiculoId?: string; parceiroId?: string }) =>
     apiRequest<ListEnvelope<VinculoParceiro>>("/api/parceiros/vinculos", { params }),
+
+  listarVendas: (params?: {
+    veiculoId?: string;
+    clienteId?: string;
+    placa?: string;
+    ativo?: boolean;
+    dataInicial?: string;
+    dataFinal?: string;
+  }) => apiRequest<ListEnvelope<Venda>>("/api/vendas", { params }),
+  criarVenda: (body: Record<string, unknown>) =>
+    apiRequest<{ data: Venda }>("/api/vendas", { method: "POST", body }),
+  atualizarVenda: (id: string, patch: Record<string, unknown>) =>
+    apiRequest<{ data: Venda }>(`/api/vendas/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: patch,
+    }),
+  removerVenda: (id: string) =>
+    apiRequest<{ data: Venda }>(`/api/vendas/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
 
   listarInfracoes: (params?: {
     placa?: string;

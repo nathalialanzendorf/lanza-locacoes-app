@@ -67,7 +67,7 @@ function VeiculosCadastroRoute({ tipoFrota }: { tipoFrota: TipoVeiculoFrotaValor
 function RedirectVeiculosVenda() {
   const { pathname, search } = useLocation();
   const suffix = pathname.replace(/^\/veiculos\/venda/, "");
-  return <Navigate to={`/venda${suffix}${search}`} replace />;
+  return <Navigate to={`/venda/veiculos${suffix}${search}`} replace />;
 }
 
 function VeiculosEditarRedirect() {

@@ -7,6 +7,7 @@ import type {
   Infracao,
   ListEnvelope,
   Locacao,
+  Venda,
   PagBankLote,
 } from "./types";
 
@@ -135,6 +136,9 @@ export const lanzaApiExtra = {
 
   obterLocacao: (id: string) =>
     apiRequest<DataEnvelope<Locacao>>(`/api/locacoes/${encodeURIComponent(id)}`),
+
+  obterVenda: (id: string) =>
+    apiRequest<DataEnvelope<Venda>>(`/api/vendas/${encodeURIComponent(id)}`),
   atualizarLocacao: (id: string, patch: Record<string, unknown>) =>
     apiRequest<{ data: Locacao }>(`/api/locacoes/${encodeURIComponent(id)}`, { method: "PATCH", body: patch }),
   removerLocacao: (id: string) =>
