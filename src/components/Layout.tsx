@@ -28,9 +28,6 @@ type NavSection = {
 
 const sharedNavSections: NavSection[] = [
   {
-    items: [{ to: "/", label: "Dashboard", end: true }],
-  },
-  {
     items: [
       { to: "/clientes", label: "Clientes" },
       { to: "/veiculos", label: "Veículos" },
@@ -45,6 +42,7 @@ const moduleNavSections: NavSection[] = [
     title: "Locação",
     module: "locacao",
     items: [
+      { to: "/", label: "Dashboard", end: true },
       { to: "/contratos", label: "Contratos" },
       { to: "/recebimentos", label: "Recebimentos" },
       { to: "/despesas", label: "Despesas" },
