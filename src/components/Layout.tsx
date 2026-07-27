@@ -23,9 +23,10 @@ type NavItem = {
 type NavSection = {
   title?: string;
   items: NavItem[];
+  module?: "locacao" | "particular" | "venda";
 };
 
-const navSections: NavSection[] = [
+const sharedNavSections: NavSection[] = [
   {
     items: [{ to: "/", label: "Dashboard", end: true }],
   },
@@ -38,8 +39,12 @@ const navSections: NavSection[] = [
       { to: "/sync", label: "Syncs" },
     ],
   },
+];
+
+const moduleNavSections: NavSection[] = [
   {
     title: "Locação",
+    module: "locacao",
     items: [
       { to: "/contratos", label: "Contratos" },
       { to: "/recebimentos", label: "Recebimentos" },
@@ -50,10 +55,12 @@ const navSections: NavSection[] = [
   },
   {
     title: "Particular",
+    module: "particular",
     items: [{ to: "/particular", label: "Veículos" }],
   },
   {
     title: "Venda",
+    module: "venda",
     items: [
       {
         to: "/venda",
@@ -71,6 +78,45 @@ const navSections: NavSection[] = [
     ],
   },
 ];
+
+function navLinkClass(locationPathname: string, item: NavItem, module?: NavSection["module"]): string {
+  const active = item.isActive?.(locationPathname);
+  const isActive =
+    active ??
+    (item.end
+      ? locationPathname === item.to || locationPathname === `${item.to}/`
+      : locationPathname.startsWith(item.to));
+  if (!isActive) return "nav__link";
+  return module ? "nav__link nav__link--active nav__link--active-module" : "nav__link nav__link--active";
+}
+
+function NavSectionBlock({
+  section,
+  locationPathname,
+}: {
+  section: NavSection;
+  locationPathname: string;
+}) {
+  const sectionClass = section.module
+    ? `nav-section nav-section--module nav-section--module-${section.module}`
+    : "nav-section";
+
+  return (
+    <div className={sectionClass}>
+      {section.title ? <p className="nav-section__title">{section.title}</p> : null}
+      {section.items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end}
+          className={() => navLinkClass(locationPathname, item, section.module)}
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </div>
+  );
+}
 
 export function Layout() {
   const health = useHealth();
@@ -130,29 +176,15 @@ export function Layout() {
         </div>
 
         <nav className="nav" aria-label="Menu principal">
-          {navSections.map((section, index) => (
-            <div key={section.title ?? `section-${index}`} className="nav-section">
-              {section.title ? <p className="nav-section__title">{section.title}</p> : null}
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={() => {
-                    const active = item.isActive?.(location.pathname);
-                    const isActive =
-                      active ??
-                      (item.end
-                        ? location.pathname === item.to || location.pathname === `${item.to}/`
-                        : location.pathname.startsWith(item.to));
-                    return isActive ? "nav__link nav__link--active" : "nav__link";
-                  }}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
+          {sharedNavSections.map((section, index) => (
+            <NavSectionBlock key={section.title ?? `shared-${index}`} section={section} locationPathname={location.pathname} />
           ))}
+          <div className="nav-modules" aria-label="Módulos operacionais">
+            <p className="nav-modules__label">Módulos</p>
+            {moduleNavSections.map((section) => (
+              <NavSectionBlock key={section.module} section={section} locationPathname={location.pathname} />
+            ))}
+          </div>
         </nav>
 
         <footer className="sidebar__footer">
