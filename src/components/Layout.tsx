@@ -13,7 +13,12 @@ import { BrandMark } from "./BrandMark";
 import { IconClose, IconMenu } from "./icons";
 import { RastreameEspelhoToggle } from "./RastreameEspelhoToggle";
 
-type NavItem = { to: string; label: string; end?: boolean };
+type NavItem = {
+  to: string;
+  label: string;
+  end?: boolean;
+  isActive?: (pathname: string) => boolean;
+};
 
 type NavSection = {
   title?: string;
@@ -49,7 +54,21 @@ const navSections: NavSection[] = [
   },
   {
     title: "Venda",
-    items: [{ to: "/venda", label: "Vendas" }],
+    items: [
+      {
+        to: "/venda",
+        label: "Vendas",
+        isActive: (pathname) =>
+          pathname === "/venda" ||
+          pathname === "/venda/novo" ||
+          /^\/venda\/[^/]+\/editar$/.test(pathname),
+      },
+      {
+        to: "/venda/veiculos",
+        label: "Veículos",
+        isActive: (pathname) => pathname.startsWith("/venda/veiculos"),
+      },
+    ],
   },
 ];
 
@@ -119,9 +138,15 @@ export function Layout() {
                   key={item.to}
                   to={item.to}
                   end={item.end}
-                  className={({ isActive }) =>
-                    isActive ? "nav__link nav__link--active" : "nav__link"
-                  }
+                  className={() => {
+                    const active = item.isActive?.(location.pathname);
+                    const isActive =
+                      active ??
+                      (item.end
+                        ? location.pathname === item.to || location.pathname === `${item.to}/`
+                        : location.pathname.startsWith(item.to));
+                    return isActive ? "nav__link nav__link--active" : "nav__link";
+                  }}
                 >
                   {item.label}
                 </NavLink>
