@@ -15,6 +15,21 @@ export function hojeIsoBr(): string {
   }).format(new Date());
 }
 
+/** Data de hoje em DD/MM/AAAA (America/Sao_Paulo). */
+export function hojeDataBr(iso = hojeIsoBr()): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+export function nomeDiaSemanaBr(date = new Date()): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    timeZone: "America/Sao_Paulo",
+  })
+    .format(date)
+    .toUpperCase();
+}
+
 export function dataFimPrevistaContrato(
   c: { dataFimPrevista?: string | null; dataFim?: string | null },
 ): string | null {

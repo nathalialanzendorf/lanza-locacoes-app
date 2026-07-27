@@ -20,6 +20,7 @@ const nav = [
   { to: "/clientes", label: "Clientes" },
   { to: "/parceiros", label: "Parceiros" },
   { to: "/veiculos", label: "Veículos" },
+  { to: "/venda", label: "Venda" },
   { to: "/contratos", label: "Contratos" },
   { to: "/recebimentos", label: "Recebimentos" },
   { to: "/despesas", label: "Despesas" },

@@ -160,6 +160,9 @@ function veiculoValue(v: Veiculo, field: "id" | "placa"): string {
 export type VeiculoSelectProps = SelectBaseProps & {
   valueField?: "id" | "placa";
   ativo?: boolean;
+  /** @deprecated Use tipoFrota */
+  particular?: boolean;
+  tipoFrota?: import("@/lib/domain").TipoVeiculoFrotaValor;
   clienteId?: string;
   parceiroId?: string;
 };
@@ -167,11 +170,20 @@ export type VeiculoSelectProps = SelectBaseProps & {
 export function VeiculoSelect({
   valueField = "placa",
   ativo,
+  particular,
+  tipoFrota,
   clienteId,
   parceiroId,
   ...props
 }: VeiculoSelectProps) {
-  const query = useVeiculos({ ativo });
+  const tipoFiltro =
+    tipoFrota ??
+    (particular === true
+      ? "particular"
+      : particular === false
+        ? "locacao"
+        : undefined);
+  const query = useVeiculos({ ativo, tipoFrota: tipoFiltro });
   const clienteRef = clienteId?.trim() ?? "";
   const contratosQuery = useContratos(
     { status: StatusContrato.Ativo, clienteId: clienteRef || undefined },

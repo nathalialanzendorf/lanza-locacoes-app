@@ -19,6 +19,22 @@ export function useResumo() {
   });
 }
 
+export function useDashboardRecebimentosTotais() {
+  return useQuery({
+    queryKey: ["dashboard", "recebimentos", "totais"],
+    queryFn: () => lanzaApi.dashboardRecebimentosTotais(),
+    staleTime: 60_000,
+  });
+}
+
+export function useDashboardRecebimentosAtrasados() {
+  return useQuery({
+    queryKey: ["dashboard", "recebimentos", "atrasados"],
+    queryFn: () => lanzaApi.dashboardRecebimentosAtrasados(),
+    staleTime: 60_000,
+  });
+}
+
 export function useClientes(opts?: { ativo?: boolean; cpf?: string; nome?: string; q?: string }) {
   return useQuery({
     queryKey: ["clientes", opts ?? {}],
@@ -26,10 +42,18 @@ export function useClientes(opts?: { ativo?: boolean; cpf?: string; nome?: strin
   });
 }
 
-export function useVeiculos(params?: { ativo?: boolean; placa?: string }) {
+export function useVeiculos(params?: { ativo?: boolean; placa?: string; particular?: boolean; tipoFrota?: string }) {
   return useQuery({
     queryKey: ["veiculos", params],
     queryFn: () => lanzaApi.listarVeiculos(params),
+  });
+}
+
+export function useVeiculo(id: string | undefined) {
+  return useQuery({
+    queryKey: ["veiculos", id],
+    queryFn: () => lanzaApi.obterVeiculo(id!),
+    enabled: Boolean(id),
   });
 }
 

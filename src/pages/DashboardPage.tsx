@@ -5,8 +5,15 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { StatCard } from "@/components/StatCard";
 import { PageHeader, QueryError } from "@/components/PageHeader";
 import { IconRecebimento, IconRenovar } from "@/components/icons";
-import { useResumo, useClientes, useContratos } from "@/api/hooks";
-import { StatusContrato } from "@/lib/domain";
+import {
+  useResumo,
+  useContratos,
+  useDespesasCliente,
+  useDespesasParceiro,
+  useDashboardRecebimentosTotais,
+  useDashboardRecebimentosAtrasados,
+} from "@/api/hooks";
+import { CategoriaDespesaCliente, StatusContrato } from "@/lib/domain";
 import { formatBrl, formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import { LABEL } from "@/lib/labels";
 import { urlLancarRecebimento } from "@/lib/recebimentoUrl";
@@ -14,20 +21,39 @@ import {
   PROXIMO_VENCER_DIAS,
   alertaVencimentoContrato,
   dataFimPrevistaContrato,
+  hojeDataBr,
   hojeIsoBr,
+  nomeDiaSemanaBr,
   ordenarContratosRenovacao,
   rotuloAlertaVencimento,
   rowClassVencimentoContrato,
 } from "@/lib/contratoVencimento";
 import { LanzaApiError } from "@/api/client";
-import type { Contrato, DashboardRecebimentoLinha, DashboardRecebimentos } from "@/api/types";
+import type {
+  ClienteDespesa,
+  Contrato,
+  DashboardRecebimentoLinha,
+  DashboardRecebimentosTotaisResponse,
+} from "@/api/types";
 
-const RECEBIMENTOS_VAZIO: DashboardRecebimentos = {
+function despesaParaLinhaRecebimento(d: ClienteDespesa): DashboardRecebimentoLinha {
+  return {
+    clienteId: d.clienteId ?? d.condutorId ?? null,
+    clienteNome: d.clienteNome ?? null,
+    placa: d.placa ?? "",
+    veiculo: d.veiculoLabel ?? d.placa ?? "",
+    despesaId: d.id,
+    descricao: d.descricao ?? null,
+    valor: Number(d.valorMulta) || 0,
+    vencimentoBr: d.vencimentoBr ?? null,
+  };
+}
+
+const RECEBIMENTOS_TOTAIS_VAZIO: DashboardRecebimentosTotaisResponse = {
   dataReferenciaBr: "—",
   tituloPagamentoSemanal: "Pagamento semanal",
-  venceHoje: [],
-  atrasados: [],
   totais: { venceHoje: 0, atrasado: 0, semanal: 0, caucao: 0, renegociacao: 0 },
+  contagens: { venceHoje: 0, atrasados: 0 },
 };
 
 function vencimentoRecebimentoLinha(l: DashboardRecebimentoLinha): string {
@@ -282,11 +308,33 @@ function ContratosVencimentoTable({
 
 export function DashboardPage() {
   const resumo = useResumo();
-  const clientesQuery = useClientes();
   const contratosQuery = useContratos({ status: StatusContrato.Ativo });
-  const rec = resumo.data?.recebimentos ?? RECEBIMENTOS_VAZIO;
-  const clientes = clientesQuery.data?.items;
+  const despesasClienteQuery = useDespesasCliente({ ativo: true, emAberto: true });
+  const despesasParceiroQuery = useDespesasParceiro({ emAberto: true });
+  const recebimentosTotaisQuery = useDashboardRecebimentosTotais();
+  const recebimentosAtrasadosQuery = useDashboardRecebimentosAtrasados();
+  const rec = recebimentosTotaisQuery.data ?? RECEBIMENTOS_TOTAIS_VAZIO;
   const hojeIso = hojeIsoBr();
+  const hojeBr = hojeDataBr(hojeIso);
+  const tituloPagamentoSemanal = `Pagamento semanal (${nomeDiaSemanaBr()})`;
+
+  const despesasVenceHojeQuery = useDespesasCliente({
+    ativo: true,
+    emAberto: true,
+    categoria: CategoriaDespesaCliente.LocacaoSemanal,
+    dataInicial: hojeBr,
+    dataFinal: hojeBr,
+  });
+
+  const linhasVenceHoje = useMemo(
+    () => (despesasVenceHojeQuery.data?.items ?? []).map(despesaParaLinhaRecebimento),
+    [despesasVenceHojeQuery.data],
+  );
+
+  const totalVenceHoje = useMemo(
+    () => linhasVenceHoje.reduce((s, l) => s + l.valor, 0),
+    [linhasVenceHoje],
+  );
 
   const contratosVencimento = useMemo(() => {
     const vencidos: Contrato[] = [];
@@ -300,6 +348,24 @@ export function DashboardPage() {
     aVencer.sort((a, b) => ordenarContratosRenovacao(a, b, hojeIso));
     return { vencidos, aVencer };
   }, [contratosQuery.data, hojeIso]);
+
+  const totaisDespesasCliente = useMemo(() => {
+    const items = despesasClienteQuery.data?.items ?? [];
+    return {
+      emAberto: items.length,
+      valorEmAberto: items.reduce((s, d) => s + (Number(d.valorMulta) || 0), 0),
+    };
+  }, [despesasClienteQuery.data]);
+
+  const totaisDespesasParceiro = useMemo(() => {
+    const items = despesasParceiroQuery.data?.items ?? [];
+    return {
+      emAberto: items.length,
+      valorEmAberto: items.reduce((s, d) => s + (Number(d.valor) || 0), 0),
+    };
+  }, [despesasParceiroQuery.data]);
+
+  const contratosAtivos = contratosQuery.data?.items.length ?? 0;
 
   return (
     <PageHeader
@@ -367,104 +433,113 @@ export function DashboardPage() {
         <header className="dashboard-section__head">
           <h2 className="dashboard-section__title">Valores</h2>
         </header>
-        <div className="stat-grid stat-grid--compact">
-          <StatCard
-            title="Débitos cliente em aberto"
-            value={
-              resumo.data ? formatBrl(resumo.data.despesasCliente.valorEmAberto) : "—"
-            }
-            hint={
-              resumo.data
-                ? `${resumo.data.despesasCliente.emAberto} lançamentos`
-                : undefined
-            }
-            tone="warn"
-          />
-          <StatCard
-            title="Despesas parceiro em aberto"
-            value={
-              resumo.data ? formatBrl(resumo.data.despesasParceiro.valorEmAberto) : "—"
-            }
-            hint={
-              resumo.data
-                ? `${resumo.data.despesasParceiro.emAberto} lançamentos`
-                : undefined
+        {despesasClienteQuery.isLoading || despesasParceiroQuery.isLoading ? (
+          <p className="field__hint">A carregar débitos…</p>
+        ) : despesasClienteQuery.isError || despesasParceiroQuery.isError ? (
+          <QueryError
+            message={
+              despesasClienteQuery.error instanceof LanzaApiError
+                ? despesasClienteQuery.error.message
+                : despesasParceiroQuery.error instanceof LanzaApiError
+                  ? despesasParceiroQuery.error.message
+                  : "Falha ao carregar débitos em aberto."
             }
           />
-        </div>
-      </section>
-
-      {contratosQuery.isLoading ? (
-        <p className="field__hint">A carregar contratos…</p>
-      ) : contratosQuery.isError ? (
-        <QueryError
-          message={
-            contratosQuery.error instanceof LanzaApiError
-              ? contratosQuery.error.message
-              : "Falha ao listar contratos."
-          }
-        />
-      ) : (
-        <section className="dashboard-section">
-          <header className="dashboard-section__head">
-            <h2 className="dashboard-section__title">Contratos</h2>
-          </header>
+        ) : (
           <div className="stat-grid stat-grid--compact">
             <StatCard
-              title="Contratos ativos"
-              value={resumo.data ? `${resumo.data.contratos.ativos}` : "—"}
-              hint={resumo.data ? `${resumo.data.contratos.total} no total` : undefined}
-              tone="ok"
-            />
-            <StatCard
-              title="Vencidos"
-              value={`${contratosVencimento.vencidos.length}`}
+              title="Débitos cliente em aberto"
+              value={formatBrl(totaisDespesasCliente.valorEmAberto)}
+              hint={`${totaisDespesasCliente.emAberto} lançamentos`}
               tone="warn"
             />
             <StatCard
-              title={`A vencer (${PROXIMO_VENCER_DIAS} dias)`}
-              value={`${contratosVencimento.aVencer.length}`}
-              tone="warn"
+              title="Despesas parceiro em aberto"
+              value={formatBrl(totaisDespesasParceiro.valorEmAberto)}
+              hint={`${totaisDespesasParceiro.emAberto} lançamentos`}
             />
           </div>
-          <ContratosVencimentoTable
-            titulo="Vencidos"
-            linhas={contratosVencimento.vencidos}
-            hojeIso={hojeIso}
-            clientes={clientes}
-            vazio="Nenhum contrato ativo vencido."
-          />
-          <ContratosVencimentoTable
-            titulo={`A vencer (próximos ${PROXIMO_VENCER_DIAS} dias)`}
-            linhas={contratosVencimento.aVencer}
-            hojeIso={hojeIso}
-            clientes={clientes}
-            vazio="Nenhum contrato a vencer nos próximos 14 dias."
-          />
-        </section>
-      )}
+        )}
+      </section>
 
-      {resumo.isLoading ? (
+      <section className="dashboard-section">
+        <header className="dashboard-section__head">
+          <h2 className="dashboard-section__title">Contratos</h2>
+        </header>
+        {contratosQuery.isLoading ? (
+          <p className="field__hint">A carregar contratos…</p>
+        ) : contratosQuery.isError ? (
+          <QueryError
+            message={
+              contratosQuery.error instanceof LanzaApiError
+                ? contratosQuery.error.message
+                : "Falha ao listar contratos."
+            }
+          />
+        ) : (
+          <>
+            <div className="stat-grid stat-grid--compact">
+              <StatCard
+                title="Contratos ativos"
+                value={`${contratosAtivos}`}
+                tone="ok"
+              />
+              <StatCard
+                title="Vencidos"
+                value={`${contratosVencimento.vencidos.length}`}
+                tone="warn"
+              />
+              <StatCard
+                title={`A vencer (${PROXIMO_VENCER_DIAS} dias)`}
+                value={`${contratosVencimento.aVencer.length}`}
+                tone="warn"
+              />
+            </div>
+            <ContratosVencimentoTable
+              titulo="Vencidos"
+              linhas={contratosVencimento.vencidos}
+              hojeIso={hojeIso}
+              vazio="Nenhum contrato ativo vencido."
+            />
+            <ContratosVencimentoTable
+              titulo={`A vencer (próximos ${PROXIMO_VENCER_DIAS} dias)`}
+              linhas={contratosVencimento.aVencer}
+              hojeIso={hojeIso}
+              vazio="Nenhum contrato a vencer nos próximos 14 dias."
+            />
+          </>
+        )}
+      </section>
+
+      {recebimentosTotaisQuery.isLoading ? (
         <p className="field__hint">A carregar recebimentos…</p>
+      ) : recebimentosTotaisQuery.isError ? (
+        <QueryError
+          message={
+            recebimentosTotaisQuery.error instanceof LanzaApiError
+              ? recebimentosTotaisQuery.error.message
+              : "Falha ao carregar totais de recebimentos."
+          }
+        />
       ) : (
         <>
           <section className="dashboard-section">
             <header className="dashboard-section__head">
               <h2 className="dashboard-section__title">
-                Recebimentos — {rec.dataReferenciaBr}
+                Recebimentos — {hojeBr}
               </h2>
             </header>
             <div className="stat-grid stat-grid--compact">
               <StatCard
                 title="Total vence hoje"
-                value={formatBrl(rec.totais.venceHoje)}
-                hint={`${rec.venceHoje.length} locatário(s)`}
+                value={formatBrl(totalVenceHoje)}
+                hint={`${linhasVenceHoje.length} locatário(s)`}
                 tone="ok"
               />
               <StatCard
                 title="Total em atraso"
                 value={formatBrl(rec.totais.atrasado)}
-                hint={`${rec.atrasados.length} locatário(s)`}
+                hint={`${rec.contagens.atrasados} locatário(s)`}
                 tone="warn"
               />
               <StatCard
@@ -482,39 +557,63 @@ export function DashboardPage() {
               />
             </div>
 
-            <RecebimentosTable
-              titulo={rec.tituloPagamentoSemanal ?? "Pagamento semanal"}
-              linhas={rec.venceHoje}
-              colunaVeiculo="Veículo"
-              mostrarAcaoRecebimento
-              mostrarDescricao={false}
-              dataReferenciaBr={rec.dataReferenciaBr}
-            />
+            {despesasVenceHojeQuery.isLoading ? (
+              <p className="field__hint">A carregar pagamentos de hoje…</p>
+            ) : despesasVenceHojeQuery.isError ? (
+              <QueryError
+                message={
+                  despesasVenceHojeQuery.error instanceof LanzaApiError
+                    ? despesasVenceHojeQuery.error.message
+                    : "Falha ao listar pagamentos semanais de hoje."
+                }
+              />
+            ) : (
+              <RecebimentosTable
+                titulo={tituloPagamentoSemanal}
+                linhas={linhasVenceHoje}
+                colunaVeiculo="Veículo"
+                mostrarAcaoRecebimento
+                mostrarDescricao={false}
+                dataReferenciaBr={hojeBr}
+              />
+            )}
 
-            <RecebimentosTable
-              titulo="Em atraso"
-              linhas={rec.atrasados}
-              colunaVeiculo="Veículo"
-              mostrarAcaoRecebimento
-              acoesCompactas
-              zebraPorCliente
-              dataReferenciaBr={rec.dataReferenciaBr}
-              emptyMessage="Nenhum recebimento em atraso."
-              colunasExtra={[
-                {
-                  key: "vencimento",
-                  header: "Vencimento",
-                  sortValue: vencimentoRecebimentoLinha,
-                  render: vencimentoRecebimentoLinha,
-                },
-                {
-                  key: "alerta",
-                  header: "Alerta",
-                  sortValue: (l) => l.diasAtraso ?? 0,
-                  render: alertaAtrasoRecebimento,
-                },
-              ]}
-            />
+            {recebimentosAtrasadosQuery.isLoading ? (
+              <p className="field__hint">A carregar recebimentos em atraso…</p>
+            ) : recebimentosAtrasadosQuery.isError ? (
+              <QueryError
+                message={
+                  recebimentosAtrasadosQuery.error instanceof LanzaApiError
+                    ? recebimentosAtrasadosQuery.error.message
+                    : "Falha ao listar recebimentos em atraso."
+                }
+              />
+            ) : (
+              <RecebimentosTable
+                titulo="Em atraso"
+                linhas={recebimentosAtrasadosQuery.data?.items ?? []}
+                colunaVeiculo="Veículo"
+                mostrarAcaoRecebimento
+                acoesCompactas
+                zebraPorCliente
+                dataReferenciaBr={hojeBr}
+                emptyMessage="Nenhum recebimento em atraso."
+                colunasExtra={[
+                  {
+                    key: "vencimento",
+                    header: "Vencimento",
+                    sortValue: vencimentoRecebimentoLinha,
+                    render: vencimentoRecebimentoLinha,
+                  },
+                  {
+                    key: "alerta",
+                    header: "Alerta",
+                    sortValue: (l) => l.diasAtraso ?? 0,
+                    render: alertaAtrasoRecebimento,
+                  },
+                ]}
+              />
+            )}
           </section>
         </>
       )}

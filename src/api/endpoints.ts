@@ -6,6 +6,8 @@ import type {
   ClienteDespesa,
   CobrancasMeta,
   Contrato,
+  DashboardRecebimentosListaResponse,
+  DashboardRecebimentosTotaisResponse,
   DataEnvelope,
   Health,
   Infracao,
@@ -28,13 +30,17 @@ export const lanzaApi = {
   ...lanzaApiExtra,
   health: () => apiRequest<Health>("/health"),
   resumo: () => apiRequest<Resumo>("/api/resumo"),
+  dashboardRecebimentosTotais: () =>
+    apiRequest<DashboardRecebimentosTotaisResponse>("/api/dashboard/recebimentos/totais"),
+  dashboardRecebimentosAtrasados: () =>
+    apiRequest<DashboardRecebimentosListaResponse>("/api/dashboard/recebimentos/atrasados"),
 
   listarClientes: (params?: { ativo?: boolean; cpf?: string; nome?: string; q?: string }) =>
     apiRequest<ListEnvelope<Cliente>>("/api/clientes", { params }),
   obterCliente: (id: string) =>
     apiRequest<DataEnvelope<Cliente>>(`/api/clientes/${encodeURIComponent(id)}`),
 
-  listarVeiculos: (params?: { ativo?: boolean; placa?: string }) =>
+  listarVeiculos: (params?: { ativo?: boolean; placa?: string; particular?: boolean; tipoFrota?: string }) =>
     apiRequest<ListEnvelope<Veiculo>>("/api/veiculos", { params }),
   criarVeiculo: (body: {
     placa: string;
@@ -44,6 +50,8 @@ export const lanzaApi = {
     renavam?: string;
     cor?: string;
     ativo?: boolean;
+    particular?: boolean;
+    tipoFrota?: string;
     parceiroNome?: string;
     parceiroId?: string;
     ufRegistro?: string;

@@ -1,40 +1,84 @@
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { PageTabs } from "@/components/PageTabs";
+import { useVeiculo } from "@/api/hooks";
 import { VeiculosListSection } from "@/pages/veiculos/VeiculosListSection";
 import { VeiculosCadastroSection } from "@/pages/veiculos/VeiculosCadastroSection";
 import { VeiculosFipeSection } from "@/pages/veiculos/VeiculosFipeSection";
 import { VeiculosImportarSection } from "@/pages/veiculos/VeiculosImportarSection";
-import { LABEL } from "@/lib/labels";
+import {
+  TipoVeiculoFrota,
+  abaVeiculoPath,
+  veiculosBasePath,
+  type TipoVeiculoFrotaValor,
+} from "@/lib/domain";
 
 export function VeiculosPage() {
   return (
     <PageHeader
       title="Veículos"
-      description="Frota de locação — listagem, cadastro, consulta FIPE e importação de CRLV."
+      description="Frota de locação e veículos particulares — cadastro, consulta FIPE e importação de CRLV."
     >
       <PageTabs
         ariaLabel="Veículos"
         tabs={[
-          { to: "/veiculos", label: LABEL.listar, end: true },
+          { to: veiculosBasePath(TipoVeiculoFrota.Locacao), label: "Locação", end: true },
+          { to: veiculosBasePath(TipoVeiculoFrota.Particular), label: "Particular", end: true },
           { to: "/veiculos/fipe", label: "FIPE" },
         ]}
       />
       <Routes>
-        <Route index element={<VeiculosListSection />} />
-        <Route path="novo" element={<VeiculosCadastroSection />} />
-        <Route path="importar" element={<VeiculosImportarSection />} />
-        <Route path=":id/editar" element={<VeiculosCadastroRoute />} />
+        <Route index element={<Navigate to={TipoVeiculoFrota.Locacao} replace />} />
+        <Route path="locacao/*" element={<VeiculosTipoRoutes tipoFrota={TipoVeiculoFrota.Locacao} />} />
+        <Route path="particular/*" element={<VeiculosTipoRoutes tipoFrota={TipoVeiculoFrota.Particular} />} />
+        <Route path="venda/*" element={<RedirectVeiculosVenda />} />
         <Route path="fipe" element={<VeiculosFipeSection />} />
-        <Route path="cadastro" element={<Navigate to="/veiculos/novo" replace />} />
-        <Route path="*" element={<Navigate to="/veiculos" replace />} />
+        <Route path="novo" element={<Navigate to={`${veiculosBasePath(TipoVeiculoFrota.Locacao)}/novo`} replace />} />
+        <Route path="importar" element={<Navigate to={`${veiculosBasePath(TipoVeiculoFrota.Locacao)}/importar`} replace />} />
+        <Route path=":id/editar" element={<VeiculosEditarRedirect />} />
+        <Route path="cadastro" element={<Navigate to={`${veiculosBasePath(TipoVeiculoFrota.Locacao)}/novo`} replace />} />
+        <Route path="*" element={<Navigate to={veiculosBasePath(TipoVeiculoFrota.Locacao)} replace />} />
       </Routes>
     </PageHeader>
   );
 }
 
-function VeiculosCadastroRoute() {
+function VeiculosTipoRoutes({ tipoFrota }: { tipoFrota: TipoVeiculoFrotaValor }) {
+  const basePath = veiculosBasePath(tipoFrota);
+  const importar = tipoFrota === TipoVeiculoFrota.Locacao;
+
+  return (
+    <Routes>
+      <Route index element={<VeiculosListSection tipoFrota={tipoFrota} />} />
+      <Route path="novo" element={<VeiculosCadastroSection tipoFrota={tipoFrota} />} />
+      {importar ? <Route path="importar" element={<VeiculosImportarSection tipoFrota={tipoFrota} />} /> : null}
+      <Route path=":id/editar" element={<VeiculosCadastroRoute tipoFrota={tipoFrota} />} />
+      <Route path="*" element={<Navigate to={basePath} replace />} />
+    </Routes>
+  );
+}
+
+function VeiculosCadastroRoute({ tipoFrota }: { tipoFrota: TipoVeiculoFrotaValor }) {
   const { id } = useParams<{ id: string }>();
-  if (!id) return <Navigate to="/veiculos" replace />;
-  return <VeiculosCadastroSection veiculoId={id} />;
+  if (!id) return <Navigate to={veiculosBasePath(tipoFrota)} replace />;
+  return <VeiculosCadastroSection veiculoId={id} tipoFrota={tipoFrota} />;
+}
+
+function RedirectVeiculosVenda() {
+  const { pathname, search } = useLocation();
+  const suffix = pathname.replace(/^\/veiculos\/venda/, "");
+  return <Navigate to={`/venda${suffix}${search}`} replace />;
+}
+
+function VeiculosEditarRedirect() {
+  const { id } = useParams<{ id: string }>();
+  const query = useVeiculo(id);
+
+  if (!id) return <Navigate to={veiculosBasePath(TipoVeiculoFrota.Locacao)} replace />;
+  if (query.isLoading) return <p className="muted">A carregar veículo…</p>;
+  if (query.isError || !query.data?.data) {
+    return <Navigate to={veiculosBasePath(TipoVeiculoFrota.Locacao)} replace />;
+  }
+
+  return <Navigate to={`${abaVeiculoPath(query.data.data)}/${id}/editar`} replace />;
 }

@@ -89,6 +89,18 @@ export {
 } from "@/lib/domain/tipoCobranca";
 
 export {
+  TipoVeiculoFrota,
+  RotuloTipoVeiculoFrota,
+  isTipoVeiculoFrotaValor,
+  parseTipoVeiculoFrota,
+  tipoFrotaDeVeiculo,
+  rotuloTipoVeiculoFrota,
+  veiculosBasePath,
+  abaVeiculoPath,
+  type TipoVeiculoFrotaValor,
+} from "@/lib/domain/tipoVeiculoFrota";
+
+export {
   SituacaoLocacao,
   SITUACAO_LOCACAO_OPCOES,
   isSituacaoLocacaoValor,

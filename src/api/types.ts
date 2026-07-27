@@ -10,9 +10,6 @@ export type ContratoVencimentoResumo = {
 export type Resumo = {
   clientes: { total: number; ativos: number };
   veiculos: { total: number; ativos: number; locados: number; naoLocados: number };
-  contratos: { total: number; ativos: number };
-  despesasCliente: { emAberto: number; valorEmAberto: number };
-  despesasParceiro: { emAberto: number; valorEmAberto: number };
   infracoes: {
     emAberto: number;
     notificadas: number;
@@ -22,11 +19,7 @@ export type Resumo = {
     semCliente?: number;
     semCondutor?: number;
   };
-  contratosVencimento?: {
-    vencidos: ContratoVencimentoResumo[];
-    aVencer: ContratoVencimentoResumo[];
-  };
-  /** @deprecated use GET /api/contratos no dashboard */
+  /** @deprecated use GET /api/dashboard/recebimentos/* */
   recebimentos?: DashboardRecebimentos;
 };
 
@@ -57,6 +50,19 @@ export type DashboardRecebimentos = {
   venceHoje: DashboardRecebimentoLinha[];
   atrasados: DashboardRecebimentoLinha[];
   totais: DashboardRecebimentosTotais;
+};
+
+export type DashboardRecebimentosTotaisResponse = {
+  dataReferenciaBr: string;
+  tituloPagamentoSemanal: string;
+  totais: DashboardRecebimentosTotais;
+  contagens: { venceHoje: number; atrasados: number };
+};
+
+export type DashboardRecebimentosListaResponse = {
+  dataReferenciaBr: string;
+  tituloPagamentoSemanal?: string;
+  items: DashboardRecebimentoLinha[];
 };
 
 export type ListEnvelope<T> = {
@@ -101,6 +107,9 @@ export type Veiculo = {
   cor?: string;
   parceiroNome?: string;
   ativo?: boolean;
+  /** @deprecated Use tipoFrota */
+  particular?: boolean;
+  tipoFrota?: string;
   ufRegistro?: string;
   clienteVinculadoId?: string | null;
   rastreameRastreavelKey?: string | number | null;
