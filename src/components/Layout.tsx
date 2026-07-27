@@ -31,7 +31,6 @@ const sharedNavSections: NavSection[] = [
     items: [{ to: "/", label: "Dashboard", end: true }],
   },
   {
-    title: "Cadastros",
     items: [
       { to: "/clientes", label: "Clientes" },
       { to: "/veiculos", label: "Veículos" },
