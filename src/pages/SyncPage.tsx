@@ -1,6 +1,10 @@
+import { useMemo } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { PageHeader } from "@/components/PageHeader";
+import { PageTabs } from "@/components/PageTabs";
+import { useSyncMeta } from "@/api/hooks";
+import { syncNavItems } from "@/lib/syncUi";
 import { SyncRegistrosSection } from "@/pages/sync/SyncRegistrosSection";
 import { SyncLegadoSection, SyncTipoSection } from "@/pages/sync/SyncTipoSection";
 
@@ -11,11 +15,18 @@ function SyncTipoRoute() {
 }
 
 export function SyncPage() {
+  const metaQuery = useSyncMeta();
+  const tabs = useMemo(
+    () => syncNavItems(metaQuery.data?.syncs ?? []),
+    [metaQuery.data],
+  );
+
   return (
     <PageHeader
       title="Sincronizações"
-      description="Integrações externas — buscar dados, conferir registos e confirmar responsável."
+      description="Uma aba por integração — buscar dados externos, conferir registos e confirmar responsável."
     >
+      <PageTabs ariaLabel="Sincronizações" tabs={tabs} />
       <Routes>
         <Route index element={<Navigate to="registros" replace />} />
         <Route path="registros" element={<SyncRegistrosSection />} />

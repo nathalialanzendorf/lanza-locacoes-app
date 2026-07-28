@@ -98,7 +98,7 @@ export type SyncNavItem = {
   end?: boolean;
 };
 
-/** Itens do submenu Sync (Locação) — substitui PageTabs na SyncPage. */
+/** Abas da SyncPage (Registros, integrações ativas e Legado). */
 export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
   const { ativos, legado } = abasSync(syncs);
   return [

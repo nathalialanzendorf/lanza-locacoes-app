@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { useHealth, useSyncMeta } from "@/api/hooks";
+import { useHealth } from "@/api/hooks";
 
 import { getApiBaseUrl } from "@/api/client";
 
@@ -14,7 +14,7 @@ import { IconClose, IconMenu } from "./icons";
 import { RastreameEspelhoToggle } from "./RastreameEspelhoToggle";
 import { relatoriosConsultaAtivo, relatoriosLocacaoAtivo } from "@/pages/relatorios/RelatoriosShell";
 import { TipoVeiculoFrota, veiculosModuloAtivo } from "@/lib/domain";
-import { syncNavItems } from "@/lib/syncUi";
+import { syncNavAtivo } from "@/lib/syncUi";
 
 function relatoriosConsultaNavAtivo(pathname: string): boolean {
   return pathname === "/relatorios" || relatoriosConsultaAtivo(pathname);
@@ -56,7 +56,7 @@ const sharedNavSections: NavSection[] = [
   },
 ];
 
-const moduleNavSectionsBase: NavSection[] = [
+const moduleNavSections: NavSection[] = [
   {
     title: "Locação",
     module: "locacao",
@@ -72,6 +72,11 @@ const moduleNavSectionsBase: NavSection[] = [
       },
       { to: "/parceiros", label: "Parceiros" },
       { to: "/movimentacao", label: "Movimentação" },
+      {
+        to: "/sync/registros",
+        label: "Syncs",
+        isActive: (pathname) => syncNavAtivo(pathname),
+      },
       {
         to: "/relatorios/cobrancas",
         label: "Relatórios",
@@ -110,26 +115,6 @@ const moduleNavSectionsBase: NavSection[] = [
     ],
   },
 ];
-
-function useModuleNavSections(): NavSection[] {
-  const syncMeta = useSyncMeta();
-  const syncItems = useMemo(
-    () => syncNavItems(syncMeta.data?.syncs ?? []),
-    [syncMeta.data],
-  );
-
-  return useMemo(() => {
-    const [locacao, ...rest] = moduleNavSectionsBase;
-    return [
-      {
-        ...locacao,
-        subsections:
-          syncItems.length > 0 ? [{ title: "Sync", items: syncItems }] : undefined,
-      },
-      ...rest,
-    ];
-  }, [syncItems]);
-}
 
 function navLinkClass(locationPathname: string, item: NavItem, module?: NavSection["module"]): string {
   const active = item.isActive?.(locationPathname);
@@ -189,7 +174,6 @@ export function Layout() {
   const health = useHealth();
   const { user, logout } = useAuth();
   const location = useLocation();
-  const moduleNavSections = useModuleNavSections();
   const [apiKeyOpen, setApiKeyOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const apiBase = getApiBaseUrl();
