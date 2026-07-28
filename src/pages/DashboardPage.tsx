@@ -332,8 +332,6 @@ export function DashboardPage() {
     };
   }, [despesasParceiroQuery.data]);
 
-  const contratosAtivos = contratosQuery.data?.items.length ?? 0;
-
   return (
     <PageHeader
       title="Dashboard"
@@ -350,9 +348,6 @@ export function DashboardPage() {
       ) : null}
 
       <section className="dashboard-section">
-        <header className="dashboard-section__head">
-          <h2 className="dashboard-section__title">Veículos</h2>
-        </header>
         <div className="stat-grid stat-grid--compact">
           <StatCard
             title="Veículos locados"
@@ -394,13 +389,7 @@ export function DashboardPage() {
             tone="warn"
           />
         </div>
-      </section>
-
-      <section className="dashboard-section">
-        <header className="dashboard-section__head">
-          <h2 className="dashboard-section__title">Valores</h2>
-        </header>
-        <div className="stat-grid stat-grid--compact">
+        <div className="stat-grid stat-grid--compact dashboard-stat-row--valores">
           <StatCard
             title="Débitos cliente em aberto"
             value={
@@ -447,8 +436,26 @@ export function DashboardPage() {
         <header className="dashboard-section__head">
           <h2 className="dashboard-section__title">Contratos</h2>
         </header>
+        <div className="stat-grid stat-grid--compact">
+          <StatCard
+            title="Contratos ativos"
+            value={resumo.data ? `${resumo.data.contratos.ativos}` : "—"}
+            hint={resumo.data ? `${resumo.data.contratos.total} no total` : undefined}
+            tone="ok"
+          />
+          <StatCard
+            title="Vencidos"
+            value={resumo.data ? `${resumo.data.contratos.vencidos}` : "—"}
+            tone="warn"
+          />
+          <StatCard
+            title={`A vencer (${PROXIMO_VENCER_DIAS} dias)`}
+            value={resumo.data ? `${resumo.data.contratos.aVencer}` : "—"}
+            tone="warn"
+          />
+        </div>
         {contratosQuery.isLoading ? (
-          <p className="field__hint">A carregar contratos…</p>
+          <p className="field__hint">A carregar listagem de contratos…</p>
         ) : contratosQuery.isError ? (
           <QueryError
             message={
@@ -459,23 +466,6 @@ export function DashboardPage() {
           />
         ) : (
           <>
-            <div className="stat-grid stat-grid--compact">
-              <StatCard
-                title="Contratos ativos"
-                value={`${contratosAtivos}`}
-                tone="ok"
-              />
-              <StatCard
-                title="Vencidos"
-                value={`${contratosVencimento.vencidos.length}`}
-                tone="warn"
-              />
-              <StatCard
-                title={`A vencer (${PROXIMO_VENCER_DIAS} dias)`}
-                value={`${contratosVencimento.aVencer.length}`}
-                tone="warn"
-              />
-            </div>
             <ContratosVencimentoTable
               titulo="Vencidos"
               linhas={contratosVencimento.vencidos}
