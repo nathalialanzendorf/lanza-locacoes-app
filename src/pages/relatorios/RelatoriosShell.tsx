@@ -5,6 +5,7 @@ import { PageTabs } from "@/components/PageTabs";
 export const RELATORIOS_CONSULTA_TABS = [
   { to: "/relatorios/veiculo", label: "Dados do veículo", end: true },
   { to: "/relatorios/infracoes", label: "Infrações" },
+  { to: "/relatorios/ipva-licenciamento", label: "IPVA/Licenciamento" },
   { to: "/relatorios/pedagios", label: "Pedágio Digital" },
   { to: "/relatorios/estacionamento", label: "SigaPay" },
   { to: "/relatorios/fipe", label: "FIPE" },
@@ -38,7 +39,7 @@ export function RelatoriosConsultaShell() {
   return (
     <PageHeader
       title="Relatórios"
-      description="Consultas por veículo — DETRAN, pedágio digital, estacionamento SigaPay e FIPE."
+      description="Consultas por veículo — DETRAN, IPVA/licenciamento, pedágio digital, estacionamento SigaPay e FIPE."
     >
       <PageTabs ariaLabel="Relatórios" tabs={[...RELATORIOS_CONSULTA_TABS]} />
       <Outlet />

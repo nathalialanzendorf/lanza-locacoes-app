@@ -69,7 +69,7 @@ const SYNC_TAB_LABELS: Record<string, string> = {
   pedagios: "Pedágio",
   estacionamento: "SigaPay",
   infracoes: "Infrações",
-  "ipva-licenciamento": "IPVA",
+  "ipva-licenciamento": "IPVA/Licenciamento",
   "detran-rs": "DETRAN RS",
   fipe: "FIPE",
   seguro: "Seguro",
@@ -86,6 +86,30 @@ export function rotuloAbaSync(entry: SyncCatalogEntry): string {
 
 export function syncPath(id: string): string {
   return `/sync/${id}`;
+}
+
+export function syncNavAtivo(pathname: string): boolean {
+  return pathname === "/sync" || pathname.startsWith("/sync/");
+}
+
+export type SyncNavItem = {
+  to: string;
+  label: string;
+  end?: boolean;
+};
+
+/** Itens do submenu Sync (Locação) — substitui PageTabs na SyncPage. */
+export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
+  const { ativos, legado } = abasSync(syncs);
+  return [
+    { to: "/sync/registros", label: "Registros", end: true },
+    ...ativos.map((s) => ({
+      to: syncPath(s.id),
+      label: rotuloAbaSync(s),
+      end: true as const,
+    })),
+    ...(legado.length > 0 ? [{ to: "/sync/legado", label: "Legado", end: true as const }] : []),
+  ];
 }
 
 export type SyncRegistroTipo =

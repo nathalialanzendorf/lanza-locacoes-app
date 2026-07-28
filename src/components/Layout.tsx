@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { useHealth } from "@/api/hooks";
+import { useHealth, useSyncMeta } from "@/api/hooks";
 
 import { getApiBaseUrl } from "@/api/client";
 
@@ -14,6 +14,7 @@ import { IconClose, IconMenu } from "./icons";
 import { RastreameEspelhoToggle } from "./RastreameEspelhoToggle";
 import { relatoriosConsultaAtivo, relatoriosLocacaoAtivo } from "@/pages/relatorios/RelatoriosShell";
 import { TipoVeiculoFrota, veiculosModuloAtivo } from "@/lib/domain";
+import { syncNavItems } from "@/lib/syncUi";
 
 function relatoriosConsultaNavAtivo(pathname: string): boolean {
   return pathname === "/relatorios" || relatoriosConsultaAtivo(pathname);
@@ -46,7 +47,6 @@ const sharedNavSections: NavSection[] = [
   {
     items: [
       { to: "/clientes", label: "Clientes" },
-      { to: "/sync", label: "Syncs" },
       {
         to: "/relatorios",
         label: "Relatórios",
@@ -56,7 +56,7 @@ const sharedNavSections: NavSection[] = [
   },
 ];
 
-const moduleNavSections: NavSection[] = [
+const moduleNavSectionsBase: NavSection[] = [
   {
     title: "Locação",
     module: "locacao",
@@ -110,6 +110,26 @@ const moduleNavSections: NavSection[] = [
     ],
   },
 ];
+
+function useModuleNavSections(): NavSection[] {
+  const syncMeta = useSyncMeta();
+  const syncItems = useMemo(
+    () => syncNavItems(syncMeta.data?.syncs ?? []),
+    [syncMeta.data],
+  );
+
+  return useMemo(() => {
+    const [locacao, ...rest] = moduleNavSectionsBase;
+    return [
+      {
+        ...locacao,
+        subsections:
+          syncItems.length > 0 ? [{ title: "Sync", items: syncItems }] : undefined,
+      },
+      ...rest,
+    ];
+  }, [syncItems]);
+}
 
 function navLinkClass(locationPathname: string, item: NavItem, module?: NavSection["module"]): string {
   const active = item.isActive?.(locationPathname);
@@ -169,6 +189,7 @@ export function Layout() {
   const health = useHealth();
   const { user, logout } = useAuth();
   const location = useLocation();
+  const moduleNavSections = useModuleNavSections();
   const [apiKeyOpen, setApiKeyOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const apiBase = getApiBaseUrl();

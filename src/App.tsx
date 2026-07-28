@@ -19,6 +19,7 @@ import { DespesasPage } from "@/pages/DespesasPage";
 
 import { RelatorioFipeSection } from "@/pages/relatorios/RelatorioFipeSection";
 import { RelatorioInfracoesSection } from "@/pages/relatorios/RelatorioInfracoesSection";
+import { RelatorioIpvaLicenciamentoSection } from "@/pages/relatorios/RelatorioIpvaLicenciamentoSection";
 import { RelatorioPedagiosSection } from "@/pages/relatorios/RelatorioPedagiosSection";
 import { RelatorioEstacionamentoSection } from "@/pages/relatorios/RelatorioEstacionamentoSection";
 import { RelatorioVeiculoDadosSection } from "@/pages/relatorios/RelatorioVeiculoDadosSection";
@@ -150,6 +151,10 @@ export default function App() {
                   <Route element={<RelatoriosConsultaShell />}>
                     <Route index element={<RelatoriosConsultaIndexRedirect />} />
                     <Route path="infracoes" element={<RelatorioInfracoesSection />} />
+                    <Route
+                      path="ipva-licenciamento"
+                      element={<RelatorioIpvaLicenciamentoSection />}
+                    />
                     <Route path="pedagios" element={<RelatorioPedagiosSection />} />
                     <Route path="estacionamento" element={<RelatorioEstacionamentoSection />} />
                     <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
