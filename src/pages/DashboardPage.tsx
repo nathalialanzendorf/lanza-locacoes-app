@@ -8,8 +8,6 @@ import { IconRecebimento, IconRenovar } from "@/components/icons";
 import {
   useResumo,
   useContratos,
-  useDespesasCliente,
-  useDespesasParceiro,
   useDashboardRecebimentos,
 } from "@/api/hooks";
 import { StatusContrato } from "@/lib/domain";
@@ -294,14 +292,15 @@ function ContratosVencimentoTable({
 export function DashboardPage() {
   const resumo = useResumo();
   const contratosQuery = useContratos({ status: StatusContrato.Ativo });
-  const despesasClienteQuery = useDespesasCliente({ ativo: true, emAberto: true });
-  const despesasParceiroQuery = useDespesasParceiro({ emAberto: true });
   const recebimentosQuery = useDashboardRecebimentos();
   const rec = recebimentosQuery.data ?? RECEBIMENTOS_VAZIO;
   const hojeIso = hojeIsoBr();
   const hojeBr = hojeDataBr(hojeIso);
   const linhasVenceHoje = rec.venceHoje;
   const linhasAtrasados = rec.atrasados;
+  const recebimentosCarregando = recebimentosQuery.isFetching;
+
+  const contratosResumo = resumo.data?.contratos;
 
   const contratosVencimento = useMemo(() => {
     const vencidos: Contrato[] = [];
@@ -315,22 +314,6 @@ export function DashboardPage() {
     aVencer.sort((a, b) => ordenarContratosRenovacao(a, b, hojeIso));
     return { vencidos, aVencer };
   }, [contratosQuery.data, hojeIso]);
-
-  const totaisDespesasCliente = useMemo(() => {
-    const items = despesasClienteQuery.data?.items ?? [];
-    return {
-      emAberto: items.length,
-      valorEmAberto: items.reduce((s, d) => s + (Number(d.valorMulta) || 0), 0),
-    };
-  }, [despesasClienteQuery.data]);
-
-  const totaisDespesasParceiro = useMemo(() => {
-    const items = despesasParceiroQuery.data?.items ?? [];
-    return {
-      emAberto: items.length,
-      valorEmAberto: items.reduce((s, d) => s + (Number(d.valor) || 0), 0),
-    };
-  }, [despesasParceiroQuery.data]);
 
   return (
     <PageHeader
@@ -393,40 +376,32 @@ export function DashboardPage() {
           <StatCard
             title="Débitos cliente em aberto"
             value={
-              despesasClienteQuery.isLoading
-                ? "…"
-                : despesasClienteQuery.isError
-                  ? "—"
-                  : formatBrl(totaisDespesasCliente.valorEmAberto)
+              resumo.data
+                ? formatBrl(resumo.data.despesasCliente.valorEmAberto)
+                : "—"
             }
             hint={
-              despesasClienteQuery.isLoading
-                ? "A carregar…"
-                : despesasClienteQuery.isError
-                  ? despesasClienteQuery.error instanceof LanzaApiError
-                    ? despesasClienteQuery.error.message
-                    : "Falha ao carregar débitos do cliente."
-                  : `${totaisDespesasCliente.emAberto} lançamentos`
+              resumo.data
+                ? `${resumo.data.despesasCliente.emAberto} lançamentos`
+                : resumo.isLoading
+                  ? "A carregar…"
+                  : undefined
             }
-            tone={despesasClienteQuery.isError ? "default" : "warn"}
+            tone="warn"
           />
           <StatCard
             title="Despesas parceiro em aberto"
             value={
-              despesasParceiroQuery.isLoading
-                ? "…"
-                : despesasParceiroQuery.isError
-                  ? "—"
-                  : formatBrl(totaisDespesasParceiro.valorEmAberto)
+              resumo.data
+                ? formatBrl(resumo.data.despesasParceiro.valorEmAberto)
+                : "—"
             }
             hint={
-              despesasParceiroQuery.isLoading
-                ? "A carregar…"
-                : despesasParceiroQuery.isError
-                  ? despesasParceiroQuery.error instanceof LanzaApiError
-                    ? despesasParceiroQuery.error.message
-                    : "Falha ao carregar despesas do parceiro."
-                  : `${totaisDespesasParceiro.emAberto} lançamentos`
+              resumo.data
+                ? `${resumo.data.despesasParceiro.emAberto} lançamentos`
+                : resumo.isLoading
+                  ? "A carregar…"
+                  : undefined
             }
           />
         </div>
@@ -439,18 +414,18 @@ export function DashboardPage() {
         <div className="stat-grid stat-grid--compact">
           <StatCard
             title="Contratos ativos"
-            value={resumo.data ? `${resumo.data.contratos.ativos}` : "—"}
-            hint={resumo.data ? `${resumo.data.contratos.total} no total` : undefined}
+            value={contratosResumo != null ? `${contratosResumo.ativos}` : "—"}
+            hint={contratosResumo != null ? `${contratosResumo.total} no total` : undefined}
             tone="ok"
           />
           <StatCard
             title="Vencidos"
-            value={resumo.data ? `${resumo.data.contratos.vencidos}` : "—"}
+            value={contratosResumo != null ? `${contratosResumo.vencidos}` : "—"}
             tone="warn"
           />
           <StatCard
             title={`A vencer (${PROXIMO_VENCER_DIAS} dias)`}
-            value={resumo.data ? `${resumo.data.contratos.aVencer}` : "—"}
+            value={contratosResumo != null ? `${contratosResumo.aVencer}` : "—"}
             tone="warn"
           />
         </div>
@@ -482,88 +457,86 @@ export function DashboardPage() {
         )}
       </section>
 
-      {recebimentosQuery.isLoading ? (
-        <p className="field__hint">A carregar recebimentos…</p>
-      ) : recebimentosQuery.isError ? (
-        <QueryError
-          message={
-            recebimentosQuery.error instanceof LanzaApiError
-              ? recebimentosQuery.error.message
-              : "Falha ao carregar recebimentos."
-          }
+      <section className="dashboard-section">
+        <header className="dashboard-section__head">
+          <h2 className="dashboard-section__title">
+            Recebimentos — {hojeBr}
+            {recebimentosCarregando ? (
+              <span className="field__hint dashboard-section__loading">A carregar…</span>
+            ) : null}
+          </h2>
+        </header>
+        {recebimentosQuery.isError ? (
+          <QueryError
+            message={
+              recebimentosQuery.error instanceof LanzaApiError
+                ? recebimentosQuery.error.message
+                : "Falha ao carregar recebimentos."
+            }
+          />
+        ) : null}
+        <div className="stat-grid stat-grid--compact">
+          <StatCard
+            title="Total vence hoje"
+            value={formatBrl(rec.totais.venceHoje)}
+            hint={`${linhasVenceHoje.length} locatário(s)`}
+            tone="ok"
+          />
+          <StatCard
+            title="Total em atraso"
+            value={formatBrl(rec.totais.atrasado)}
+            hint={`${linhasAtrasados.length} locatário(s)`}
+            tone="warn"
+          />
+          <StatCard
+            title="Semanal em aberto"
+            value={formatBrl(rec.totais.semanal)}
+            hint="Parcelas semanais (nominal)"
+          />
+          <StatCard
+            title="Caução em aberto"
+            value={formatBrl(rec.totais.caucao)}
+          />
+          <StatCard
+            title="Renegociação em aberto"
+            value={formatBrl(rec.totais.renegociacao)}
+          />
+        </div>
+
+        <RecebimentosTable
+          titulo={rec.tituloPagamentoSemanal ?? "Pagamento semanal"}
+          linhas={linhasVenceHoje}
+          colunaVeiculo="Veículo"
+          mostrarAcaoRecebimento
+          mostrarDescricao={false}
+          dataReferenciaBr={rec.dataReferenciaBr}
         />
-      ) : (
-        <>
-          <section className="dashboard-section">
-            <header className="dashboard-section__head">
-              <h2 className="dashboard-section__title">
-                Recebimentos — {hojeBr}
-              </h2>
-            </header>
-            <div className="stat-grid stat-grid--compact">
-              <StatCard
-                title="Total vence hoje"
-                value={formatBrl(rec.totais.venceHoje)}
-                hint={`${linhasVenceHoje.length} locatário(s)`}
-                tone="ok"
-              />
-              <StatCard
-                title="Total em atraso"
-                value={formatBrl(rec.totais.atrasado)}
-                hint={`${linhasAtrasados.length} locatário(s)`}
-                tone="warn"
-              />
-              <StatCard
-                title="Semanal em aberto"
-                value={formatBrl(rec.totais.semanal)}
-                hint="Parcelas semanais (nominal)"
-              />
-              <StatCard
-                title="Caução em aberto"
-                value={formatBrl(rec.totais.caucao)}
-              />
-              <StatCard
-                title="Renegociação em aberto"
-                value={formatBrl(rec.totais.renegociacao)}
-              />
-            </div>
 
-            <RecebimentosTable
-              titulo={rec.tituloPagamentoSemanal ?? "Pagamento semanal"}
-              linhas={linhasVenceHoje}
-              colunaVeiculo="Veículo"
-              mostrarAcaoRecebimento
-              mostrarDescricao={false}
-              dataReferenciaBr={rec.dataReferenciaBr}
-            />
-
-            <RecebimentosTable
-                titulo="Em atraso"
-                linhas={linhasAtrasados}
-                colunaVeiculo="Veículo"
-                mostrarAcaoRecebimento
-                acoesCompactas
-                zebraPorCliente
-                dataReferenciaBr={hojeBr}
-                emptyMessage="Nenhum recebimento em atraso."
-                colunasExtra={[
-                  {
-                    key: "vencimento",
-                    header: "Vencimento",
-                    sortValue: vencimentoRecebimentoLinha,
-                    render: vencimentoRecebimentoLinha,
-                  },
-                  {
-                    key: "alerta",
-                    header: "Alerta",
-                    sortValue: (l) => l.diasAtraso ?? 0,
-                    render: alertaAtrasoRecebimento,
-                  },
-                ]}
-              />
-          </section>
-        </>
-      )}
+        <RecebimentosTable
+          titulo="Em atraso"
+          linhas={linhasAtrasados}
+          colunaVeiculo="Veículo"
+          mostrarAcaoRecebimento
+          acoesCompactas
+          zebraPorCliente
+          dataReferenciaBr={hojeBr}
+          emptyMessage="Nenhum recebimento em atraso."
+          colunasExtra={[
+            {
+              key: "vencimento",
+              header: "Vencimento",
+              sortValue: vencimentoRecebimentoLinha,
+              render: vencimentoRecebimentoLinha,
+            },
+            {
+              key: "alerta",
+              header: "Alerta",
+              sortValue: (l) => l.diasAtraso ?? 0,
+              render: alertaAtrasoRecebimento,
+            },
+          ]}
+        />
+      </section>
     </PageHeader>
   );
 }

@@ -11,6 +11,8 @@ export type Resumo = {
   clientes: { total: number; ativos: number };
   veiculos: { total: number; ativos: number; locados: number; naoLocados: number };
   contratos: { total: number; ativos: number; vencidos: number; aVencer: number };
+  despesasCliente: { emAberto: number; valorEmAberto: number };
+  despesasParceiro: { emAberto: number; valorEmAberto: number };
   infracoes: {
     emAberto: number;
     notificadas: number;

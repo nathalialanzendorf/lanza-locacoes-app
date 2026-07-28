@@ -1,6 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { lanzaApi } from "./endpoints";
+import type { DashboardRecebimentos } from "./types";
 import type { StatusContratoValor, CategoriaMovimentacaoValor } from "@/lib/domain";
+
+const RECEBIMENTOS_INICIAL: DashboardRecebimentos = {
+  dataReferenciaBr: "—",
+  tituloPagamentoSemanal: "Pagamento semanal",
+  venceHoje: [],
+  atrasados: [],
+  totais: { venceHoje: 0, atrasado: 0, semanal: 0, caucao: 0, renegociacao: 0 },
+};
 
 export function useHealth() {
   return useQuery({
@@ -13,7 +22,7 @@ export function useHealth() {
 
 export function useResumo() {
   return useQuery({
-    queryKey: ["resumo"],
+    queryKey: ["resumo", "v2"],
     queryFn: () => lanzaApi.resumo(),
     staleTime: 60_000,
   });
@@ -24,6 +33,8 @@ export function useDashboardRecebimentos() {
     queryKey: ["dashboard", "recebimentos"],
     queryFn: () => lanzaApi.dashboardRecebimentos(),
     staleTime: 60_000,
+    retry: 1,
+    placeholderData: RECEBIMENTOS_INICIAL,
   });
 }
 

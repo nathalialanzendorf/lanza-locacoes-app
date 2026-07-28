@@ -33,7 +33,7 @@ export const lanzaApi = {
   health: () => apiRequest<Health>("/health"),
   resumo: () => apiRequest<Resumo>("/api/resumo"),
   dashboardRecebimentos: () =>
-    apiRequest<DashboardRecebimentos>("/api/dashboard/recebimentos"),
+    apiRequest<DashboardRecebimentos>("/api/dashboard/recebimentos", { timeoutMs: 90_000 }),
   /** @deprecated Preferir dashboardRecebimentos */
   dashboardRecebimentosTotais: () =>
     apiRequest<DashboardRecebimentosTotaisResponse>("/api/dashboard/recebimentos/totais"),
