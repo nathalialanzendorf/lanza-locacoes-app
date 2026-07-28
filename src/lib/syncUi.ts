@@ -1,4 +1,5 @@
 import type { SyncCatalogEntry, SyncDirecao } from "@/api/types";
+import { CategoriaDespesaCliente } from "@/lib/domain";
 
 /** Syncs Rastreame que só enviam (fallback se a API não enviar `direcao`). */
 const ENVIAR_SYNC_IDS = new Set([
@@ -62,4 +63,61 @@ export function opcoesSyncCompleto(
 
 export function syncAtivo(sync: SyncCatalogEntry): boolean {
   return !sync.depreciado;
+}
+
+const SYNC_TAB_LABELS: Record<string, string> = {
+  pedagios: "Pedágio",
+  estacionamento: "SigaPay",
+  infracoes: "Infrações",
+  "ipva-licenciamento": "IPVA",
+  "detran-rs": "DETRAN RS",
+  fipe: "FIPE",
+  seguro: "Seguro",
+  motoristas: "Clientes",
+  rastreaveis: "Rastreáveis",
+  "rastreaveis-enviar": "Rastreáveis ↑",
+  recebimentos: "Gastos",
+  manutencao: "Manutenção",
+};
+
+export function rotuloAbaSync(entry: SyncCatalogEntry): string {
+  return SYNC_TAB_LABELS[entry.id] ?? entry.rotulo;
+}
+
+export function syncPath(id: string): string {
+  return `/sync/${id}`;
+}
+
+export type SyncRegistroTipo =
+  | typeof CategoriaDespesaCliente.Infracao
+  | typeof CategoriaDespesaCliente.Pedagio
+  | typeof CategoriaDespesaCliente.Estacionamento;
+
+export function tiposRegistrosSync(syncId: string): SyncRegistroTipo[] | null {
+  switch (syncId) {
+    case "pedagios":
+      return [CategoriaDespesaCliente.Pedagio];
+    case "estacionamento":
+      return [CategoriaDespesaCliente.Estacionamento];
+    case "infracoes":
+      return [CategoriaDespesaCliente.Infracao];
+    default:
+      return null;
+  }
+}
+
+export function syncTemRegistros(syncId: string): boolean {
+  return tiposRegistrosSync(syncId) !== null;
+}
+
+export function abasSync(syncs: SyncCatalogEntry[]): {
+  ativos: SyncCatalogEntry[];
+  legado: SyncCatalogEntry[];
+} {
+  const ativos = [
+    ...ordenarSyncsPorDirecao(syncs, "buscar").filter(syncAtivo),
+    ...ordenarSyncsPorDirecao(syncs, "enviar").filter(syncAtivo),
+  ];
+  const legado = syncs.filter((s) => !syncAtivo(s));
+  return { ativos, legado };
 }

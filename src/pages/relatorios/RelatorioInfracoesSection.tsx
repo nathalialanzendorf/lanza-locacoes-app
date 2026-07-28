@@ -16,6 +16,7 @@ import { useInfracoes } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatPlaca } from "@/lib/format";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import type { Infracao } from "@/api/types";
 
@@ -109,6 +110,7 @@ export function RelatorioInfracoesSection() {
               onChange={setVeiculoId}
               valueField="id"
               ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
               parceiroId={parceiroId || undefined}
               variant="filtro"
             />

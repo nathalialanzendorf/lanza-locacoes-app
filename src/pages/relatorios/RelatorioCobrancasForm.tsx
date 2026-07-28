@@ -14,7 +14,7 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { LABEL } from "@/lib/labels";
-import { TIPOS_COBRANCA_ACTION_PADRAO, rotuloTipoCobrancaAction } from "@/lib/domain";
+import { TIPOS_COBRANCA_ACTION_PADRAO, rotuloTipoCobrancaAction, TipoVeiculoFrota } from "@/lib/domain";
 import {
   downloadArquivoTexto,
   downloadPdfViaImpressao,
@@ -104,6 +104,7 @@ export function RelatorioCobrancasForm() {
               onChange={onVeiculoChange}
               valueField="id"
               ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
               variant="filtro"
               disabled={loading || Boolean(clienteId)}
             />

@@ -25,6 +25,7 @@ import {
   MOTIVO_ENCERRAMENTO_OPCOES,
   MotivoEncerramento,
   StatusContrato,
+  TipoVeiculoFrota,
   type MotivoEncerramentoValor,
 } from "@/lib/domain";
 import type { Contrato } from "@/api/types";
@@ -191,6 +192,7 @@ export function RelatorioEncerramentoForm() {
             onChange={setVeiculoId}
             valueField="id"
             ativo
+            tipoFrota={TipoVeiculoFrota.Locacao}
             variant="filtro"
           />
           {!query.isLoading ? (

@@ -20,9 +20,15 @@ type NavItem = {
   isActive?: (pathname: string) => boolean;
 };
 
+type NavSubsection = {
+  title: string;
+  items: NavItem[];
+};
+
 type NavSection = {
   title?: string;
   items: NavItem[];
+  subsections?: NavSubsection[];
   module?: "locacao" | "particular" | "venda";
 };
 
@@ -33,6 +39,16 @@ const sharedNavSections: NavSection[] = [
       { to: "/veiculos", label: "Veículos" },
       { to: "/parceiros", label: "Parceiros" },
       { to: "/sync", label: "Syncs" },
+    ],
+  },
+  {
+    title: "Relatórios",
+    items: [
+      { to: "/relatorios/veiculo", label: "Dados do veículo" },
+      { to: "/relatorios/infracoes", label: "Infrações" },
+      { to: "/relatorios/pedagios", label: "Pedágio Digital" },
+      { to: "/relatorios/estacionamento", label: "SigaPay" },
+      { to: "/relatorios/fipe", label: "FIPE" },
     ],
   },
 ];
@@ -47,7 +63,16 @@ const moduleNavSections: NavSection[] = [
       { to: "/recebimentos", label: "Recebimentos" },
       { to: "/despesas", label: "Despesas" },
       { to: "/movimentacao", label: "Movimentação" },
-      { to: "/relatorios", label: "Relatórios" },
+    ],
+    subsections: [
+      {
+        title: "Relatórios",
+        items: [
+          { to: "/relatorios/cobrancas", label: "Cobranças" },
+          { to: "/relatorios/prestacao-contas", label: "Prestação de contas" },
+          { to: "/relatorios/encerramento", label: "Encerramento" },
+        ],
+      },
     ],
   },
   {
@@ -110,6 +135,21 @@ function NavSectionBlock({
         >
           {item.label}
         </NavLink>
+      ))}
+      {section.subsections?.map((subsection) => (
+        <div key={subsection.title} className="nav-subsection">
+          <p className="nav-subsection__title">{subsection.title}</p>
+          {subsection.items.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={() => navLinkClass(locationPathname, item, section.module)}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
       ))}
     </div>
   );

@@ -1,0 +1,252 @@
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { DataTable } from "@/components/DataTable";
+import { VeiculoSelect } from "@/components/EntitySelects";
+import { Toggle } from "@/components/Toggle";
+import { useSyncJobs } from "@/api/hooks";
+import { lanzaApi } from "@/api/endpoints";
+import { LanzaApiError } from "@/api/client";
+import { bodySyncGlobal, direcaoEfetiva, syncAtivo } from "@/lib/syncUi";
+import { LABEL } from "@/lib/labels";
+import type { SyncCatalogEntry, SyncJob } from "@/api/types";
+
+export function useSyncDisparo() {
+  const qc = useQueryClient();
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<unknown>(null);
+
+  async function disparar(label: string, fn: () => Promise<unknown>) {
+    setRunningId(label);
+    setError(null);
+    setLastResult(null);
+    try {
+      const r = await fn();
+      setLastResult(r);
+      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+      return r;
+    } catch (err) {
+      setError(err instanceof LanzaApiError ? err.message : "Falha ao executar sync.");
+      throw err;
+    } finally {
+      setRunningId(null);
+    }
+  }
+
+  return { runningId, error, lastResult, disparar, setError };
+}
+
+export function useSyncOpcoes() {
+  const [dryRun, setDryRun] = useState(false);
+  const [asyncMode, setAsyncMode] = useState(true);
+  const [placa, setPlaca] = useState("");
+
+  const globalOpts = useMemo(() => ({ dryRun, placa }), [dryRun, placa]);
+  const usarAsync = asyncMode && !dryRun;
+
+  function toggleDryRun(checked: boolean) {
+    setDryRun(checked);
+    if (checked) setAsyncMode(false);
+  }
+
+  return {
+    dryRun,
+    asyncMode,
+    placa,
+    globalOpts,
+    usarAsync,
+    setPlaca,
+    setAsyncMode,
+    toggleDryRun,
+  };
+}
+
+type SyncOpcoesProps = {
+  placa: string;
+  onPlacaChange: (placa: string) => void;
+  asyncMode: boolean;
+  onAsyncModeChange: (checked: boolean) => void;
+  dryRun: boolean;
+  onDryRunChange: (checked: boolean) => void;
+  hint?: string;
+  hideVeiculo?: boolean;
+};
+
+export function SyncOpcoesGlobais({
+  placa,
+  onPlacaChange,
+  asyncMode,
+  onAsyncModeChange,
+  dryRun,
+  onDryRunChange,
+  hint,
+  hideVeiculo,
+}: SyncOpcoesProps) {
+  return (
+    <section className="form-card sync-options">
+      <h2 className="form-card__title">Opções</h2>
+      <div className="form-grid">
+        {hideVeiculo ? null : (
+          <label className="field">
+            <span className="field__label">Veículo</span>
+            <VeiculoSelect value={placa} onChange={onPlacaChange} valueField="placa" variant="filtro" />
+            <span className="field__hint">
+              {hint ??
+                "---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado."}
+            </span>
+          </label>
+        )}
+        <Toggle
+          className="field"
+          checked={asyncMode}
+          onChange={onAsyncModeChange}
+          disabled={dryRun}
+          label="Executar em background (recomendado)"
+        />
+        <Toggle
+          className="field"
+          checked={dryRun}
+          onChange={onDryRunChange}
+          label="Dry-run (simular, não grava)"
+        />
+      </div>
+      {dryRun ? (
+        <p className="field__hint sync-dryrun-hint">
+          Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function statusBadge(status: SyncJob["status"]) {
+  switch (status) {
+    case "completed":
+      return "badge badge--ok";
+    case "failed":
+      return "badge badge--danger";
+    case "running":
+      return "badge badge--warn";
+    default:
+      return "badge badge--muted";
+  }
+}
+
+type SyncJobsProps = {
+  syncId?: string;
+  title?: string;
+};
+
+export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps) {
+  const jobsQuery = useSyncJobs();
+  const jobs = useMemo(() => {
+    const list = jobsQuery.data?.jobs ?? [];
+    if (!syncId) return list;
+    return list.filter((j) => j.sync === syncId);
+  }, [jobsQuery.data, syncId]);
+
+  return (
+    <section className="form-card">
+      <h2 className="form-card__title">{title}</h2>
+      {jobs.length === 0 ? (
+        <p className="field__hint">Nenhum job nesta instância da API.</p>
+      ) : (
+        <DataTable
+          rows={jobs}
+          keyFn={(j) => j.id}
+          columns={[
+            {
+              key: "sync",
+              header: "Sync",
+              sortValue: (j) => j.sync,
+              render: (j) => (
+                <>
+                  <strong>{j.sync}</strong>
+                  <br />
+                  <span className="field__hint">{j.id.slice(0, 8)}…</span>
+                </>
+              ),
+            },
+            {
+              key: "status",
+              header: "Status",
+              sortValue: (j) => j.status,
+              render: (j) => <span className={statusBadge(j.status)}>{j.status}</span>,
+            },
+            {
+              key: "createdAt",
+              header: "Criado",
+              sortValue: (j) => j.createdAt,
+              render: (j) => new Date(j.createdAt).toLocaleString("pt-BR"),
+            },
+            {
+              key: "error",
+              header: "Erro",
+              sortValue: (j) => j.error ?? "",
+              render: (j) => <span className="sync-job-error">{j.error ?? "—"}</span>,
+            },
+          ]}
+        />
+      )}
+    </section>
+  );
+}
+
+type SyncCardProps = {
+  sync: SyncCatalogEntry;
+  running: boolean;
+  disabled: boolean;
+  onExecutar: () => void;
+};
+
+export function SyncCard({ sync, running, disabled, onExecutar }: SyncCardProps) {
+  const direcao = direcaoEfetiva(sync);
+  const acao = direcao === "enviar" ? "Enviar" : "Buscar";
+  const depreciado = !syncAtivo(sync);
+
+  return (
+    <article className={`sync-card${depreciado ? " sync-card--deprecated" : ""}`}>
+      <header className="sync-card__head">
+        <h3>{sync.rotulo}</h3>
+        <code className="sync-card__skill">{sync.id}</code>
+      </header>
+      <p className="sync-card__destino">{sync.destino}</p>
+      {sync.nota ? <p className="sync-card__nota">{sync.nota}</p> : null}
+      <div className="sync-card__badges">
+        {depreciado ? (
+          <span className="badge badge--muted">Descontinuado</span>
+        ) : (
+          <span className={direcao === "enviar" ? "badge badge--warn" : "badge badge--ok"}>{acao}</span>
+        )}
+        {!depreciado && sync.interativo ? (
+          <span className="badge badge--muted">Interativo</span>
+        ) : null}
+        {!depreciado && !sync.interativo ? (
+          <span className="badge badge--muted">Automático</span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className="btn btn--primary sync-card__btn"
+        disabled={disabled || depreciado}
+        onClick={onExecutar}
+      >
+        {depreciado ? "Indisponível" : running ? LABEL.processando : acao}
+      </button>
+    </article>
+  );
+}
+
+export function executarSyncId(
+  syncs: SyncCatalogEntry[],
+  id: string,
+  globalOpts: { dryRun: boolean; placa: string },
+  usarAsync: boolean,
+) {
+  const entry = syncs.find((s) => s.id === id);
+  if (entry && !syncAtivo(entry)) {
+    throw new Error("Sync descontinuado.");
+  }
+  return lanzaApi.executarSync(id, bodySyncGlobal(globalOpts), { async: usarAsync });
+}

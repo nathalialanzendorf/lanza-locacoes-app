@@ -1,53 +1,20 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { DataTable } from "@/components/DataTable";
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
-import { ResponsavelDebitoCell } from "@/components/relatorios/ResponsavelDebitoCell";
-import { useDespesasCliente, useInfracoes, useSyncMeta, useVeiculos } from "@/api/hooks";
+import { useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
-import { CATEGORIA_ESTACIONAMENTO, isCategoriaEstacionamento } from "@/lib/estacionamentoLabels";
-import { formatBrl, formatPlaca } from "@/lib/format";
-import { CATEGORIA_PEDAGIO, isCategoriaPedagio } from "@/lib/pedagioLabels";
-import { CategoriaDespesaCliente } from "@/lib/domain";
-import { precisaConfirmacao } from "@/lib/responsavelDebitoUi";
+import { formatBrl } from "@/lib/format";
+import { CATEGORIA_ESTACIONAMENTO } from "@/lib/estacionamentoLabels";
+import { CATEGORIA_PEDAGIO } from "@/lib/pedagioLabels";
 import { bodySyncGlobal, opcoesSyncCompleto } from "@/lib/syncUi";
-import type { ClienteDespesa, Infracao } from "@/api/types";
-
-type SyncRegistroLinha = {
-  id: string;
-  tipo:
-    | typeof CategoriaDespesaCliente.Infracao
-    | typeof CategoriaDespesaCliente.Pedagio
-    | typeof CategoriaDespesaCliente.Estacionamento;
-  placa: string;
-  ref: string;
-  descricao: string;
-  data: string;
-  valor: number;
-  infracao?: Infracao;
-  despesa?: ClienteDespesa;
-};
-
-function valorInfracao(i: Infracao): number {
-  return Number(i.valorMulta ?? i.valor) || 0;
-}
-
-function valorDespesa(d: ClienteDespesa): number {
-  return Number(d.valorMulta) || 0;
-}
-
-function categoriaDespesaSync(
-  d: ClienteDespesa,
-): typeof CategoriaDespesaCliente.Pedagio | typeof CategoriaDespesaCliente.Estacionamento | null {
-  if (isCategoriaPedagio(d.categoria)) return CategoriaDespesaCliente.Pedagio;
-  if (isCategoriaEstacionamento(d.categoria)) return CategoriaDespesaCliente.Estacionamento;
-  return null;
-}
+import { SyncJobsTable } from "@/pages/sync/syncShared";
+import { SyncRegistrosTable } from "@/pages/sync/SyncRegistrosTable";
+import { useSyncRegistrosLinhas } from "@/pages/sync/useSyncRegistrosLinhas";
 
 export function SyncRegistrosSection() {
   const qc = useQueryClient();
@@ -59,77 +26,8 @@ export function SyncRegistrosSection() {
   const [inferirResult, setInferirResult] = useState<unknown>(null);
   const [acaoError, setAcaoError] = useState<string | null>(null);
 
-  const veiculoIdFiltro = veiculoId.trim() || undefined;
-  const veiculosQuery = useVeiculos({ ativo: true });
-
-  const placaSync = useMemo(() => {
-    if (!veiculoIdFiltro) return "";
-    return (
-      veiculosQuery.data?.items.find((v) => v.id === veiculoIdFiltro)?.placa?.trim() ?? ""
-    );
-  }, [veiculoIdFiltro, veiculosQuery.data]);
-
-  const infracoesQuery = useInfracoes({
-    veiculoId: veiculoIdFiltro,
-    emAberto: true,
-    ativo: true,
-  });
-
-  const despesasQuery = useDespesasCliente({
-    veiculoId: veiculoIdFiltro,
-    emAberto: true,
-    ativo: true,
-  });
-
-  const linhas = useMemo(() => {
-    const out: SyncRegistroLinha[] = [];
-
-    for (const i of infracoesQuery.data?.items ?? []) {
-      out.push({
-        id: `infracao:${i.numeroAuto ?? i.id}`,
-        tipo: CategoriaDespesaCliente.Infracao,
-        placa: formatPlaca(i.veiculoId),
-        ref: i.numeroAuto ?? i.id,
-        descricao: i.descricao?.trim() || "—",
-        data: i.dataAutuacao?.slice(0, 16) ?? "—",
-        valor: valorInfracao(i),
-        infracao: i,
-      });
-    }
-
-    for (const d of despesasQuery.data?.items ?? []) {
-      const cat = categoriaDespesaSync(d);
-      if (!cat) continue;
-      out.push({
-        id: `despesa:${d.id}`,
-        tipo: cat,
-        placa: formatPlaca(d.placa ?? d.veiculoId),
-        ref: d.autoInfracao ?? d.id.slice(0, 8),
-        descricao: d.descricao?.trim() || d.titulo?.trim() || "—",
-        data: d.dataAutuacao?.slice(0, 16) ?? d.vencimentoBr?.trim() ?? "—",
-        valor: valorDespesa(d),
-        despesa: d,
-      });
-    }
-
-    out.sort((a, b) => {
-      const pc = a.placa.localeCompare(b.placa, "pt-BR");
-      if (pc !== 0) return pc;
-      return a.tipo.localeCompare(b.tipo, "pt-BR");
-    });
-
-    if (!semConfirmacao) return out;
-
-    return out.filter((l) => {
-      const item = l.infracao ?? l.despesa;
-      return item ? precisaConfirmacao(item) : false;
-    });
-  }, [infracoesQuery.data, despesasQuery.data, semConfirmacao]);
-
-  const total = useMemo(() => linhas.reduce((s, l) => s + l.valor, 0), [linhas]);
-
-  const loading =
-    infracoesQuery.isLoading || despesasQuery.isLoading || veiculosQuery.isLoading;
+  const { linhas, total, loading, placaSync, veiculoIdFiltro, infracoesQuery, despesasQuery } =
+    useSyncRegistrosLinhas({ veiculoId, semConfirmacao });
 
   async function sincronizarFrota() {
     setAcaoLoading("sync");
@@ -142,8 +40,7 @@ export function SyncRegistrosSection() {
         opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa: placaSync }),
       });
       setSyncResult(r);
-      await qc.invalidateQueries({ queryKey: ["infracoes"] });
-      await qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
+      invalidarListagem();
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao sincronizar.");
     } finally {
@@ -165,8 +62,7 @@ export function SyncRegistrosSection() {
         escopo: "estacionamento",
       });
       setInferirResult({ infracoes: rInf, estacionamento: rEst });
-      await qc.invalidateQueries({ queryKey: ["infracoes"] });
-      await qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
+      invalidarListagem();
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao inferir responsáveis.");
     } finally {
@@ -195,8 +91,7 @@ export function SyncRegistrosSection() {
         escopo: "estacionamento",
       });
       setInferirResult({ infracoes: rInf, estacionamento: rEst });
-      await qc.invalidateQueries({ queryKey: ["infracoes"] });
-      await qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
+      invalidarListagem();
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha no sync e inferência.");
     } finally {
@@ -211,6 +106,14 @@ export function SyncRegistrosSection() {
 
   return (
     <>
+      <section className="form-card">
+        <h2 className="form-card__title">Visão geral</h2>
+        <p className="field__hint">
+          Multas, {CATEGORIA_PEDAGIO.toLowerCase()} e {CATEGORIA_ESTACIONAMENTO.toLowerCase()} em aberto.
+          Use as abas individuais para executar um sync específico.
+        </p>
+      </section>
+
       <section className="form-card">
         <h2 className="form-card__title">Veículo</h2>
         <div className="form-grid">
@@ -244,14 +147,6 @@ export function SyncRegistrosSection() {
         ) : null}
       </section>
 
-      <section className="form-card">
-        <p className="field__hint">
-          Sincronize com os portais (DETRAN, pedágio, SigaPay), depois infira cliente ou parceiro
-          responsável. Confirme na tabela abaixo — multas, {CATEGORIA_PEDAGIO.toLowerCase()} e{" "}
-          {CATEGORIA_ESTACIONAMENTO.toLowerCase()}.
-        </p>
-      </section>
-
       <div className="despesas-toolbar">
         <button
           type="button"
@@ -259,7 +154,7 @@ export function SyncRegistrosSection() {
           disabled={Boolean(acaoLoading)}
           onClick={() => void sincronizarFrota()}
         >
-          {acaoLoading === "sync" ? "Sincronizando…" : "Sincronizar"}
+          {acaoLoading === "sync" ? "Sincronizando…" : "Sync completo"}
         </button>
         <button
           type="button"
@@ -275,7 +170,7 @@ export function SyncRegistrosSection() {
           disabled={Boolean(acaoLoading)}
           onClick={() => void sincronizarEInferir()}
         >
-          {acaoLoading === "tudo" ? "A processar…" : "Sincronizar e inferir"}
+          {acaoLoading === "tudo" ? "A processar…" : "Sync completo e inferir"}
         </button>
       </div>
 
@@ -295,87 +190,14 @@ export function SyncRegistrosSection() {
         />
       ) : null}
 
-      <DataTable
+      <SyncRegistrosTable
         loading={loading}
-        rows={linhas}
-        keyFn={(l) => l.id}
-        emptyMessage={
-          veiculoIdFiltro
-            ? "Nenhum registo em aberto para este veículo. Use «Sincronizar e inferir»."
-            : "Nenhum registo em aberto. Selecione a frota ou um veículo e sincronize."
-        }
-        columns={[
-          {
-            key: "tipo",
-            header: "Tipo",
-            sortValue: (l) => l.tipo,
-            render: (l) => <span className="badge badge--muted">{l.tipo}</span>,
-          },
-          {
-            key: "ref",
-            header: "Ref.",
-            sortValue: (l) => l.ref,
-            render: (l) => <strong>{l.ref}</strong>,
-          },
-          {
-            key: "placa",
-            header: "Placa",
-            sortValue: (l) => l.placa,
-            render: (l) => l.placa,
-          },
-          {
-            key: "desc",
-            header: "Descrição",
-            sortValue: (l) => l.descricao,
-            render: (l) => (
-              <span className="infracao-desc" title={l.descricao}>
-                {l.descricao}
-              </span>
-            ),
-          },
-          {
-            key: "data",
-            header: "Data",
-            sortValue: (l) => l.data,
-            render: (l) => l.data,
-          },
-          {
-            key: "valor",
-            header: "Valor",
-            className: "num",
-            sortValue: (l) => l.valor,
-            render: (l) => formatBrl(l.valor),
-          },
-          {
-            key: "responsavel",
-            header: "Responsável",
-            render: (l) => {
-              if (l.infracao) {
-                return (
-                  <ResponsavelDebitoCell
-                    tipo="infracao"
-                    chave={l.infracao.numeroAuto ?? l.infracao.id}
-                    item={l.infracao}
-                    onConfirmed={invalidarListagem}
-                  />
-                );
-              }
-              if (l.despesa) {
-                return (
-                  <ResponsavelDebitoCell
-                    tipo="pedagio"
-                    despesaId={l.despesa.id}
-                    autoInfracao={l.despesa.autoInfracao ?? l.despesa.id}
-                    item={l.despesa}
-                    onConfirmed={invalidarListagem}
-                  />
-                );
-              }
-              return "—";
-            },
-          },
-        ]}
+        linhas={linhas}
+        veiculoIdFiltro={veiculoIdFiltro}
+        onConfirmed={invalidarListagem}
       />
+
+      <SyncJobsTable />
     </>
   );
 }

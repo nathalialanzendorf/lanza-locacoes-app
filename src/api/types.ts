@@ -111,6 +111,11 @@ export type Veiculo = {
   particular?: boolean;
   tipoFrota?: string;
   ufRegistro?: string;
+  fipe?: string;
+  fipeModelo?: string;
+  fipeCodigo?: string;
+  fipeValor?: string;
+  fipeReferencia?: string;
   clienteVinculadoId?: string | null;
   rastreameRastreavelKey?: string | number | null;
 };

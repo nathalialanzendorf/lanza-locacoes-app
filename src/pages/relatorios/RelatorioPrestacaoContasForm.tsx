@@ -31,6 +31,7 @@ import {
   periodoValido,
   ultimoDiaMesBr,
 } from "@/lib/periodoRelatorio";
+import { TipoVeiculoFrota } from "@/lib/domain";
 
 function competenciaDoPeriodo(periodo: RelatorioPeriodo): string | null {
   const ini = periodo.dataInicial.trim();
@@ -49,7 +50,7 @@ function periodoPrestacaoValido(periodo: RelatorioPeriodo): boolean {
 export function RelatorioPrestacaoContasForm() {
   const [parceiroId, setParceiroId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
-  const veiculosQuery = useVeiculos({ ativo: true });
+  const veiculosQuery = useVeiculos({ ativo: true, tipoFrota: TipoVeiculoFrota.Locacao });
   const contratosQuery = useContratos();
   const vinculosQuery = useVinculosParceiro(
     parceiroId.trim() ? { parceiroId: parceiroId.trim() } : undefined,
@@ -272,6 +273,7 @@ export function RelatorioPrestacaoContasForm() {
               onChange={setVeiculoId}
               valueField="id"
               ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
               parceiroId={parceiroId || undefined}
               variant="filtro"
             />

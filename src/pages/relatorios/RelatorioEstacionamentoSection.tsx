@@ -16,6 +16,7 @@ import { useDespesasCliente, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatPlaca } from "@/lib/format";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import {
   CATEGORIA_ESTACIONAMENTO,
@@ -69,7 +70,7 @@ export function RelatorioEstacionamentoSection() {
     semCliente: semResponsavel || undefined,
     ativo: true,
   });
-  const veiculosQuery = useVeiculos({ ativo: true });
+  const veiculosQuery = useVeiculos({ ativo: true, tipoFrota: TipoVeiculoFrota.Locacao });
 
   const placaFiltro = useMemo(() => {
     if (!veiculoId) return undefined;
@@ -175,6 +176,7 @@ export function RelatorioEstacionamentoSection() {
               onChange={setVeiculoId}
               valueField="id"
               ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
               variant="filtro"
             />
           </FieldLike>
