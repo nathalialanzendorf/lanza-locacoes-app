@@ -8,16 +8,17 @@ import { IconRecebimento, IconRenovar } from "@/components/icons";
 import {
   useResumo,
   useContratos,
-  useDashboardRecebimentos,
   useDespesasCliente,
 } from "@/api/hooks";
-import { StatusContrato, CategoriaDespesaCliente } from "@/lib/domain";
+import { StatusContrato } from "@/lib/domain";
 import { formatBrl, formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import { LABEL } from "@/lib/labels";
 import { urlLancarRecebimento } from "@/lib/recebimentoUrl";
 import {
-  classificarDespesasRecebimento,
+  CATEGORIAS_RECEBIMENTO_DASHBOARD,
+  classificarRecebimentosPorCategoria,
   totalLinhasRecebimento,
+  type RecebimentoCategoriaClassificado,
 } from "@/lib/dashboardRecebimentosDespesas";
 import {
   PROXIMO_VENCER_DIAS,
@@ -34,14 +35,7 @@ import { LanzaApiError } from "@/api/client";
 import type {
   Contrato,
   DashboardRecebimentoLinha,
-  DashboardRecebimentos,
 } from "@/api/types";
-
-const RECEBIMENTOS_VAZIO: DashboardRecebimentos = {
-  dataReferenciaBr: "—",
-  tituloPagamentoSemanal: "Pagamento semanal",
-  totais: { semanal: 0, caucao: 0, renegociacao: 0 },
-};
 
 function vencimentoRecebimentoLinha(l: DashboardRecebimentoLinha): string {
   if (l.vencimentosBr?.length) return l.vencimentosBr.join(", ");
@@ -293,35 +287,127 @@ function ContratosVencimentoTable({
   );
 }
 
+const COLUNAS_ATRASO: Array<{
+  key: string;
+  header: string;
+  className?: string;
+  sortValue?: (l: DashboardRecebimentoLinha) => string | number;
+  render: (l: DashboardRecebimentoLinha) => ReactNode;
+}> = [
+  {
+    key: "vencimento",
+    header: "Vencimento",
+    sortValue: vencimentoRecebimentoLinha,
+    render: vencimentoRecebimentoLinha,
+  },
+  {
+    key: "alerta",
+    header: "Alerta",
+    sortValue: (l) => l.diasAtraso ?? 0,
+    render: alertaAtrasoRecebimento,
+  },
+];
+
+function contagemLancamentosRecebimento(dados: RecebimentoCategoriaClassificado): string {
+  const comVencimento = dados.venceHoje.length + dados.atrasados.length;
+  if (dados.totalEmAberto <= 0) return "nenhum lançamento";
+  if (comVencimento === 0) return "com vencimento futuro";
+  return `${comVencimento} com vencimento hoje ou atrasado`;
+}
+
+function RecebimentosCategoriaSection({
+  titulo,
+  dados,
+  hojeBr,
+  tituloVenceHoje,
+}: {
+  titulo: string;
+  dados: RecebimentoCategoriaClassificado;
+  hojeBr: string;
+  tituloVenceHoje: string;
+}) {
+  return (
+    <div className="dashboard-recebimentos-categoria">
+      <header className="dashboard-section__head dashboard-recebimentos-categoria__head">
+        <h3 className="dashboard-section__title">{titulo} (em aberto)</h3>
+      </header>
+      <div className="stat-grid stat-grid--compact">
+        <StatCard
+          title={`Total ${titulo.toLowerCase()}`}
+          value={formatBrl(dados.totalEmAberto)}
+          hint={contagemLancamentosRecebimento(dados)}
+        />
+        <StatCard
+          title="Vence hoje"
+          value={formatBrl(totalLinhasRecebimento(dados.venceHoje))}
+          hint={`${dados.venceHoje.length} locatário(s)`}
+          tone="ok"
+        />
+        <StatCard
+          title="Em atraso"
+          value={formatBrl(totalLinhasRecebimento(dados.atrasados))}
+          hint={`${dados.atrasados.length} locatário(s)`}
+          tone="warn"
+        />
+      </div>
+
+      <RecebimentosTable
+        titulo={tituloVenceHoje}
+        linhas={dados.venceHoje}
+        colunaVeiculo="Veículo"
+        mostrarAcaoRecebimento
+        mostrarDescricao={false}
+        dataReferenciaBr={hojeBr}
+        emptyMessage={`Nenhum ${titulo.toLowerCase()} com vencimento hoje.`}
+      />
+
+      <RecebimentosTable
+        titulo="Em atraso"
+        linhas={dados.atrasados}
+        colunaVeiculo="Veículo"
+        mostrarAcaoRecebimento
+        acoesCompactas
+        zebraPorCliente
+        dataReferenciaBr={hojeBr}
+        emptyMessage={`Nenhum ${titulo.toLowerCase()} em atraso.`}
+        colunasExtra={COLUNAS_ATRASO}
+      />
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const resumo = useResumo();
   const contratosQuery = useContratos({ status: StatusContrato.Ativo });
-  const recebimentosQuery = useDashboardRecebimentos();
   const despesasQuery = useDespesasCliente({
     ativo: true,
     emAberto: true,
-    categoria: CategoriaDespesaCliente.LocacaoSemanal,
   });
-  const rec = recebimentosQuery.data ?? RECEBIMENTOS_VAZIO;
   const hojeIso = hojeIsoBr();
   const hojeBr = hojeDataBr(hojeIso);
   const tituloPagamentoSemanal = `Pagamento semanal (${nomeDiaSemanaBr()})`;
 
-  const { linhasVenceHoje, linhasAtrasados, totalVenceHoje, totalAtrasado } = useMemo(() => {
-    const { venceHoje, atrasados } = classificarDespesasRecebimento(
-      despesasQuery.data?.items ?? [],
-      hojeBr,
-      hojeIso,
-    );
-    return {
-      linhasVenceHoje: venceHoje,
-      linhasAtrasados: atrasados,
-      totalVenceHoje: totalLinhasRecebimento(venceHoje),
-      totalAtrasado: totalLinhasRecebimento(atrasados),
-    };
-  }, [despesasQuery.data, hojeBr, hojeIso]);
+  const recebimentosPorCategoria = useMemo(
+    () =>
+      classificarRecebimentosPorCategoria(
+        despesasQuery.data?.items ?? [],
+        hojeBr,
+        hojeIso,
+      ),
+    [despesasQuery.data, hojeBr, hojeIso],
+  );
 
-  const recebimentosCarregando = recebimentosQuery.isFetching;
+  const { totalVenceHoje, totalAtrasado } = useMemo(() => {
+    let venceHoje = 0;
+    let atrasado = 0;
+    for (const cat of CATEGORIAS_RECEBIMENTO_DASHBOARD) {
+      const dados = recebimentosPorCategoria[cat.id];
+      venceHoje += totalLinhasRecebimento(dados.venceHoje);
+      atrasado += totalLinhasRecebimento(dados.atrasados);
+    }
+    return { totalVenceHoje: venceHoje, totalAtrasado: atrasado };
+  }, [recebimentosPorCategoria]);
+
   const despesasCarregando = despesasQuery.isFetching;
 
   const contratosVencimento = useMemo(() => {
@@ -465,20 +551,11 @@ export function DashboardPage() {
         <header className="dashboard-section__head">
           <h2 className="dashboard-section__title">
             Recebimentos — {hojeBr}
-            {recebimentosCarregando || despesasCarregando ? (
+            {despesasCarregando ? (
               <span className="field__hint dashboard-section__loading">A carregar…</span>
             ) : null}
           </h2>
         </header>
-        {recebimentosQuery.isError ? (
-          <QueryError
-            message={
-              recebimentosQuery.error instanceof LanzaApiError
-                ? recebimentosQuery.error.message
-                : "Falha ao carregar totais de recebimentos."
-            }
-          />
-        ) : null}
         {despesasQuery.isError ? (
           <QueryError
             message={
@@ -492,63 +569,26 @@ export function DashboardPage() {
           <StatCard
             title="Total vence hoje"
             value={formatBrl(totalVenceHoje)}
-            hint={`${linhasVenceHoje.length} locatário(s)`}
+            hint="Semanal, caução e renegociação"
             tone="ok"
           />
           <StatCard
             title="Total em atraso"
             value={formatBrl(totalAtrasado)}
-            hint={`${linhasAtrasados.length} locatário(s)`}
+            hint="Semanal, caução e renegociação"
             tone="warn"
-          />
-          <StatCard
-            title="Semanal em aberto"
-            value={formatBrl(rec.totais.semanal)}
-            hint="Parcelas semanais (nominal)"
-          />
-          <StatCard
-            title="Caução em aberto"
-            value={formatBrl(rec.totais.caucao)}
-          />
-          <StatCard
-            title="Renegociação em aberto"
-            value={formatBrl(rec.totais.renegociacao)}
           />
         </div>
 
-        <RecebimentosTable
-          titulo={tituloPagamentoSemanal}
-          linhas={linhasVenceHoje}
-          colunaVeiculo="Veículo"
-          mostrarAcaoRecebimento
-          mostrarDescricao={false}
-          dataReferenciaBr={hojeBr}
-        />
-
-        <RecebimentosTable
-          titulo="Em atraso"
-          linhas={linhasAtrasados}
-          colunaVeiculo="Veículo"
-          mostrarAcaoRecebimento
-          acoesCompactas
-          zebraPorCliente
-          dataReferenciaBr={hojeBr}
-          emptyMessage="Nenhum recebimento em atraso."
-          colunasExtra={[
-            {
-              key: "vencimento",
-              header: "Vencimento",
-              sortValue: vencimentoRecebimentoLinha,
-              render: vencimentoRecebimentoLinha,
-            },
-            {
-              key: "alerta",
-              header: "Alerta",
-              sortValue: (l) => l.diasAtraso ?? 0,
-              render: alertaAtrasoRecebimento,
-            },
-          ]}
-        />
+        {CATEGORIAS_RECEBIMENTO_DASHBOARD.map((cat) => (
+          <RecebimentosCategoriaSection
+            key={cat.id}
+            titulo={cat.titulo}
+            dados={recebimentosPorCategoria[cat.id]}
+            hojeBr={hojeBr}
+            tituloVenceHoje={cat.id === "semanal" ? tituloPagamentoSemanal : "Vence hoje"}
+          />
+        ))}
       </section>
     </PageHeader>
   );

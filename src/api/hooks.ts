@@ -1,13 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { lanzaApi } from "./endpoints";
-import type { DashboardRecebimentos } from "./types";
 import type { StatusContratoValor, CategoriaMovimentacaoValor } from "@/lib/domain";
-
-const RECEBIMENTOS_INICIAL: DashboardRecebimentos = {
-  dataReferenciaBr: "—",
-  tituloPagamentoSemanal: "Pagamento semanal",
-  totais: { semanal: 0, caucao: 0, renegociacao: 0 },
-};
 
 export function useHealth() {
   return useQuery({
@@ -22,34 +15,6 @@ export function useResumo() {
   return useQuery({
     queryKey: ["resumo", "v2"],
     queryFn: () => lanzaApi.resumo(),
-    staleTime: 60_000,
-  });
-}
-
-export function useDashboardRecebimentos() {
-  return useQuery({
-    queryKey: ["dashboard", "recebimentos"],
-    queryFn: () => lanzaApi.dashboardRecebimentos(),
-    staleTime: 60_000,
-    retry: 1,
-    placeholderData: RECEBIMENTOS_INICIAL,
-  });
-}
-
-/** @deprecated Preferir useDashboardRecebimentos */
-export function useDashboardRecebimentosTotais() {
-  return useQuery({
-    queryKey: ["dashboard", "recebimentos", "totais"],
-    queryFn: () => lanzaApi.dashboardRecebimentosTotais(),
-    staleTime: 60_000,
-  });
-}
-
-/** @deprecated Preferir useDashboardRecebimentos */
-export function useDashboardRecebimentosAtrasados() {
-  return useQuery({
-    queryKey: ["dashboard", "recebimentos", "atrasados"],
-    queryFn: () => lanzaApi.dashboardRecebimentosAtrasados(),
     staleTime: 60_000,
   });
 }

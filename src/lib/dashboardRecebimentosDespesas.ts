@@ -1,6 +1,38 @@
 import type { ClienteDespesa, DashboardRecebimentoLinha } from "@/api/types";
+import { CategoriaDespesaCliente } from "@/lib/domain";
 import { brToIsoDate } from "@/lib/dateBr";
 import { formatPlaca } from "@/lib/format";
+
+export type CategoriaRecebimentoDashboard = {
+  id: "semanal" | "caucao" | "renegociacao";
+  categoria: string;
+  titulo: string;
+};
+
+export const CATEGORIAS_RECEBIMENTO_DASHBOARD: CategoriaRecebimentoDashboard[] = [
+  {
+    id: "semanal",
+    categoria: CategoriaDespesaCliente.LocacaoSemanal,
+    titulo: "Pagamento semanal",
+  },
+  { id: "caucao", categoria: CategoriaDespesaCliente.Caucao, titulo: "Caução" },
+  {
+    id: "renegociacao",
+    categoria: CategoriaDespesaCliente.Renegociacao,
+    titulo: "Renegociação",
+  },
+];
+
+export type RecebimentoCategoriaClassificado = {
+  totalEmAberto: number;
+  venceHoje: DashboardRecebimentoLinha[];
+  atrasados: DashboardRecebimentoLinha[];
+};
+
+export type RecebimentosPorCategoria = Record<
+  CategoriaRecebimentoDashboard["id"],
+  RecebimentoCategoriaClassificado
+>;
 
 function diasAtraso(vencimentoBr: string | null | undefined, hojeIso: string): number | null {
   const vencIso = brToIsoDate(String(vencimentoBr ?? ""));
@@ -86,4 +118,41 @@ export function classificarDespesasRecebimento(
 
 export function totalLinhasRecebimento(linhas: DashboardRecebimentoLinha[]): number {
   return Math.round(linhas.reduce((s, l) => s + l.valor, 0) * 100) / 100;
+}
+
+function categoriaDespesaMatch(d: ClienteDespesa, categoria: string): boolean {
+  return (d.categoria ?? "").trim().toLowerCase() === categoria.trim().toLowerCase();
+}
+
+export function filtrarDespesasPorCategoria(
+  despesas: ClienteDespesa[],
+  categoria: string,
+): ClienteDespesa[] {
+  return despesas.filter((d) => categoriaDespesaMatch(d, categoria));
+}
+
+export function totalDespesasEmAberto(despesas: ClienteDespesa[]): number {
+  return Math.round(
+    despesas.reduce((s, d) => s + (Number(d.valorMulta) || 0), 0) * 100,
+  ) / 100;
+}
+
+export function classificarRecebimentosPorCategoria(
+  despesas: ClienteDespesa[],
+  hojeBr: string,
+  hojeIso: string,
+): RecebimentosPorCategoria {
+  const resultado = {} as RecebimentosPorCategoria;
+
+  for (const cat of CATEGORIAS_RECEBIMENTO_DASHBOARD) {
+    const filtradas = filtrarDespesasPorCategoria(despesas, cat.categoria);
+    const { venceHoje, atrasados } = classificarDespesasRecebimento(filtradas, hojeBr, hojeIso);
+    resultado[cat.id] = {
+      totalEmAberto: totalDespesasEmAberto(filtradas),
+      venceHoje,
+      atrasados,
+    };
+  }
+
+  return resultado;
 }

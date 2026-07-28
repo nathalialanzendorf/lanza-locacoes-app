@@ -364,6 +364,24 @@ code {
   margin-top: 0.75rem;
 }
 
+.dashboard-recebimentos-categoria {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.dashboard-recebimentos-categoria__head {
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-recebimentos-categoria__head .dashboard-section__title {
+  font-size: 1.05rem;
+}
+
+.dashboard-recebimentos-categoria > .stat-grid {
+  margin-bottom: 0.5rem;
+}
+
 .dashboard-section .dashboard-recebimentos + .dashboard-recebimentos {
   margin-top: 1rem;
 }

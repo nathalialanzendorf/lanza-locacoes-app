@@ -22,8 +22,6 @@ export type Resumo = {
     semCliente?: number;
     semCondutor?: number;
   };
-  /** @deprecated use GET /api/dashboard/recebimentos/* */
-  recebimentos?: DashboardRecebimentos;
 };
 
 export type DashboardRecebimentoLinha = {
@@ -37,31 +35,6 @@ export type DashboardRecebimentoLinha = {
   vencimentoBr?: string | null;
   vencimentosBr?: string[];
   diasAtraso?: number | null;
-};
-
-export type DashboardRecebimentosTotais = {
-  semanal: number;
-  caucao: number;
-  renegociacao: number;
-};
-
-export type DashboardRecebimentos = {
-  dataReferenciaBr: string;
-  tituloPagamentoSemanal?: string;
-  totais: DashboardRecebimentosTotais;
-};
-
-/** @deprecated Preferir DashboardRecebimentos */
-export type DashboardRecebimentosTotaisResponse = {
-  dataReferenciaBr: string;
-  tituloPagamentoSemanal: string;
-  totais: DashboardRecebimentosTotais;
-};
-
-export type DashboardRecebimentosListaResponse = {
-  dataReferenciaBr: string;
-  tituloPagamentoSemanal?: string;
-  items: DashboardRecebimentoLinha[];
 };
 
 export type ListEnvelope<T> = {

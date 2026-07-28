@@ -6,9 +6,6 @@ import type {
   ClienteDespesa,
   CobrancasMeta,
   Contrato,
-  DashboardRecebimentos,
-  DashboardRecebimentosListaResponse,
-  DashboardRecebimentosTotaisResponse,
   DataEnvelope,
   Health,
   Infracao,
@@ -32,14 +29,6 @@ export const lanzaApi = {
   ...lanzaApiExtra,
   health: () => apiRequest<Health>("/health"),
   resumo: () => apiRequest<Resumo>("/api/resumo"),
-  dashboardRecebimentos: () =>
-    apiRequest<DashboardRecebimentos>("/api/dashboard/recebimentos"),
-  /** @deprecated Preferir dashboardRecebimentos */
-  dashboardRecebimentosTotais: () =>
-    apiRequest<DashboardRecebimentosTotaisResponse>("/api/dashboard/recebimentos/totais"),
-  /** @deprecated Preferir dashboardRecebimentos */
-  dashboardRecebimentosAtrasados: () =>
-    apiRequest<DashboardRecebimentosListaResponse>("/api/dashboard/recebimentos/atrasados"),
 
   listarClientes: (params?: { ativo?: boolean; cpf?: string; nome?: string; q?: string }) =>
     apiRequest<ListEnvelope<Cliente>>("/api/clientes", { params }),
