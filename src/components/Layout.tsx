@@ -37,7 +37,6 @@ const sharedNavSections: NavSection[] = [
     items: [
       { to: "/clientes", label: "Clientes" },
       { to: "/veiculos", label: "Veículos" },
-      { to: "/parceiros", label: "Parceiros" },
       { to: "/sync", label: "Syncs" },
     ],
   },
@@ -62,6 +61,7 @@ const moduleNavSections: NavSection[] = [
       { to: "/contratos", label: "Contratos" },
       { to: "/recebimentos", label: "Recebimentos" },
       { to: "/despesas", label: "Despesas" },
+      { to: "/parceiros", label: "Parceiros" },
       { to: "/movimentacao", label: "Movimentação" },
     ],
     subsections: [

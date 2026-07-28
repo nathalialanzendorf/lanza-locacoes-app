@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
+import { Toggle } from "@/components/Toggle";
 import { useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
@@ -36,6 +38,19 @@ export function SyncTipoSection({ syncId }: Props) {
   const [inferirLoading, setInferirLoading] = useState(false);
   const [inferirResult, setInferirResult] = useState<unknown>(null);
   const [inferirError, setInferirError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [placaFipe, setPlacaFipe] = useState("");
+  const [renavamFipe, setRenavamFipe] = useState("");
+
+  const isFipe = syncId === "fipe";
+
+  useEffect(() => {
+    if (!isFipe) return;
+    const p = searchParams.get("placa")?.trim();
+    const r = searchParams.get("renavam")?.trim();
+    if (p) setPlacaFipe(p);
+    if (r) setRenavamFipe(r);
+  }, [isFipe, searchParams]);
 
   const tipos = tiposRegistrosSync(syncId);
   const temRegistros = syncTemRegistros(syncId);
@@ -46,7 +61,7 @@ export function SyncTipoSection({ syncId }: Props) {
       tipos,
     });
 
-  const placaExecucao = temRegistros ? placaSync : opcoes.placa;
+  const placaExecucao = isFipe ? placaFipe : temRegistros ? placaSync : opcoes.placa;
   const globalOpts = useMemo(
     () => ({ dryRun: opcoes.dryRun, placa: placaExecucao }),
     [opcoes.dryRun, placaExecucao],
@@ -134,6 +149,49 @@ export function SyncTipoSection({ syncId }: Props) {
               ---Todos--- = frota inteira. Um veículo limita o sync e a listagem.
             </span>
           </label>
+        </section>
+      ) : isFipe ? (
+        <section className="form-card sync-options">
+          <h2 className="form-card__title">Veículo</h2>
+          <div className="form-grid">
+            <label className="field">
+              <span className="field__label">Placa</span>
+              <input
+                className="input"
+                value={placaFipe}
+                onChange={(e) => setPlacaFipe(e.target.value.toUpperCase())}
+                placeholder="ABC1D23"
+              />
+              <span className="field__hint">Vazio = atualizar FIPE de toda a frota ativa.</span>
+            </label>
+            <label className="field">
+              <span className="field__label">RENAVAM</span>
+              <input
+                className="input"
+                value={renavamFipe}
+                onChange={(e) => setRenavamFipe(e.target.value.replace(/\D/g, ""))}
+                placeholder="Referência do cadastro"
+              />
+            </label>
+            <Toggle
+              className="field"
+              checked={opcoes.asyncMode}
+              onChange={opcoes.setAsyncMode}
+              disabled={opcoes.dryRun}
+              label="Executar em background (recomendado)"
+            />
+            <Toggle
+              className="field"
+              checked={opcoes.dryRun}
+              onChange={opcoes.toggleDryRun}
+              label="Dry-run (simular, não grava)"
+            />
+          </div>
+          {opcoes.dryRun ? (
+            <p className="field__hint sync-dryrun-hint">
+              Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+            </p>
+          ) : null}
         </section>
       ) : (
         <SyncOpcoesGlobais

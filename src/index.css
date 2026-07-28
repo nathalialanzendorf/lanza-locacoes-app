@@ -1007,6 +1007,10 @@ code {
   opacity: 0.72;
 }
 
+.veiculo-fipe-panel__action {
+  margin-left: auto;
+}
+
 .form-card {
   background: var(--surface);
   border: 1px solid var(--border);

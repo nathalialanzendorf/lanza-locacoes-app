@@ -27,6 +27,7 @@ import {
 } from "@/lib/domain";
 import { VeiculoFipePanel } from "@/components/VeiculoFipePanel";
 import { fipeCamposDeVeiculo, type FipeCampos } from "@/lib/fipeDisplay";
+import { syncFipePath } from "@/lib/syncFipeNav";
 
 type Props = {
   veiculoId?: string;
@@ -163,6 +164,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
 
   const rotuloTipo = rotuloTipoVeiculoFrota(tipoFrota).toLowerCase();
   const titulo = editando ? `Editar veículo (${rotuloTipo})` : `Novo veículo (${rotuloTipo})`;
+  const consultaFipeTo = placa.trim() ? syncFipePath(placa, renavam) : undefined;
 
   if (carregando) {
     return (
@@ -176,10 +178,11 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
   return (
     <>
       <CadastroBackLink to={basePath} />
-      {editando ? (
+      {editando || consultaFipeTo ? (
         <VeiculoFipePanel
-          fipe={fipeDados}
-          emptyHint="Nenhum dado FIPE no cadastro — consulte na aba FIPE ou execute sync."
+          fipe={editando ? fipeDados : {}}
+          emptyHint="Nenhum dado FIPE no cadastro — use Syncs › FIPE para consultar e gravar."
+          consultaFipeTo={consultaFipeTo}
         />
       ) : null}
       <FormCard title={titulo} onSubmit={submit} loading={loading} error={error}>

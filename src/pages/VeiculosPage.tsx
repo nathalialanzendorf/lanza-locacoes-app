@@ -4,7 +4,6 @@ import { PageTabs } from "@/components/PageTabs";
 import { useVeiculo } from "@/api/hooks";
 import { VeiculosListSection } from "@/pages/veiculos/VeiculosListSection";
 import { VeiculosCadastroSection } from "@/pages/veiculos/VeiculosCadastroSection";
-import { VeiculosFipeSection } from "@/pages/veiculos/VeiculosFipeSection";
 import { VeiculosImportarSection } from "@/pages/veiculos/VeiculosImportarSection";
 import {
   TipoVeiculoFrota,
@@ -17,13 +16,12 @@ export function VeiculosPage() {
   return (
     <PageHeader
       title="Veículos"
-      description="Frota de locação — cadastro, consulta FIPE e importação de CRLV."
+      description="Frota de locação — cadastro e importação de CRLV."
     >
       <PageTabs
         ariaLabel="Veículos"
         tabs={[
           { to: veiculosBasePath(TipoVeiculoFrota.Locacao), label: "Locação", end: true },
-          { to: "/veiculos/fipe", label: "FIPE" },
         ]}
       />
       <Routes>
@@ -31,7 +29,7 @@ export function VeiculosPage() {
         <Route path="locacao/*" element={<VeiculosTipoRoutes tipoFrota={TipoVeiculoFrota.Locacao} />} />
         <Route path="particular/*" element={<RedirectVeiculosParticular />} />
         <Route path="venda/*" element={<RedirectVeiculosVenda />} />
-        <Route path="fipe" element={<VeiculosFipeSection />} />
+        <Route path="fipe" element={<Navigate to="/sync/fipe" replace />} />
         <Route path="novo" element={<Navigate to={`${veiculosBasePath(TipoVeiculoFrota.Locacao)}/novo`} replace />} />
         <Route path="importar" element={<Navigate to={`${veiculosBasePath(TipoVeiculoFrota.Locacao)}/importar`} replace />} />
         <Route path=":id/editar" element={<VeiculosEditarRedirect />} />

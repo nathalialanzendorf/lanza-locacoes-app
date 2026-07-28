@@ -1,10 +1,12 @@
 import type { FipeCampos } from "@/lib/fipeDisplay";
 import { temDadosFipe } from "@/lib/fipeDisplay";
+import { Link } from "react-router-dom";
 
 type Props = {
   fipe: FipeCampos;
   /** Exibido quando não há dados FIPE (somente leitura). */
   emptyHint?: string;
+  consultaFipeTo?: string;
 };
 
 function fipeUrl(raw?: string | null): string | null {
@@ -14,16 +16,23 @@ function fipeUrl(raw?: string | null): string | null {
   return null;
 }
 
-export function VeiculoFipePanel({ fipe, emptyHint }: Props) {
+export function VeiculoFipePanel({ fipe, emptyHint, consultaFipeTo }: Props) {
   const temDados = temDadosFipe(fipe);
   const url = fipeUrl(fipe.fipe);
 
   if (!temDados) {
-    if (!emptyHint) return null;
+    if (!emptyHint && !consultaFipeTo) return null;
     return (
       <section className="veiculo-fipe-panel veiculo-fipe-panel--empty" aria-label="Dados FIPE">
-        <h2 className="veiculo-fipe-panel__title">FIPE</h2>
-        <p className="veiculo-fipe-panel__empty">{emptyHint}</p>
+        <div className="veiculo-fipe-panel__head">
+          <h2 className="veiculo-fipe-panel__title">FIPE</h2>
+          {consultaFipeTo ? (
+            <Link to={consultaFipeTo} className="btn btn--ghost btn--sm veiculo-fipe-panel__action">
+              Consultar / atualizar FIPE
+            </Link>
+          ) : null}
+        </div>
+        {emptyHint ? <p className="veiculo-fipe-panel__empty">{emptyHint}</p> : null}
       </section>
     );
   }
@@ -38,6 +47,11 @@ export function VeiculoFipePanel({ fipe, emptyHint }: Props) {
       <div className="veiculo-fipe-panel__head">
         <h2 className="veiculo-fipe-panel__title">FIPE</h2>
         <span className="veiculo-fipe-panel__badge">Somente leitura</span>
+        {consultaFipeTo ? (
+          <Link to={consultaFipeTo} className="btn btn--ghost btn--sm veiculo-fipe-panel__action">
+            Atualizar FIPE
+          </Link>
+        ) : null}
         {referencia ? <span className="veiculo-fipe-panel__ref">Ref. {referencia}</span> : null}
       </div>
       {valor ? <p className="veiculo-fipe-panel__valor">{valor}</p> : null}
