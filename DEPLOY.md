@@ -46,6 +46,8 @@ Valores exatos: **[docs/vercel-env-api.md](https://github.com/nathalialanzendorf
 
 Já definido em `.env.production` — o build Vercel usa automaticamente.
 
+> **Segurança:** o frontend só precisa de variáveis `VITE_*`. **Não** coloque `PGHOST`, `AWS_*`, `PGPASSWORD` ou `LANZA_JWT_SECRET` no repo do app — elas vão no projeto Vercel da **API** (`lanza-locacoes-services`). Para aplicar ou rever: `lanza-locacoes-services/docs/vercel-env-api.md` ou `.\scripts\set-vercel-postgres-env.ps1`.
+
 ## Verificar ligação
 
 ```bash
