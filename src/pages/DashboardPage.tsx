@@ -9,17 +9,23 @@ import {
   useResumo,
   useContratos,
   useDashboardRecebimentos,
+  useDespesasCliente,
 } from "@/api/hooks";
-import { StatusContrato } from "@/lib/domain";
+import { StatusContrato, CategoriaDespesaCliente } from "@/lib/domain";
 import { formatBrl, formatPlaca, clienteExibicaoPorId } from "@/lib/format";
 import { LABEL } from "@/lib/labels";
 import { urlLancarRecebimento } from "@/lib/recebimentoUrl";
+import {
+  classificarDespesasRecebimento,
+  totalLinhasRecebimento,
+} from "@/lib/dashboardRecebimentosDespesas";
 import {
   PROXIMO_VENCER_DIAS,
   alertaVencimentoContrato,
   dataFimPrevistaContrato,
   hojeDataBr,
   hojeIsoBr,
+  nomeDiaSemanaBr,
   ordenarContratosRenovacao,
   rotuloAlertaVencimento,
   rowClassVencimentoContrato,
@@ -34,9 +40,7 @@ import type {
 const RECEBIMENTOS_VAZIO: DashboardRecebimentos = {
   dataReferenciaBr: "—",
   tituloPagamentoSemanal: "Pagamento semanal",
-  venceHoje: [],
-  atrasados: [],
-  totais: { venceHoje: 0, atrasado: 0, semanal: 0, caucao: 0, renegociacao: 0 },
+  totais: { semanal: 0, caucao: 0, renegociacao: 0 },
 };
 
 function vencimentoRecebimentoLinha(l: DashboardRecebimentoLinha): string {
@@ -293,14 +297,32 @@ export function DashboardPage() {
   const resumo = useResumo();
   const contratosQuery = useContratos({ status: StatusContrato.Ativo });
   const recebimentosQuery = useDashboardRecebimentos();
+  const despesasQuery = useDespesasCliente({
+    ativo: true,
+    emAberto: true,
+    categoria: CategoriaDespesaCliente.LocacaoSemanal,
+  });
   const rec = recebimentosQuery.data ?? RECEBIMENTOS_VAZIO;
   const hojeIso = hojeIsoBr();
   const hojeBr = hojeDataBr(hojeIso);
-  const linhasVenceHoje = rec.venceHoje;
-  const linhasAtrasados = rec.atrasados;
-  const recebimentosCarregando = recebimentosQuery.isFetching;
+  const tituloPagamentoSemanal = `Pagamento semanal (${nomeDiaSemanaBr()})`;
 
-  const contratosResumo = resumo.data?.contratos;
+  const { linhasVenceHoje, linhasAtrasados, totalVenceHoje, totalAtrasado } = useMemo(() => {
+    const { venceHoje, atrasados } = classificarDespesasRecebimento(
+      despesasQuery.data?.items ?? [],
+      hojeBr,
+      hojeIso,
+    );
+    return {
+      linhasVenceHoje: venceHoje,
+      linhasAtrasados: atrasados,
+      totalVenceHoje: totalLinhasRecebimento(venceHoje),
+      totalAtrasado: totalLinhasRecebimento(atrasados),
+    };
+  }, [despesasQuery.data, hojeBr, hojeIso]);
+
+  const recebimentosCarregando = recebimentosQuery.isFetching;
+  const despesasCarregando = despesasQuery.isFetching;
 
   const contratosVencimento = useMemo(() => {
     const vencidos: Contrato[] = [];
@@ -411,24 +433,6 @@ export function DashboardPage() {
         <header className="dashboard-section__head">
           <h2 className="dashboard-section__title">Contratos</h2>
         </header>
-        <div className="stat-grid stat-grid--compact">
-          <StatCard
-            title="Contratos ativos"
-            value={contratosResumo != null ? `${contratosResumo.ativos}` : "—"}
-            hint={contratosResumo != null ? `${contratosResumo.total} no total` : undefined}
-            tone="ok"
-          />
-          <StatCard
-            title="Vencidos"
-            value={contratosResumo != null ? `${contratosResumo.vencidos}` : "—"}
-            tone="warn"
-          />
-          <StatCard
-            title={`A vencer (${PROXIMO_VENCER_DIAS} dias)`}
-            value={contratosResumo != null ? `${contratosResumo.aVencer}` : "—"}
-            tone="warn"
-          />
-        </div>
         {contratosQuery.isLoading ? (
           <p className="field__hint">A carregar listagem de contratos…</p>
         ) : contratosQuery.isError ? (
@@ -461,7 +465,7 @@ export function DashboardPage() {
         <header className="dashboard-section__head">
           <h2 className="dashboard-section__title">
             Recebimentos — {hojeBr}
-            {recebimentosCarregando ? (
+            {recebimentosCarregando || despesasCarregando ? (
               <span className="field__hint dashboard-section__loading">A carregar…</span>
             ) : null}
           </h2>
@@ -471,20 +475,29 @@ export function DashboardPage() {
             message={
               recebimentosQuery.error instanceof LanzaApiError
                 ? recebimentosQuery.error.message
-                : "Falha ao carregar recebimentos."
+                : "Falha ao carregar totais de recebimentos."
+            }
+          />
+        ) : null}
+        {despesasQuery.isError ? (
+          <QueryError
+            message={
+              despesasQuery.error instanceof LanzaApiError
+                ? despesasQuery.error.message
+                : "Falha ao carregar despesas em aberto."
             }
           />
         ) : null}
         <div className="stat-grid stat-grid--compact">
           <StatCard
             title="Total vence hoje"
-            value={formatBrl(rec.totais.venceHoje)}
+            value={formatBrl(totalVenceHoje)}
             hint={`${linhasVenceHoje.length} locatário(s)`}
             tone="ok"
           />
           <StatCard
             title="Total em atraso"
-            value={formatBrl(rec.totais.atrasado)}
+            value={formatBrl(totalAtrasado)}
             hint={`${linhasAtrasados.length} locatário(s)`}
             tone="warn"
           />
@@ -504,12 +517,12 @@ export function DashboardPage() {
         </div>
 
         <RecebimentosTable
-          titulo={rec.tituloPagamentoSemanal ?? "Pagamento semanal"}
+          titulo={tituloPagamentoSemanal}
           linhas={linhasVenceHoje}
           colunaVeiculo="Veículo"
           mostrarAcaoRecebimento
           mostrarDescricao={false}
-          dataReferenciaBr={rec.dataReferenciaBr}
+          dataReferenciaBr={hojeBr}
         />
 
         <RecebimentosTable

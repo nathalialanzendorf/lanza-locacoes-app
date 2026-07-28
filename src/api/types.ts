@@ -40,8 +40,6 @@ export type DashboardRecebimentoLinha = {
 };
 
 export type DashboardRecebimentosTotais = {
-  venceHoje: number;
-  atrasado: number;
   semanal: number;
   caucao: number;
   renegociacao: number;
@@ -50,17 +48,14 @@ export type DashboardRecebimentosTotais = {
 export type DashboardRecebimentos = {
   dataReferenciaBr: string;
   tituloPagamentoSemanal?: string;
-  venceHoje: DashboardRecebimentoLinha[];
-  atrasados: DashboardRecebimentoLinha[];
   totais: DashboardRecebimentosTotais;
 };
 
+/** @deprecated Preferir DashboardRecebimentos */
 export type DashboardRecebimentosTotaisResponse = {
   dataReferenciaBr: string;
   tituloPagamentoSemanal: string;
   totais: DashboardRecebimentosTotais;
-  contagens: { venceHoje: number; atrasados: number };
-  venceHoje: DashboardRecebimentoLinha[];
 };
 
 export type DashboardRecebimentosListaResponse = {

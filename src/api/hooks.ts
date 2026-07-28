@@ -6,9 +6,7 @@ import type { StatusContratoValor, CategoriaMovimentacaoValor } from "@/lib/doma
 const RECEBIMENTOS_INICIAL: DashboardRecebimentos = {
   dataReferenciaBr: "—",
   tituloPagamentoSemanal: "Pagamento semanal",
-  venceHoje: [],
-  atrasados: [],
-  totais: { venceHoje: 0, atrasado: 0, semanal: 0, caucao: 0, renegociacao: 0 },
+  totais: { semanal: 0, caucao: 0, renegociacao: 0 },
 };
 
 export function useHealth() {
