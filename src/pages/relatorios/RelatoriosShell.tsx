@@ -1,14 +1,8 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { PageTabs } from "@/components/PageTabs";
 
-const RELATORIOS_LOCACAO_TABS = [
-  { to: "/relatorios/cobrancas", label: "Cobranças", end: true },
-  { to: "/relatorios/prestacao-contas", label: "Prestação de contas" },
-  { to: "/relatorios/encerramento", label: "Encerramento" },
-] as const;
-
-const RELATORIOS_CONSULTA_TABS = [
+export const RELATORIOS_CONSULTA_TABS = [
   { to: "/relatorios/veiculo", label: "Dados do veículo", end: true },
   { to: "/relatorios/infracoes", label: "Infrações" },
   { to: "/relatorios/pedagios", label: "Pedágio Digital" },
@@ -16,36 +10,68 @@ const RELATORIOS_CONSULTA_TABS = [
   { to: "/relatorios/fipe", label: "FIPE" },
 ] as const;
 
-function relatoriosLocacaoPath(pathname: string): boolean {
-  return (
-    pathname === "/relatorios/cobrancas" ||
-    pathname === "/relatorios/prestacao-contas" ||
-    pathname === "/relatorios/encerramento"
+const RELATORIOS_LOCACAO_TABS = [
+  { to: "/relatorios/cobrancas", label: "Cobranças", end: true },
+  { to: "/relatorios/prestacao-contas", label: "Prestação de contas" },
+  { to: "/relatorios/encerramento", label: "Encerramento" },
+] as const;
+
+export function relatoriosConsultaAtivo(pathname: string): boolean {
+  return RELATORIOS_CONSULTA_TABS.some((tab) =>
+    "end" in tab && tab.end
+      ? pathname === tab.to || pathname === `${tab.to}/`
+      : pathname.startsWith(tab.to),
   );
 }
 
-export function RelatoriosShell() {
-  const { pathname } = useLocation();
-  const locacao = relatoriosLocacaoPath(pathname);
+function relatoriosLocacaoAtivo(pathname: string): boolean {
+  return RELATORIOS_LOCACAO_TABS.some((tab) =>
+    "end" in tab && tab.end
+      ? pathname === tab.to || pathname === `${tab.to}/`
+      : pathname.startsWith(tab.to),
+  );
+}
 
+export { relatoriosLocacaoAtivo };
+
+export function RelatoriosConsultaShell() {
   return (
     <PageHeader
       title="Relatórios"
-      description={
-        locacao
-          ? "Cobranças, prestação de contas e encerramento de contrato — operação de locação."
-          : "Consultas por veículo — DETRAN, pedágio digital, estacionamento SigaPay e FIPE."
-      }
+      description="Consultas por veículo — DETRAN, pedágio digital, estacionamento SigaPay e FIPE."
     >
-      <PageTabs
-        ariaLabel="Relatórios"
-        tabs={locacao ? [...RELATORIOS_LOCACAO_TABS] : [...RELATORIOS_CONSULTA_TABS]}
-      />
+      <PageTabs ariaLabel="Relatórios" tabs={[...RELATORIOS_CONSULTA_TABS]} />
       <Outlet />
     </PageHeader>
   );
 }
 
-export function RelatoriosIndexRedirect() {
+export function RelatoriosLocacaoShell() {
+  return (
+    <PageHeader
+      title="Relatórios"
+      description="Cobranças, prestação de contas e encerramento de contrato — operação de locação."
+    >
+      <PageTabs ariaLabel="Relatórios" tabs={[...RELATORIOS_LOCACAO_TABS]} />
+      <Outlet />
+    </PageHeader>
+  );
+}
+
+/** @deprecated Use RelatoriosConsultaShell ou RelatoriosLocacaoShell */
+export function RelatoriosShell() {
+  return <RelatoriosConsultaShell />;
+}
+
+export function RelatoriosConsultaIndexRedirect() {
+  return <Navigate to="veiculo" replace />;
+}
+
+export function RelatoriosLocacaoIndexRedirect() {
   return <Navigate to="cobrancas" replace />;
+}
+
+/** @deprecated */
+export function RelatoriosIndexRedirect() {
+  return <RelatoriosConsultaIndexRedirect />;
 }

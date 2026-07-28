@@ -12,6 +12,16 @@ import { ApiKeyBanner } from "./ApiKeyBanner";
 import { BrandMark } from "./BrandMark";
 import { IconClose, IconMenu } from "./icons";
 import { RastreameEspelhoToggle } from "./RastreameEspelhoToggle";
+import { relatoriosConsultaAtivo, relatoriosLocacaoAtivo } from "@/pages/relatorios/RelatoriosShell";
+import { TipoVeiculoFrota, veiculosModuloAtivo } from "@/lib/domain";
+
+function relatoriosConsultaNavAtivo(pathname: string): boolean {
+  return pathname === "/relatorios" || relatoriosConsultaAtivo(pathname);
+}
+
+function relatoriosLocacaoNavAtivo(pathname: string): boolean {
+  return relatoriosLocacaoAtivo(pathname);
+}
 
 type NavItem = {
   to: string;
@@ -36,18 +46,12 @@ const sharedNavSections: NavSection[] = [
   {
     items: [
       { to: "/clientes", label: "Clientes" },
-      { to: "/veiculos", label: "Veículos" },
       { to: "/sync", label: "Syncs" },
-    ],
-  },
-  {
-    title: "Relatórios",
-    items: [
-      { to: "/relatorios/veiculo", label: "Dados do veículo" },
-      { to: "/relatorios/infracoes", label: "Infrações" },
-      { to: "/relatorios/pedagios", label: "Pedágio Digital" },
-      { to: "/relatorios/estacionamento", label: "SigaPay" },
-      { to: "/relatorios/fipe", label: "FIPE" },
+      {
+        to: "/relatorios",
+        label: "Relatórios",
+        isActive: (pathname) => relatoriosConsultaNavAtivo(pathname),
+      },
     ],
   },
 ];
@@ -61,24 +65,30 @@ const moduleNavSections: NavSection[] = [
       { to: "/contratos", label: "Contratos" },
       { to: "/recebimentos", label: "Recebimentos" },
       { to: "/despesas", label: "Despesas" },
+      {
+        to: "/veiculos",
+        label: "Veículos",
+        isActive: (pathname) => veiculosModuloAtivo(pathname, TipoVeiculoFrota.Locacao),
+      },
       { to: "/parceiros", label: "Parceiros" },
       { to: "/movimentacao", label: "Movimentação" },
-    ],
-    subsections: [
       {
-        title: "Relatórios",
-        items: [
-          { to: "/relatorios/cobrancas", label: "Cobranças" },
-          { to: "/relatorios/prestacao-contas", label: "Prestação de contas" },
-          { to: "/relatorios/encerramento", label: "Encerramento" },
-        ],
+        to: "/relatorios/cobrancas",
+        label: "Relatórios",
+        isActive: (pathname) => relatoriosLocacaoNavAtivo(pathname),
       },
     ],
   },
   {
     title: "Particular",
     module: "particular",
-    items: [{ to: "/particular", label: "Veículos" }],
+    items: [
+      {
+        to: "/particular",
+        label: "Veículos",
+        isActive: (pathname) => veiculosModuloAtivo(pathname, TipoVeiculoFrota.Particular),
+      },
+    ],
   },
   {
     title: "Venda",
@@ -95,7 +105,7 @@ const moduleNavSections: NavSection[] = [
       {
         to: "/venda/veiculos",
         label: "Veículos",
-        isActive: (pathname) => pathname.startsWith("/venda/veiculos"),
+        isActive: (pathname) => veiculosModuloAtivo(pathname, TipoVeiculoFrota.Venda),
       },
     ],
   },

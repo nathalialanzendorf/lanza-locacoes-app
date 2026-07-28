@@ -96,6 +96,7 @@ export {
   tipoFrotaDeVeiculo,
   rotuloTipoVeiculoFrota,
   veiculosBasePath,
+  veiculosModuloAtivo,
   abaVeiculoPath,
   type TipoVeiculoFrotaValor,
 } from "@/lib/domain/tipoVeiculoFrota";

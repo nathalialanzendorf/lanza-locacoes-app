@@ -50,7 +50,12 @@ export function tipoFrotaDeVeiculo(v: VeiculoTipoInput): TipoVeiculoFrotaValor {
 export function veiculosBasePath(tipo: TipoVeiculoFrotaValor): string {
   if (tipo === TipoVeiculoFrota.Venda) return "/venda/veiculos";
   if (tipo === TipoVeiculoFrota.Particular) return "/particular";
-  return `/veiculos/${tipo}`;
+  return "/veiculos";
+}
+
+export function veiculosModuloAtivo(pathname: string, tipo: TipoVeiculoFrotaValor): boolean {
+  const base = veiculosBasePath(tipo);
+  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
 export function abaVeiculoPath(v: VeiculoTipoInput): string {

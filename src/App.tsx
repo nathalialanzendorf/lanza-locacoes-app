@@ -40,15 +40,17 @@ import { RelatorioEncerramentoForm } from "@/pages/relatorios/RelatorioEncerrame
 import { RelatorioPrestacaoContasForm } from "@/pages/relatorios/RelatorioPrestacaoContasForm";
 
 import {
-
-  RelatoriosIndexRedirect,
-
-  RelatoriosShell,
-
+  RelatoriosConsultaIndexRedirect,
+  RelatoriosConsultaShell,
+  RelatoriosLocacaoShell,
 } from "@/pages/relatorios/RelatoriosShell";
 
-import { VeiculosPage } from "@/pages/VeiculosPage";
-import { ParticularPage } from "@/pages/ParticularPage";
+import { VeiculosModulePage } from "@/pages/veiculos/VeiculosModulePage";
+import {
+  RedirectVeiculosLegado,
+  VeiculosEditarRedirect,
+} from "@/pages/veiculos/VeiculosLegacyRoutes";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { VendaPage } from "@/pages/VendaPage";
 import { SyncPage } from "@/pages/SyncPage";
 
@@ -102,9 +104,31 @@ export default function App() {
 
                 <Route path="clientes/*" element={<ClientesPage />} />
 
-                <Route path="veiculos/*" element={<VeiculosPage />} />
+                <Route path="veiculos/:id/editar" element={<VeiculosEditarRedirect />} />
+                <Route
+                  path="veiculos/locacao/*"
+                  element={<RedirectVeiculosLegado destinoBase="/veiculos" />}
+                />
+                <Route
+                  path="veiculos/particular/*"
+                  element={<RedirectVeiculosLegado destinoBase="/particular" />}
+                />
+                <Route
+                  path="veiculos/venda/*"
+                  element={<RedirectVeiculosLegado destinoBase="/venda/veiculos" />}
+                />
+                <Route path="veiculos/fipe" element={<Navigate to="/sync/fipe" replace />} />
+                <Route
+                  path="veiculos/*"
+                  element={<VeiculosModulePage tipoFrota={TipoVeiculoFrota.Locacao} />}
+                />
 
-                <Route path="particular/*" element={<ParticularPage />} />
+                <Route
+                  path="particular/*"
+                  element={<VeiculosModulePage tipoFrota={TipoVeiculoFrota.Particular} />}
+                />
+
+                <Route path="venda/veiculos/*" element={<VeiculosModulePage tipoFrota={TipoVeiculoFrota.Venda} />} />
 
                 <Route path="venda/*" element={<VendaPage />} />
 
@@ -122,24 +146,20 @@ export default function App() {
 
                 <Route path="sync/*" element={<SyncPage />} />
 
-                <Route path="relatorios" element={<RelatoriosShell />}>
-
-                  <Route index element={<RelatoriosIndexRedirect />} />
-
-                  <Route path="cobrancas" element={<RelatorioCobrancasForm />} />
-
-                  <Route path="prestacao-contas" element={<RelatorioPrestacaoContasForm />} />
-
-                  <Route path="encerramento" element={<RelatorioEncerramentoForm />} />
-
-                  <Route path="infracoes" element={<RelatorioInfracoesSection />} />
-
-                  <Route path="pedagios" element={<RelatorioPedagiosSection />} />
-                  <Route path="estacionamento" element={<RelatorioEstacionamentoSection />} />
-                  <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
-
-                  <Route path="fipe" element={<RelatorioFipeSection />} />
-
+                <Route path="relatorios">
+                  <Route element={<RelatoriosConsultaShell />}>
+                    <Route index element={<RelatoriosConsultaIndexRedirect />} />
+                    <Route path="infracoes" element={<RelatorioInfracoesSection />} />
+                    <Route path="pedagios" element={<RelatorioPedagiosSection />} />
+                    <Route path="estacionamento" element={<RelatorioEstacionamentoSection />} />
+                    <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
+                    <Route path="fipe" element={<RelatorioFipeSection />} />
+                  </Route>
+                  <Route element={<RelatoriosLocacaoShell />}>
+                    <Route path="cobrancas" element={<RelatorioCobrancasForm />} />
+                    <Route path="prestacao-contas" element={<RelatorioPrestacaoContasForm />} />
+                    <Route path="encerramento" element={<RelatorioEncerramentoForm />} />
+                  </Route>
                 </Route>
 
                 <Route path="locacoes" element={<Navigate to="/movimentacao" replace />} />
