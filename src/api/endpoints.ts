@@ -6,6 +6,7 @@ import type {
   ClienteDespesa,
   CobrancasMeta,
   Contrato,
+  DashboardRecebimentos,
   DashboardRecebimentosListaResponse,
   DashboardRecebimentosTotaisResponse,
   DataEnvelope,
@@ -31,8 +32,12 @@ export const lanzaApi = {
   ...lanzaApiExtra,
   health: () => apiRequest<Health>("/health"),
   resumo: () => apiRequest<Resumo>("/api/resumo"),
+  dashboardRecebimentos: () =>
+    apiRequest<DashboardRecebimentos>("/api/dashboard/recebimentos"),
+  /** @deprecated Preferir dashboardRecebimentos */
   dashboardRecebimentosTotais: () =>
     apiRequest<DashboardRecebimentosTotaisResponse>("/api/dashboard/recebimentos/totais"),
+  /** @deprecated Preferir dashboardRecebimentos */
   dashboardRecebimentosAtrasados: () =>
     apiRequest<DashboardRecebimentosListaResponse>("/api/dashboard/recebimentos/atrasados"),
 

@@ -57,6 +57,7 @@ export type DashboardRecebimentosTotaisResponse = {
   tituloPagamentoSemanal: string;
   totais: DashboardRecebimentosTotais;
   contagens: { venceHoje: number; atrasados: number };
+  venceHoje: DashboardRecebimentoLinha[];
 };
 
 export type DashboardRecebimentosListaResponse = {

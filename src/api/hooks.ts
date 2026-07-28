@@ -19,6 +19,15 @@ export function useResumo() {
   });
 }
 
+export function useDashboardRecebimentos() {
+  return useQuery({
+    queryKey: ["dashboard", "recebimentos"],
+    queryFn: () => lanzaApi.dashboardRecebimentos(),
+    staleTime: 60_000,
+  });
+}
+
+/** @deprecated Preferir useDashboardRecebimentos */
 export function useDashboardRecebimentosTotais() {
   return useQuery({
     queryKey: ["dashboard", "recebimentos", "totais"],
@@ -27,6 +36,7 @@ export function useDashboardRecebimentosTotais() {
   });
 }
 
+/** @deprecated Preferir useDashboardRecebimentos */
 export function useDashboardRecebimentosAtrasados() {
   return useQuery({
     queryKey: ["dashboard", "recebimentos", "atrasados"],
