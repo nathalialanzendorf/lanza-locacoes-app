@@ -23,6 +23,7 @@ import {
   type StatusDespesaCadastro,
 } from "@/lib/domain";
 import { descricaoPagamentoSemanalDeVencimentoBr } from "@/lib/pagamentoSemanal";
+import { mergeDespesaClienteNoCache } from "@/lib/despesaClienteCache";
 
 type Props = {
   despesaId?: string;
@@ -136,6 +137,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           ...statusCampos,
         });
         setResult(r);
+        mergeDespesaClienteNoCache(qc, r.data);
       } else {
         const r = await lanzaApi.criarDespesaCliente(veiculoId.trim(), {
           autoInfracao: `WEB-${Date.now()}`,
@@ -157,9 +159,10 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           ...statusCampos,
         });
         setResult(r);
+        mergeDespesaClienteNoCache(qc, r.data);
       }
-      void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
       navigate("/despesas/cliente");
+      void qc.invalidateQueries({ queryKey: ["despesas-cliente"], refetchType: "none" });
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao gravar despesa.");
     } finally {
