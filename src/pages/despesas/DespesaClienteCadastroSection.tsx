@@ -177,7 +177,8 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     try {
       const r = await lanzaApi.confirmarClienteDespesa(despesaId, clienteId.trim() || null);
       setResult(r);
-      void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
+      mergeDespesaClienteNoCache(qc, r.data);
+      void qc.invalidateQueries({ queryKey: ["despesas-cliente"], refetchType: "none" });
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao confirmar cliente.");
     } finally {
