@@ -156,3 +156,11 @@ export function classificarRecebimentosPorCategoria(
 
   return resultado;
 }
+
+export function juntarLinhasVenceHoje(porCategoria: RecebimentosPorCategoria): DashboardRecebimentoLinha[] {
+  const linhas: DashboardRecebimentoLinha[] = [];
+  for (const cat of CATEGORIAS_RECEBIMENTO_DASHBOARD) {
+    linhas.push(...porCategoria[cat.id].venceHoje);
+  }
+  return linhas.sort(ordenarLinhas);
+}
