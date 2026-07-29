@@ -1,6 +1,7 @@
 import type { ClienteDespesa } from "@/api/types";
 import { formatBrl } from "@/lib/format";
 import { despesaElegivelBaixaCliente } from "@/lib/despesaClienteStatus";
+import { vencimentoDespesaSortMs } from "@/lib/despesaVencimentoSort";
 
 export type OpcaoPendenciaDespesa = {
   id: string;
@@ -9,13 +10,6 @@ export type OpcaoPendenciaDespesa = {
   vencimentoBr: string;
   label: string;
 };
-
-function vencimentoSortMs(vencimentoBr?: string | null): number {
-  const m = String(vencimentoBr ?? "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return 0;
-  const [, dd, mm, yyyy] = m;
-  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
-}
 
 function valorDespesaCliente(d: ClienteDespesa): number {
   const v = Number(d.valorMulta);
@@ -46,8 +40,8 @@ export function montarOpcoesPendenciaDespesa(despesas: ClienteDespesa[]): OpcaoP
     })
     .filter((o): o is OpcaoPendenciaDespesa => o != null)
     .sort((a, b) => {
-      const ta = vencimentoSortMs(a.vencimentoBr);
-      const tb = vencimentoSortMs(b.vencimentoBr);
+      const ta = vencimentoDespesaSortMs(a.vencimentoBr);
+      const tb = vencimentoDespesaSortMs(b.vencimentoBr);
       if (ta !== tb) return tb - ta;
       return a.label.localeCompare(b.label, "pt-BR");
     });

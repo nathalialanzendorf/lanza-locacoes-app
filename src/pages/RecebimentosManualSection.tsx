@@ -1,21 +1,38 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { DataTable } from "@/components/DataTable";
 import { Field, FormCard } from "@/components/FormCard";
 import { DateInput } from "@/components/DateInput";
 import { ClienteSelect, NativeSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
+import { Toggle } from "@/components/Toggle";
 import { useDespesasCliente } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError, FlashSuccess } from "@/context/ScreenFlashContext";
-import type { ClienteDespesa } from "@/api/types";
+import type { LinhaPlanoBaixa, PlanoBaixa, ClienteDespesa } from "@/api/types";
 import { formatBrl, formatValorInput, parseValorInput } from "@/lib/format";
 import { montarOpcoesPendenciaDespesa } from "@/lib/pendenciaDespesaOpcoes";
 import { isEntityUuid } from "@/lib/uuid";
 
+const ROTULO_TIPO_BAIXA: Record<NonNullable<PlanoBaixa["tipoBaixa"]>, string> = {
+  integral: "Baixa integral",
+  parcial: "Baixa parcial",
+  integral_desconto: "Baixa integral com desconto",
+};
+
 function compactPlaca(placa: string): string {
   return placa.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
+
+function rotuloEfeitoLinha(l: LinhaPlanoBaixa): string {
+  const patch = l.patch ?? {};
+  if (l.operacao === "criar" && patch.paga === true) return "Quitado (valor pago)";
+  if (l.operacao === "criar") return "Nova parcela em aberto";
+  if (l.operacao === "atualizar" && patch.paga === true) return "Quitado";
+  if (l.operacao === "atualizar") return "Saldo em atraso";
+  return "ΓÇö";
 }
 
 function placaDespesa(d: ClienteDespesa): string {
@@ -39,8 +56,11 @@ export function RecebimentosManualSection() {
   const [despesaId, setDespesaId] = useState("");
   const [dataBr, setDataBr] = useState(dataBrUrl);
   const [valor, setValor] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [loadingPlano, setLoadingPlano] = useState(false);
+  const [planoError, setPlanoError] = useState<string | null>(null);
+  const [plano, setPlano] = useState<PlanoBaixa | null>(null);
+  const [linhasSel, setLinhasSel] = useState<Set<number>>(new Set());
+  const [loadingExec, setLoadingExec] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
   const [execSuccess, setExecSuccess] = useState<string | null>(null);
 
@@ -78,11 +98,11 @@ export function RecebimentosManualSection() {
     const pago = parseValorInput(valor);
     if (pago == null) return null;
     const diff = Math.round((despesaSel.valor - pago) * 100) / 100;
-    if (diff < 0.01) return "Baixa integral da pendência selecionada.";
+    if (diff < 0.01) return "Baixa integral da pend├¬ncia selecionada.";
     if (pago > despesaSel.valor + 0.009) {
-      return `Máximo permitido: ${formatBrl(despesaSel.valor)} (valor da pendência).`;
+      return `M├íximo permitido: ${formatBrl(despesaSel.valor)} (valor da pend├¬ncia).`;
     }
-    return `Baixa parcial: ${formatBrl(pago)} quitado · ${formatBrl(diff)} permanece em aberto na mesma pendência.`;
+    return `Baixa parcial: ${formatBrl(pago)} quitado ┬╖ ${formatBrl(diff)} permanece em aberto na mesma pend├¬ncia.`;
   }, [despesaSel, valor]);
 
   useEffect(() => {
@@ -110,6 +130,7 @@ export function RecebimentosManualSection() {
 
   function onDespesaChange(id: string) {
     setDespesaId(id);
+    setPlano(null);
     setExecSuccess(null);
     if (!id) {
       setValor("");
@@ -140,59 +161,82 @@ export function RecebimentosManualSection() {
     return escopo?.veiculoId?.trim() || null;
   }
 
-  async function executarBaixa() {
+  async function montarPlano() {
     if (!clienteId.trim()) {
-      setFormError("Selecione um cliente.");
+      setPlanoError("Selecione um cliente.");
       return;
     }
     if (!despesaSel) {
-      setFormError(
-        "Selecione uma pendência em aberto. Cadastre a despesa em Despesas → Cliente antes da baixa.",
+      setPlanoError(
+        "Selecione uma pend├¬ncia em aberto. Cadastre a despesa em Despesas ΓåÆ Cliente antes da baixa.",
       );
       return;
     }
     const escopoVeiculo = despesaRegistro ? escopoVeiculoDespesa(despesaRegistro) : null;
     if (!escopoVeiculo) {
-      setFormError("A pendência selecionada não tem veículo associado.");
+      setPlanoError("A pend├¬ncia selecionada n├úo tem ve├¡culo associado.");
       return;
     }
     const valorNum = parseValorInput(valor);
     if (valorNum == null || valorNum <= 0) {
-      setFormError("Informe o valor recebido.");
+      setPlanoError("Informe o valor recebido.");
       return;
     }
     if (valorNum > despesaSel.valor + 0.009) {
-      setFormError(
-        `Valor recebido (${formatBrl(valorNum)}) não pode ser maior que o devido (${formatBrl(despesaSel.valor)}).`,
+      setPlanoError(
+        `Valor recebido (${formatBrl(valorNum)}) n├úo pode ser maior que o devido (${formatBrl(despesaSel.valor)}).`,
       );
       return;
     }
     if (!dataBr.trim()) {
-      setFormError("Informe a data do pagamento.");
+      setPlanoError("Informe a data do pagamento.");
       return;
     }
 
-    setLoading(true);
-    setFormError(null);
-    setExecError(null);
+    setLoadingPlano(true);
+    setPlanoError(null);
+    setPlano(null);
     setExecSuccess(null);
     try {
-      const planoRes = await lanzaApi.montarPlanoRecebimento({
+      const r = await lanzaApi.montarPlanoRecebimento({
         clienteId: clienteId.trim(),
         ...escopoVeiculo,
         despesaId: despesaSel.id,
         valor: valorNum,
         dataBr: dataBr.trim(),
       });
-      const plano = planoRes.data;
-      if (!plano.linhas.length) {
-        setFormError(
-          plano.avisos?.[0] ?? "Nenhuma linha de baixa gerada para este pagamento.",
+      if (!r.data.linhas.length) {
+        setPlanoError(
+          r.data.avisos?.[0] ?? "Nenhuma linha de baixa gerada para este pagamento.",
         );
+        setPlano(null);
         return;
       }
+      setPlano(r.data);
+      setLinhasSel(new Set(r.data.linhas.map((l) => l.num)));
+    } catch (err) {
+      setPlanoError(err instanceof LanzaApiError ? err.message : "Falha ao montar plano.");
+    } finally {
+      setLoadingPlano(false);
+    }
+  }
 
-      const linhas = plano.linhas;
+  function toggleLinha(num: number) {
+    setLinhasSel((prev) => {
+      const next = new Set(prev);
+      if (next.has(num)) next.delete(num);
+      else next.add(num);
+      return next;
+    });
+  }
+
+  async function executar() {
+    if (!plano) return;
+    setLoadingExec(true);
+    setExecError(null);
+    setExecSuccess(null);
+    try {
+      const linhas = plano.linhas.filter((l) => linhasSel.has(l.num));
       const escopoVeiculoId =
         plano.despesaAlvo?.veiculoId?.trim() ||
         plano.linhas.map((l) => l.veiculoId?.trim()).find((id) => id && isEntityUuid(id)) ||
@@ -202,7 +246,7 @@ export function RecebimentosManualSection() {
         linhas,
         clienteId: plano.cliente.id,
         veiculoId: escopoVeiculoId,
-        despesaId: despesaSel.id,
+        despesaId: despesaSel?.id,
         syncRastreame: false,
       });
       const aplicadas =
@@ -215,27 +259,23 @@ export function RecebimentosManualSection() {
       setExecSuccess(
         `Baixa aplicada com sucesso (${aplicadas} linha${aplicadas === 1 ? "" : "s"}).`,
       );
-      setDespesaId("");
-      setValor("");
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
     } catch (err) {
       setExecError(err instanceof LanzaApiError ? err.message : "Falha ao executar baixa.");
     } finally {
-      setLoading(false);
+      setLoadingExec(false);
     }
   }
 
   return (
     <>
-      <FlashError message={execError} />
-      <FlashSuccess message={execSuccess} />
       <FormCard
         className="form-card--compact"
-        title="Baixa manual"
-        onSubmit={executarBaixa}
-        loading={loading}
-        submitLabel="Executar baixa"
-        error={formError}
+        title="Montar plano de baixa"
+        onSubmit={montarPlano}
+        loading={loadingPlano}
+        submitLabel="Montar plano"
+        error={planoError}
       >
         <Field label="Cliente">
           <ClienteSelect
@@ -243,7 +283,7 @@ export function RecebimentosManualSection() {
             onChange={onClienteChange}
             variant="cadastro"
             required
-            disabled={loading}
+            disabled={loadingPlano}
           />
         </Field>
         {despesasQuery.isError ? (
@@ -251,29 +291,29 @@ export function RecebimentosManualSection() {
             message={
               despesasQuery.error instanceof LanzaApiError
                 ? despesasQuery.error.message
-                : "Falha ao carregar pendências do cliente."
+                : "Falha ao carregar pend├¬ncias do cliente."
             }
           />
         ) : null}
         <Field label="Data do pagamento">
-          <DateInput value={dataBr} onChange={setDataBr} required disabled={loading} />
+          <DateInput value={dataBr} onChange={setDataBr} required disabled={loadingPlano} />
         </Field>
         <Field
-          label="Pendência em aberto"
+          label="Pend├¬ncia em aberto"
           span="wide"
           hint={
             clienteSelecionado
               ? despesaSel
-                ? `Devido ${formatBrl(despesaSel.valor)} · placa ${placaExibicao() ?? "—"} · pode receber valor parcial (até o total)`
+                ? `Devido ${formatBrl(despesaSel.valor)} ┬╖ placa ${placaExibicao() ?? "ΓÇö"} ┬╖ pode receber valor parcial (at├⌐ o total)`
                 : opcoesDespesa.length === 0
                   ? (
                       <>
-                        Nenhuma pendência —{" "}
+                        Nenhuma pend├¬ncia ΓÇö{" "}
                         <Link to="/despesas/cliente/novo">cadastre a despesa</Link> antes da baixa.
                       </>
                     )
                   : "Selecione a despesa cadastrada a quitar"
-              : "Selecione o cliente para listar pendências"
+              : "Selecione o cliente para listar pend├¬ncias"
           }
         >
           <div className="recebimentos-valor-campos">
@@ -282,14 +322,14 @@ export function RecebimentosManualSection() {
               onChange={onDespesaChange}
               variant="cadastro"
               required
-              disabled={loading || !clienteSelecionado || loadingDespesas}
+              disabled={loadingPlano || !clienteSelecionado || loadingDespesas}
               loading={loadingDespesas}
               emptyLabel={
                 clienteSelecionado && !loadingDespesas && opcoesDespesa.length === 0
-                  ? "Nenhuma pendência em aberto"
+                  ? "Nenhuma pend├¬ncia em aberto"
                   : undefined
               }
-              aria-label="Pendência em aberto"
+              aria-label="Pend├¬ncia em aberto"
             >
               {opcoesDespesa.map((o) => (
                 <option key={o.id} value={o.id}>
@@ -304,7 +344,7 @@ export function RecebimentosManualSection() {
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               required
-              disabled={loading || !clienteSelecionado || !despesaId}
+              disabled={loadingPlano || !clienteSelecionado || !despesaId}
               placeholder="0,00"
               aria-label="Valor recebido"
             />
@@ -312,6 +352,71 @@ export function RecebimentosManualSection() {
           {valorParcialHint ? <p className="field__hint">{valorParcialHint}</p> : null}
         </Field>
       </FormCard>
+
+      {plano ? (
+        <section className="form-card">
+          <h2 className="form-card__title">Confirmar linhas ({plano.linhas.length})</h2>
+          {plano.tipoBaixa ? (
+            <p className="field__hint">
+              <strong>{ROTULO_TIPO_BAIXA[plano.tipoBaixa]}</strong>
+              {plano.despesaAlvo
+                ? ` ┬╖ devido ${formatBrl(plano.despesaAlvo.valorDevido)} ┬╖ recebido ${formatBrl(plano.pagamento?.valor ?? parseValorInput(valor) ?? 0)}`
+                : null}
+            </p>
+          ) : null}
+          {plano.avisos?.map((a) => (
+            <p key={a} className="field__hint">
+              {a}
+            </p>
+          ))}
+          <DataTable
+            rows={plano.linhas}
+            keyFn={(l) => String(l.num)}
+            columns={[
+              {
+                key: "sel",
+                header: "",
+                sortable: false,
+                render: (l) => (
+                  <Toggle
+                    checked={linhasSel.has(l.num)}
+                    onChange={() => toggleLinha(l.num)}
+                    size="compact"
+                    aria-label={`Selecionar linha ${l.num}`}
+                  />
+                ),
+              },
+              { key: "num", header: "#", sortValue: (l) => l.num, render: (l) => l.num },
+              { key: "operacao", header: "Opera├º├úo", sortValue: (l) => l.operacao, render: (l) => l.operacao },
+              { key: "descricao", header: "Descri├º├úo", sortValue: (l) => l.descricao ?? "", render: (l) => l.descricao ?? "ΓÇö" },
+              {
+                key: "efeito",
+                header: "Efeito",
+                sortValue: (l) => rotuloEfeitoLinha(l),
+                render: (l) => rotuloEfeitoLinha(l),
+              },
+              {
+                key: "valor",
+                header: "Valor",
+                className: "num",
+                sortValue: (l) => l.total ?? 0,
+                render: (l) => formatBrl(l.total ?? 0),
+              },
+            ]}
+          />
+          <p className="field__hint">Valor recebido: {formatBrl(parseValorInput(valor) ?? 0)}</p>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={loadingExec || linhasSel.size === 0}
+            onClick={() => void executar()}
+          >
+            {loadingExec ? "A aplicarΓÇª" : `Executar baixa (${linhasSel.size})`}
+          </button>
+          <FlashError message={execError} />
+          <FlashSuccess message={execSuccess} />
+        </section>
+      ) : null}
     </>
   );
 }

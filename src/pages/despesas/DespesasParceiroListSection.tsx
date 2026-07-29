@@ -18,6 +18,10 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatVeiculoLabel } from "@/lib/format";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
+import {
+  ordenarDespesasParceiroPorVencimentoDesc,
+  vencimentoParceiroSortMs,
+} from "@/lib/despesaVencimentoSort";
 import { CATEGORIAS_DESPESA_PARCEIRO } from "@/lib/parceiroDespesaCategorias";
 import {
   STATUS_DESPESA_FILTRO_OPCOES,
@@ -62,7 +66,10 @@ export function DespesasParceiroListSection() {
   const veiculosQuery = useVeiculos();
   const veiculos = veiculosQuery.data?.items;
 
-  const rows = query.data?.items ?? [];
+  const rows = useMemo(
+    () => ordenarDespesasParceiroPorVencimentoDesc(query.data?.items ?? []),
+    [query.data],
+  );
   const temFiltro =
     pagamento !== StatusDespesaFiltro.EmAberto ||
     Boolean(parceiroId || veiculoId || categoria || periodoPreenchido(periodo));
@@ -169,6 +176,7 @@ export function DespesasParceiroListSection() {
         loading={query.isLoading}
         rows={rows}
         keyFn={(d) => d.id}
+        defaultSort={{ key: "vencimento", direction: "desc" }}
         emptyMessage={temFiltro ? "Nenhuma despesa corresponde aos filtros." : "Nenhuma despesa registada."}
         columns={[
           {
@@ -182,7 +190,7 @@ export function DespesasParceiroListSection() {
           {
             key: "vencimento",
             header: "Vencimento",
-            sortValue: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "",
+            sortValue: (d) => vencimentoParceiroSortMs(d),
             render: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "—",
           },
           {

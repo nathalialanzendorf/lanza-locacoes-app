@@ -26,6 +26,10 @@ import { urlLancarRecebimentoDespesa } from "@/lib/recebimentoUrl";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import { rotuloCategoriaDespesa } from "@/lib/pedagioLabels";
 import {
+  ordenarDespesasPorVencimentoDesc,
+  vencimentoDespesaSortMs,
+} from "@/lib/despesaVencimentoSort";
+import {
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
   STATUS_DESPESA_FILTRO_OPCOES,
   StatusDespesaFiltro,
@@ -45,13 +49,6 @@ function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): str
   );
   if (v) return formatVeiculoLabel(v);
   return formatVeiculoLabel({ placa: d.placa ?? d.veiculoId });
-}
-
-function vencimentoSortMs(vencimentoBr?: string | null): number {
-  const m = String(vencimentoBr ?? "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return 0;
-  const [, dd, mm, yyyy] = m;
-  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd));
 }
 
 export function DespesasClienteListSection() {
@@ -77,7 +74,10 @@ export function DespesasClienteListSection() {
   const veiculosQuery = useVeiculos();
   const veiculos = veiculosQuery.data?.items;
 
-  const rows = query.data?.items ?? [];
+  const rows = useMemo(
+    () => ordenarDespesasPorVencimentoDesc(query.data?.items ?? []),
+    [query.data],
+  );
   const temFiltro = Boolean(
     pagamento !== StatusDespesaFiltro.EmAberto ||
       clienteId ||
@@ -204,7 +204,7 @@ export function DespesasClienteListSection() {
           },
           { key: "desc", header: "Descrição", sortValue: (d) => d.descricao?.trim() || "", render: (d) => d.descricao?.trim() || "—" },
           { key: "categoria", header: "Categoria", sortValue: (d) => rotuloCategoriaDespesa(d.categoria), render: (d) => rotuloCategoriaDespesa(d.categoria) },
-          { key: "vencimento", header: "Vencimento", sortValue: (d) => vencimentoSortMs(d.vencimentoBr), render: (d) => d.vencimentoBr?.trim() || "—" },
+          { key: "vencimento", header: "Vencimento", sortValue: (d) => vencimentoDespesaSortMs(d.vencimentoBr), render: (d) => d.vencimentoBr?.trim() || "—" },
           {
             key: "valor",
             header: "Valor",
