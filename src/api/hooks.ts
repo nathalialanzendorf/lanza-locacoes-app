@@ -155,10 +155,14 @@ export function useParceiros(opts?: { ativo?: boolean; nome?: string; q?: string
   });
 }
 
-export function useVinculosParceiro(params?: { veiculoId?: string; parceiroId?: string }) {
+export function useVinculosParceiro(
+  params?: { veiculoId?: string; parceiroId?: string },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["parceiros-vinculos", params],
     queryFn: () => lanzaApi.listarVinculosParceiro(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

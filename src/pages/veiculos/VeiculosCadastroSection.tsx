@@ -48,12 +48,14 @@ function origemCadastroWeb(tipo: TipoVeiculoFrotaValor): string {
 export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
   const basePath = veiculosBasePath(tipoFrota);
   const frotaLocacao = tipoFrota === TipoVeiculoFrota.Locacao;
+  const mostrarParceiro = tipoFrota !== TipoVeiculoFrota.Venda;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const editando = Boolean(veiculoId);
 
   const vinculosQuery = useVinculosParceiro(
     veiculoId ? { veiculoId } : undefined,
+    { enabled: mostrarParceiro },
   );
   const contratosQuery = useContratos(
     { status: StatusContrato.Ativo },
@@ -95,10 +97,10 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
   }
 
   useEffect(() => {
-    if (!editando || !veiculoId) return;
+    if (!mostrarParceiro || !editando || !veiculoId) return;
     const vinculo = vinculosQuery.data?.items?.[0];
     if (vinculo?.parceiroId) setParceiroId(vinculo.parceiroId);
-  }, [editando, veiculoId, vinculosQuery.data]);
+  }, [mostrarParceiro, editando, veiculoId, vinculosQuery.data]);
 
   useEffect(() => {
     if (!veiculoId) return;
@@ -140,7 +142,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
         renavam: renavam.trim() || undefined,
         cor: cor.trim() || undefined,
         ufRegistro: ufRegistro.trim() || undefined,
-        parceiroId: parceiroId.trim() || undefined,
+        ...(mostrarParceiro ? { parceiroId: parceiroId.trim() || undefined } : {}),
         ativo,
         tipoFrota,
         ...(editando ? {} : { origem: origemCadastroWeb(tipoFrota) }),
@@ -153,7 +155,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
       }
 
       void qc.invalidateQueries({ queryKey: ["veiculos"] });
-      void qc.invalidateQueries({ queryKey: ["parceiros"] });
+      if (mostrarParceiro) void qc.invalidateQueries({ queryKey: ["parceiros"] });
       navigate(basePath);
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao gravar veículo.");
@@ -212,9 +214,11 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
         <Field label="UF registro">
           <input className="input" value={ufRegistro} onChange={(e) => setUfRegistro(e.target.value)} />
         </Field>
-        <Field label="Parceiro (proprietário)">
-          <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="cadastro" disabled={loading} />
-        </Field>
+        {mostrarParceiro ? (
+          <Field label="Parceiro (proprietário)">
+            <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="cadastro" disabled={loading} />
+          </Field>
+        ) : null}
         <Field
           label="Status"
           hint={
