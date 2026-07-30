@@ -150,8 +150,10 @@ export function RecebimentosManualSection() {
 
   function escopoVeiculoDespesa(d: ClienteDespesa): { veiculoId?: string; placa?: string } | null {
     const raw = d.veiculoId?.trim();
-    if (raw && isEntityUuid(raw)) return { veiculoId: raw };
-    const placa = d.placa?.trim() || raw;
+    const placa = d.placa?.trim() || (raw && !isEntityUuid(raw) ? raw : "");
+    if (raw && isEntityUuid(raw)) {
+      return placa ? { veiculoId: raw, placa } : { veiculoId: raw };
+    }
     return placa ? { placa } : null;
   }
 

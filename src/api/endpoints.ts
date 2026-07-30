@@ -257,7 +257,12 @@ export const lanzaApi = {
     despesaId: string;
     valor: number;
     dataBr: string;
-  }) => apiRequest<{ data: PlanoBaixa }>("/api/recebimentos/plano", { method: "POST", body }),
+  }) =>
+    apiRequest<{ data: PlanoBaixa }>("/api/recebimentos/plano", {
+      method: "POST",
+      body,
+      timeoutMs: 60_000,
+    }),
   executarRecebimento: (body: {
     linhas: PlanoBaixa["linhas"];
     clienteId?: string;
