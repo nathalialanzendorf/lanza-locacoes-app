@@ -208,8 +208,9 @@ export function RecebimentosManualSection() {
         dataBr: dataBr.trim(),
       });
       if (!r.data.linhas.length) {
+        const detalhe = r.data.avisos?.filter(Boolean).join(" · ");
         setPlanoError(
-          r.data.avisos?.[0] ?? "Nenhuma linha de baixa gerada para este pagamento.",
+          detalhe || "Nenhuma linha de baixa gerada para este pagamento.",
         );
         setPlano(null);
         return;
