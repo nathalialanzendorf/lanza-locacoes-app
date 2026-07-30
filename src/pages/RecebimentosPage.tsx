@@ -6,10 +6,7 @@ import { PagBankRecebimentosSection } from "@/pages/PagBankRecebimentosSection";
 
 export function RecebimentosPage() {
   return (
-    <PageHeader
-      title="Recebimentos"
-      description="Baixa manual ou lote PagBank — grava em Lanza; espelho Rastreame opcional (barra lateral)."
-    >
+    <PageHeader title="Recebimentos">
       <PageTabs
         ariaLabel="Recebimentos"
         tabs={[
