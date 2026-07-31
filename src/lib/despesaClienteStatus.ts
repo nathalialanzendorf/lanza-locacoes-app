@@ -1,6 +1,12 @@
 import type { ClienteDespesa } from "@/api/types";
 import { SituacaoDespesa } from "@/lib/domain";
 
+/**
+ * Status de despesa cliente:
+ * - `paga` = recebimento na conta Lanza (caixa).
+ * - `situacao` = texto externo (DETRAN, pedágio, estacionamento…) — pode indicar
+ *   pagamento fora da Lanza sem quitar o débito conosco.
+ */
 export type BadgeStatusDespesa = "ok" | "warn" | "danger" | "muted";
 
 function norm(s?: string | null): string {
@@ -40,9 +46,7 @@ function debitoVencido(d: ClienteDespesa, ref = new Date()): boolean {
 }
 
 function pagaLanza(d: ClienteDespesa): boolean {
-  if (d.paga === true) return true;
-  const sit = norm(d.situacao);
-  return sit === "registrado" || sit === "pago";
+  return d.paga === true;
 }
 
 function pagaDetran(d: ClienteDespesa): boolean {
@@ -86,9 +90,8 @@ export function rotuloStatusDespesaCliente(d: ClienteDespesa): string {
 }
 
 export function badgeStatusDespesaCliente(d: ClienteDespesa): BadgeStatusDespesa {
-  if (d.ativo === false) return "muted";
-  if (pagaLanza(d) || pagaDetran(d)) return "ok";
-  if (advertida(d) || justificada(d)) return "muted";
+  if (pagaLanza(d)) return "ok";
+  if (pagaDetran(d) || advertida(d) || justificada(d)) return "muted";
 
   const rotulo = norm(rotuloStatusDespesaCliente(d));
   if (rotulo.includes("vencid")) return "danger";
@@ -105,7 +108,6 @@ export function badgeStatusDespesaCliente(d: ClienteDespesa): BadgeStatusDespesa
 
 /** Débito cobrável ao locatário (linha em destaque vermelho). */
 export function despesaCobravelCliente(d: ClienteDespesa): boolean {
-  if (d.ativo === false) return false;
   if (pagaLanza(d)) return false;
 
   if (isCategoriaInfracao(d.categoria)) {
@@ -113,7 +115,7 @@ export function despesaCobravelCliente(d: ClienteDespesa): boolean {
     return true;
   }
 
-  return !pagaLanza(d);
+  return d.paga !== true;
 }
 
 export function despesaElegivelBaixaCliente(d: ClienteDespesa): boolean {

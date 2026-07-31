@@ -61,7 +61,6 @@ export function DespesasClienteListSection() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasCliente({
-    ativo: true,
     emAberto: filtroPagamentoParaEmAberto(pagamento),
     clienteId: clienteId || undefined,
     veiculoId: veiculoId || undefined,

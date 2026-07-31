@@ -311,7 +311,6 @@ export function DashboardPage() {
   const resumo = useResumo();
   const contratosQuery = useContratos({ status: StatusContrato.Ativo });
   const despesasQuery = useDespesasCliente({
-    ativo: true,
     emAberto: true,
   });
   const hojeIso = hojeIsoBr();

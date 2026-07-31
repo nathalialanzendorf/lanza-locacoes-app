@@ -66,7 +66,6 @@ export function useSyncRegistrosLinhas({ veiculoId, semConfirmacao, tipos }: Par
     {
       veiculoId: veiculoIdFiltro,
       emAberto: true,
-      ativo: true,
     },
     { enabled: incluirDespesas },
   );

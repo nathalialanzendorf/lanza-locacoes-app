@@ -68,7 +68,6 @@ export function RecebimentosManualSection() {
   const despesasQuery = useDespesasCliente(
     {
       emAberto: true,
-      ativo: true,
       clienteId: clienteSelecionado || undefined,
     },
     { enabled: Boolean(clienteSelecionado) },

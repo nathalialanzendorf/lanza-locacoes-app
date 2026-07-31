@@ -35,10 +35,10 @@ function situacaoLabel(d: ClienteDespesa): { text: string; className: string } {
   if (/pago|quitad/i.test(raw)) {
     return { text: raw, className: "badge badge--ok" };
   }
-  if (/aberto|atrasad/i.test(raw) || /ATRASADO/i.test(d.descricao ?? "")) {
+  if (/aberto|atrasad/i.test(raw)) {
     return { text: raw || "Em aberto", className: "badge badge--warn" };
   }
-  return { text: raw || "—", className: "badge badge--muted" };
+  return { text: raw || "Em aberto", className: "badge badge--warn" };
 }
 
 export function RelatorioPedagiosSection() {
@@ -64,7 +64,6 @@ export function RelatorioPedagiosSection() {
     dataFinal: periodo.dataFinal.trim() || undefined,
     emAberto,
     semCliente: semResponsavel || undefined,
-    ativo: true,
   });
   const veiculosQuery = useVeiculos({ ativo: true, tipoFrota: TipoVeiculoFrota.Locacao });
 

@@ -163,6 +163,7 @@ export type ClienteDespesa = {
   descricao?: string;
   valorMulta?: number;
   paga?: boolean;
+  /** Status externo (DETRAN, pedágio, estacionamento…). Não indica recebimento na Lanza — ver `paga`. */
   ativo?: boolean;
   situacao?: string;
   autoInfracao?: string;
