@@ -200,10 +200,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         loading={loading}
         error={error}
       >
-        <Field
-          label="Cliente"
-          hint="Locatário responsável — pode ser diferente do veículo (ex.: manutenção com carro reserva)"
-        >
+        <Field label="Cliente">
           <ClienteSelect
             value={clienteId}
             onChange={onClienteChange}
@@ -212,10 +209,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             disabled={loading}
           />
         </Field>
-        <Field
-          label="Veículo"
-          hint="Qualquer veículo da frota — ex.: carro reserva durante manutenção do contrato"
-        >
+        <Field label="Veículo">
           <VeiculoSelect
             value={veiculoId}
             onChange={onVeiculoChange}
@@ -252,7 +246,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             required
           />
         </Field>
-        <Field label="Vencimento" hint="Digite ou use o calendário">
+        <Field label="Vencimento">
           <DateInput
             value={dataVencimento}
             onChange={setDataVencimento}

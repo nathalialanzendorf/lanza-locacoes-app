@@ -157,7 +157,7 @@ export function MovimentacaoListSection() {
               ))}
             </NativeSelect>
           </label>
-          <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} />
+          <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} hint="" />
         </div>
         {!query.isLoading ? (
           <p className="field__hint">

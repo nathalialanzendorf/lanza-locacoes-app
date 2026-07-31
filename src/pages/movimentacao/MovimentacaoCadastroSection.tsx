@@ -139,7 +139,7 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
         error={error}
       >
         <div className="form-grid">
-          <Field label="Cliente" hint="Locatários com contrato ativo">
+          <Field label="Cliente">
             <ClienteSelect
               value={clienteId}
               onChange={setClienteId}
@@ -149,10 +149,7 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
               disabled={loading}
             />
           </Field>
-          <Field
-            label="Veículo"
-            hint="Qualquer veículo da frota — ex.: reserva durante manutenção"
-          >
+          <Field label="Veículo">
             <VeiculoSelect
               value={veiculoId}
               onChange={onVeiculoChange}

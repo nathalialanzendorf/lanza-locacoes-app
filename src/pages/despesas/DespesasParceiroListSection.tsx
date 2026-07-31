@@ -151,11 +151,7 @@ export function DespesasParceiroListSection() {
               ))}
             </NativeSelect>
           </label>
-          <RelatorioPeriodoFiltro
-            value={periodo}
-            onChange={setPeriodo}
-            hint="Despesas com vencimento no intervalo inclusivo"
-          />
+          <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} hint="" />
         </div>
         {!query.isLoading ? (
           <p className="field__hint">

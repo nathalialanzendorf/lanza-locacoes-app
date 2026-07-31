@@ -5,10 +5,7 @@ import { MovimentacaoCadastroSection } from "@/pages/movimentacao/MovimentacaoCa
 
 export function MovimentacaoPage() {
   return (
-    <PageHeader
-      title="Movimentação"
-      description="Locado, reserva, manutenção e trocas — registos em locacoes.json."
-    >
+    <PageHeader title="Movimentação">
       <Routes>
         <Route index element={<MovimentacaoListSection />} />
         <Route path="novo" element={<MovimentacaoCadastroSection />} />

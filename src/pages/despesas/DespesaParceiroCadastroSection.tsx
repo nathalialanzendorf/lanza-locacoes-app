@@ -157,7 +157,7 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
             required
           />
         </Field>
-        <Field label="Data (vencimento)" hint="Digite ou use o calendário">
+        <Field label="Vencimento">
           <DateInput value={data} onChange={setData} required disabled={loading} />
         </Field>
       </FormCard>
