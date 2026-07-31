@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -7,7 +7,8 @@ import { ClienteSelect, VeiculoSelect, matchVeiculoSelectValue, NativeSelect } f
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { ResultPanel } from "@/components/ResultPanel";
-import { useVeiculos } from "@/api/hooks";
+import { useContratos, useVeiculos } from "@/api/hooks";
+import type { Contrato } from "@/api/types";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { clienteIdDe } from "@/lib/clienteCampo";
@@ -16,6 +17,7 @@ import {
   CategoriaDespesaCliente,
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
   STATUS_DESPESA_CADASTRO_OPCOES,
+  StatusContrato,
   StatusDespesaFiltro,
   camposStatusDespesaDeCadastro,
   statusCadastroDeDespesa,
@@ -29,11 +31,23 @@ type Props = {
   despesaId?: string;
 };
 
+function veiculoRefDeContrato(c: Contrato): string | undefined {
+  return c.veiculoId?.trim() || c.veiculo?.placa?.trim() || c.placa?.trim() || undefined;
+}
+
+function contratoAtivoMaisRecente(contratos: Contrato[]): Contrato | undefined {
+  if (!contratos.length) return undefined;
+  return [...contratos].sort((a, b) =>
+    (b.dataInicio ?? "").localeCompare(a.dataInicio ?? "", "pt-BR"),
+  )[0];
+}
+
 export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const editando = Boolean(despesaId);
   const veiculosQuery = useVeiculos();
+  const veiculoEscolhidoManualmente = useRef(false);
 
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState<CategoriaDespesaClienteCadastro>(
@@ -44,11 +58,16 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const [dataVencimento, setDataVencimento] = useState("");
   const [status, setStatus] = useState<StatusDespesaCadastro>(StatusDespesaFiltro.EmAberto);
   const [pagaEm, setPagaEm] = useState<string | null>(null);
-  const [clienteId, setClienteId] = useState("");
   const [carregando, setCarregando] = useState(editando);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
+  const [clienteId, setClienteIdState] = useState("");
+
+  const contratosClienteQuery = useContratos(
+    { status: StatusContrato.Ativo, clienteId: clienteId.trim() || undefined },
+    { enabled: !editando && Boolean(clienteId.trim()) },
+  );
 
   useEffect(() => {
     if (!despesaId) return;
@@ -63,6 +82,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         const veiculoRef = d.placa ?? d.veiculoId;
         if (veiculoRef) {
           setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+          veiculoEscolhidoManualmente.current = true;
         }
         if (d.categoria) setCategoria(d.categoria as CategoriaDespesaClienteCadastro);
         if (d.descricao) setDescricao(d.descricao);
@@ -74,7 +94,10 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         setStatus(statusCadastroDeDespesa(d));
         setPagaEm(d.pagaEmBr ?? null);
         const id = clienteIdDe(d);
-        if (id) setClienteId(id);
+        if (id) {
+          setClienteIdState(id);
+          veiculoEscolhidoManualmente.current = true;
+        }
       })
       .catch((err) => {
         if (cancelado) return;
@@ -94,15 +117,27 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     if (auto) setDescricao(auto);
   }, [categoria, dataVencimento, editando]);
 
+  useEffect(() => {
+    if (editando || !clienteId.trim() || veiculoEscolhidoManualmente.current) return;
+    const contrato = contratoAtivoMaisRecente(contratosClienteQuery.data?.items ?? []);
+    const ref = contrato ? veiculoRefDeContrato(contrato) : undefined;
+    if (!ref) return;
+    const sugerido = matchVeiculoSelectValue(veiculosQuery.data?.items, ref, "id");
+    if (sugerido) setVeiculoId(sugerido);
+  }, [clienteId, contratosClienteQuery.data, veiculosQuery.data, editando]);
+
   function onVeiculoChange(id: string) {
     setVeiculoId(id);
+    veiculoEscolhidoManualmente.current = true;
     if (!id || clienteId.trim()) return;
     const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
-    if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
+    if (v?.clienteVinculadoId) setClienteIdState(v.clienteVinculadoId);
   }
 
   function onClienteChange(id: string) {
-    setClienteId(id);
+    setClienteIdState(id);
+    if (veiculoEscolhidoManualmente.current) return;
+    setVeiculoId("");
   }
 
   async function gravar() {
@@ -281,7 +316,12 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           error={null}
         >
           <Field label="Cliente">
-            <ClienteSelect value={clienteId} onChange={setClienteId} variant="cadastro" disabled={loading} />
+            <ClienteSelect
+              value={clienteId}
+              onChange={setClienteIdState}
+              variant="cadastro"
+              disabled={loading}
+            />
           </Field>
         </FormCard>
       ) : null}

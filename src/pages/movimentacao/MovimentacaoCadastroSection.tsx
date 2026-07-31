@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -7,12 +7,14 @@ import { ClienteSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue } f
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { ResultPanel } from "@/components/ResultPanel";
-import { useVeiculos } from "@/api/hooks";
+import { useContratos, useVeiculos } from "@/api/hooks";
+import type { Contrato } from "@/api/types";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import {
   CATEGORIA_MOVIMENTACAO_OPCOES,
   CategoriaMovimentacao,
+  StatusContrato,
   TipoLocacao,
   isCategoriaMovimentacaoValor,
   isTipoLocacaoValor,
@@ -24,11 +26,23 @@ type Props = {
   locacaoId?: string;
 };
 
+function veiculoRefDeContrato(c: Contrato): string | undefined {
+  return c.veiculoId?.trim() || c.veiculo?.placa?.trim() || c.placa?.trim() || undefined;
+}
+
+function contratoAtivoMaisRecente(contratos: Contrato[]): Contrato | undefined {
+  if (!contratos.length) return undefined;
+  return [...contratos].sort((a, b) =>
+    (b.dataInicio ?? "").localeCompare(a.dataInicio ?? "", "pt-BR"),
+  )[0];
+}
+
 export function MovimentacaoCadastroSection({ locacaoId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const veiculosQuery = useVeiculos();
   const editando = Boolean(locacaoId);
+  const veiculoEscolhidoManualmente = useRef(false);
 
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState<CategoriaMovimentacaoValor>(CategoriaMovimentacao.Locado);
@@ -41,6 +55,11 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<unknown>(null);
+
+  const contratosClienteQuery = useContratos(
+    { status: StatusContrato.Ativo, clienteId: clienteId.trim() || undefined },
+    { enabled: !editando && Boolean(clienteId.trim()) },
+  );
 
   useEffect(() => {
     if (!locacaoId) return;
@@ -60,6 +79,7 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
               : "";
         if (veiculoRef) {
           setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
+          veiculoEscolhidoManualmente.current = true;
         }
         const categoriaRaw = typeof l.situacao === "string" ? l.situacao : undefined;
         if (isCategoriaMovimentacaoValor(categoriaRaw)) setCategoria(categoriaRaw);
@@ -67,7 +87,10 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
         if (isTipoLocacaoValor(tipoRaw)) setTipoLocacao(tipoRaw);
         if (typeof l.inicio === "string") setInicio(l.inicio);
         if (typeof l.fim === "string") setFim(l.fim);
-        if (typeof l.clienteId === "string") setClienteId(l.clienteId);
+        if (typeof l.clienteId === "string") {
+          setClienteId(l.clienteId);
+          veiculoEscolhidoManualmente.current = true;
+        }
         if (typeof l.observacao === "string") setObservacao(l.observacao);
       })
       .catch((err) => {
@@ -82,11 +105,27 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
     };
   }, [locacaoId, veiculosQuery.data]);
 
+  useEffect(() => {
+    if (editando || !clienteId.trim() || veiculoEscolhidoManualmente.current) return;
+    const contrato = contratoAtivoMaisRecente(contratosClienteQuery.data?.items ?? []);
+    const ref = contrato ? veiculoRefDeContrato(contrato) : undefined;
+    if (!ref) return;
+    const sugerido = matchVeiculoSelectValue(veiculosQuery.data?.items, ref, "id");
+    if (sugerido) setVeiculoId(sugerido);
+  }, [clienteId, contratosClienteQuery.data, veiculosQuery.data, editando]);
+
   function onVeiculoChange(id: string) {
     setVeiculoId(id);
+    veiculoEscolhidoManualmente.current = true;
     if (!id || clienteId.trim()) return;
     const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
     if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
+  }
+
+  function onClienteChange(id: string) {
+    setClienteId(id);
+    if (veiculoEscolhidoManualmente.current) return;
+    setVeiculoId("");
   }
 
   async function submit() {
@@ -142,7 +181,7 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
           <Field label="Cliente">
             <ClienteSelect
               value={clienteId}
-              onChange={setClienteId}
+              onChange={onClienteChange}
               somenteContratoAtivo
               required
               variant="cadastro"
