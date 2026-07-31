@@ -3,17 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue } from "@/components/EntitySelects";
+import { ClienteSelect, VeiculoSelect, NativeSelect, matchVeiculoSelectValue } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { ResultPanel } from "@/components/ResultPanel";
-import { useVeiculos, useVinculosParceiro } from "@/api/hooks";
+import { useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import {
   CATEGORIA_MOVIMENTACAO_OPCOES,
   CategoriaMovimentacao,
-  TIPO_LOCACAO_OPCOES,
   TipoLocacao,
   isCategoriaMovimentacaoValor,
   isTipoLocacaoValor,
@@ -29,11 +28,9 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const veiculosQuery = useVeiculos();
-  const vinculosQuery = useVinculosParceiro();
   const editando = Boolean(locacaoId);
 
   const [veiculoId, setVeiculoId] = useState("");
-  const [parceiroId, setParceiroId] = useState("");
   const [categoria, setCategoria] = useState<CategoriaMovimentacaoValor>(CategoriaMovimentacao.Locado);
   const [tipoLocacao, setTipoLocacao] = useState<TipoLocacaoValor>(TipoLocacao.Semanal);
   const [inicio, setInicio] = useState("");
@@ -85,49 +82,26 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
     };
   }, [locacaoId, veiculosQuery.data]);
 
-  useEffect(() => {
-    if (!veiculoId.trim() || !veiculosQuery.data || !vinculosQuery.data) return;
-    const vinculo = (vinculosQuery.data.items ?? []).find((x) => x.veiculoId === veiculoId.trim());
-    if (vinculo?.parceiroId) setParceiroId(vinculo.parceiroId);
-  }, [veiculoId, veiculosQuery.data, vinculosQuery.data]);
-
   function onVeiculoChange(id: string) {
     setVeiculoId(id);
-    if (!id) {
-      setParceiroId("");
-      return;
-    }
+    if (!id || clienteId.trim()) return;
     const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
     if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
-    const vinculo = (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === id);
-    setParceiroId(vinculo?.parceiroId ?? "");
-  }
-
-  function onParceiroChange(id: string) {
-    setParceiroId(id);
-    if (!id || !veiculoId) return;
-    const vinculo = (vinculosQuery.data?.items ?? []).find((x) => x.veiculoId === veiculoId);
-    if (vinculo?.parceiroId !== id) setVeiculoId("");
-  }
-
-  function onClienteChange(id: string) {
-    setClienteId(id);
-    if (!id || !veiculoId) return;
-    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === veiculoId);
-    if (v?.clienteVinculadoId && v.clienteVinculadoId !== id) setVeiculoId("");
   }
 
   async function submit() {
     setLoading(true);
     setError(null);
     try {
+      if (!clienteId.trim()) throw new Error("Selecione um cliente.");
       if (!veiculoId.trim()) throw new Error("Selecione um veículo.");
+      if (!inicio.trim()) throw new Error("Informe a data de início.");
       const body = {
         veiculoId: veiculoId.trim(),
         situacao: categoria,
         inicio: inicio.trim(),
         fim: fim.trim() || null,
-        clienteId: clienteId.trim() || null,
+        clienteId: clienteId.trim(),
         tipoLocacao: categoria === CategoriaMovimentacao.Locado ? tipoLocacao : null,
         observacao: observacao.trim() || null,
       };
@@ -165,30 +139,25 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
         error={error}
       >
         <div className="form-grid">
-          <Field label="Veículo">
-            <VeiculoSelect
-              value={veiculoId}
-              onChange={onVeiculoChange}
-              valueField="id"
-              clienteId={clienteId || undefined}
-              parceiroId={parceiroId || undefined}
+          <Field label="Cliente" hint="Locatários com contrato ativo">
+            <ClienteSelect
+              value={clienteId}
+              onChange={setClienteId}
+              somenteContratoAtivo
               required
               variant="cadastro"
               disabled={loading}
             />
           </Field>
-          <Field label="Parceiro">
-            <ParceiroSelect
-              value={parceiroId}
-              onChange={onParceiroChange}
-              variant="cadastro"
-              disabled={loading}
-            />
-          </Field>
-          <Field label="Cliente">
-            <ClienteSelect
-              value={clienteId}
-              onChange={onClienteChange}
+          <Field
+            label="Veículo"
+            hint="Qualquer veículo da frota — ex.: reserva durante manutenção"
+          >
+            <VeiculoSelect
+              value={veiculoId}
+              onChange={onVeiculoChange}
+              valueField="id"
+              required
               variant="cadastro"
               disabled={loading}
             />
@@ -212,33 +181,21 @@ export function MovimentacaoCadastroSection({ locacaoId }: Props) {
             </NativeSelect>
           </Field>
         </div>
-        {categoria === CategoriaMovimentacao.Locado ? (
-          <Field label="Tipo de locação">
-            <NativeSelect
-              value={tipoLocacao}
-              onChange={(v) => {
-                if (isTipoLocacaoValor(v)) setTipoLocacao(v);
-              }}
-              variant="cadastro"
-              allowEmpty={false}
-              disabled={loading}
-            >
-              {TIPO_LOCACAO_OPCOES.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </NativeSelect>
+        <div className="form-grid">
+          <Field label="Início">
+            <DateInput value={inicio} onChange={setInicio} required disabled={loading} />
           </Field>
-        ) : null}
-        <Field label="Início">
-          <DateInput value={inicio} onChange={setInicio} required disabled={loading} />
-        </Field>
-        <Field label="Fim (opcional)">
-          <DateInput value={fim} onChange={setFim} disabled={loading} />
-        </Field>
+          <Field label="Fim (opcional)">
+            <DateInput value={fim} onChange={setFim} disabled={loading} />
+          </Field>
+        </div>
         <Field label="Observação">
-          <input className="input" value={observacao} onChange={(e) => setObservacao(e.target.value)} disabled={loading} />
+          <input
+            className="input"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            disabled={loading}
+          />
         </Field>
       </FormCard>
       <ResultPanel title="Movimentação gravada" data={result} />

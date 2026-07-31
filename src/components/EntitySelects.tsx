@@ -118,18 +118,43 @@ function clienteValue(c: Cliente, field: "id" | "cpf" | "nome"): string {
 export type ClienteSelectProps = SelectBaseProps & {
   valueField?: "id" | "cpf" | "nome";
   ativo?: boolean;
+  /** Somente clientes com contrato ativo (inclui o valor já selecionado). */
+  somenteContratoAtivo?: boolean;
 };
 
-export function ClienteSelect({ valueField = "id", ativo, variant = "cadastro", value, onChange, ...props }: ClienteSelectProps) {
+export function ClienteSelect({
+  valueField = "id",
+  ativo,
+  somenteContratoAtivo,
+  variant = "cadastro",
+  value,
+  onChange,
+  ...props
+}: ClienteSelectProps) {
   const query = useClientes(ativo === undefined ? undefined : { ativo });
+  const contratosQuery = useContratos(
+    { status: StatusContrato.Ativo },
+    { enabled: somenteContratoAtivo === true },
+  );
+  const idsContratoAtivo = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of contratosQuery.data?.items ?? []) {
+      const id = c.clienteId?.trim();
+      if (id) set.add(id);
+    }
+    return set;
+  }, [contratosQuery.data]);
   const items = useMemo(() => {
-    const list = [...(query.data?.items ?? [])].sort((a, b) =>
-      (a.nome ?? a.id).localeCompare(b.nome ?? b.id, "pt-BR"),
-    );
+    let list = [...(query.data?.items ?? [])];
+    if (somenteContratoAtivo) {
+      const atual = value?.trim();
+      list = list.filter((c) => idsContratoAtivo.has(c.id) || c.id === atual);
+    }
+    list.sort((a, b) => (a.nome ?? a.id).localeCompare(b.nome ?? b.id, "pt-BR"));
     if (valueField === "cpf") return list.filter((c) => c.cpf?.trim());
     if (valueField === "nome") return list.filter((c) => c.nome?.trim());
     return list;
-  }, [query.data, valueField]);
+  }, [query.data, valueField, somenteContratoAtivo, idsContratoAtivo, value]);
 
   return (
     <SelectShell
@@ -137,7 +162,7 @@ export function ClienteSelect({ valueField = "id", ativo, variant = "cadastro", 
       variant={variant}
       value={value}
       onChange={onChange}
-      loading={query.isLoading}
+      loading={query.isLoading || (somenteContratoAtivo ? contratosQuery.isLoading : false)}
     >
       {items.map((c) => (
         <option key={c.id} value={clienteValue(c, valueField)}>

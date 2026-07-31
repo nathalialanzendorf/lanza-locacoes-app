@@ -96,17 +96,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
 
   function onVeiculoChange(id: string) {
     setVeiculoId(id);
-    if (!id) return;
+    if (!id || clienteId.trim()) return;
     const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === id);
     if (v?.clienteVinculadoId) setClienteId(v.clienteVinculadoId);
   }
 
   function onClienteChange(id: string) {
     setClienteId(id);
-    if (!id) return;
-    if (!veiculoId) return;
-    const v = (veiculosQuery.data?.items ?? []).find((x) => x.id === veiculoId);
-    if (v?.clienteVinculadoId && v.clienteVinculadoId !== id) setVeiculoId("");
   }
 
   async function gravar() {
@@ -204,7 +200,10 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         loading={loading}
         error={error}
       >
-        <Field label="Cliente" hint="Locatário responsável por esta despesa">
+        <Field
+          label="Cliente"
+          hint="Locatário responsável — pode ser diferente do veículo (ex.: manutenção com carro reserva)"
+        >
           <ClienteSelect
             value={clienteId}
             onChange={onClienteChange}
@@ -215,7 +214,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         </Field>
         <Field
           label="Veículo"
-          hint="Qualquer veículo da frota — ex.: carro reserva usado em manutenção pontual"
+          hint="Qualquer veículo da frota — ex.: carro reserva durante manutenção do contrato"
         >
           <VeiculoSelect
             value={veiculoId}
