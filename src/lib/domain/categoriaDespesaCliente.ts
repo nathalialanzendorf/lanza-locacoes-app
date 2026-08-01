@@ -21,6 +21,7 @@ export const CATEGORIAS_DESPESA_CLIENTE_CADASTRO = [
   CategoriaDespesaCliente.Manutencao,
   CategoriaDespesaCliente.LocacaoSemanal,
   CategoriaDespesaCliente.Caucao,
+  CategoriaDespesaCliente.Renegociacao,
   CategoriaDespesaCliente.Outros,
   CategoriaDespesaCliente.Pedagio,
   CategoriaDespesaCliente.Infracao,
