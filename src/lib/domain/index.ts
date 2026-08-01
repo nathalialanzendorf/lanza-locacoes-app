@@ -22,12 +22,18 @@ export {
 export { SituacaoDespesa, type SituacaoDespesaValor } from "@/lib/domain/situacaoDespesa";
 
 export {
+  StatusCobrancaDespesa,
   StatusDespesaFiltro,
   STATUS_DESPESA_CADASTRO_OPCOES,
   STATUS_DESPESA_FILTRO_OPCOES,
+  STATUS_DESPESA_FILTRO_PARCEIRO_OPCOES,
   statusCadastroDeDespesa,
   camposStatusDespesaDeCadastro,
   filtroPagamentoParaEmAberto,
+  filtroStatusCobranca,
+  isStatusCobrancaDespesaValor,
+  resolverStatusCobranca,
+  type StatusCobrancaDespesaValor,
   type StatusDespesaFiltroValor,
   type StatusDespesaCadastro,
 } from "@/lib/domain/statusDespesa";

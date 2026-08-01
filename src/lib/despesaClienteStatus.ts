@@ -1,9 +1,9 @@
 import type { ClienteDespesa } from "@/api/types";
-import { SituacaoDespesa } from "@/lib/domain";
+import { SituacaoDespesa, StatusCobrancaDespesa, resolverStatusCobranca } from "@/lib/domain";
 
 /**
  * Status de despesa cliente:
- * - `paga` = recebimento na conta Lanza (caixa).
+ * - `statusCobranca` / `paga` = cobrança Lanza (em aberto | pago | baixado).
  * - `situacao` = texto externo (DETRAN, pedágio, estacionamento…) — pode indicar
  *   pagamento fora da Lanza sem quitar o débito conosco.
  */
@@ -27,7 +27,8 @@ function situacaoGenerica(s?: string | null): boolean {
     !t ||
     t === norm(SituacaoDespesa.EmAberto) ||
     t === norm(SituacaoDespesa.Registrado) ||
-    t === norm(SituacaoDespesa.Pago)
+    t === norm(SituacaoDespesa.Pago) ||
+    t === norm(SituacaoDespesa.Baixado)
   );
 }
 
@@ -46,7 +47,11 @@ function debitoVencido(d: ClienteDespesa, ref = new Date()): boolean {
 }
 
 function pagaLanza(d: ClienteDespesa): boolean {
-  return d.paga === true;
+  return resolverStatusCobranca(d) === StatusCobrancaDespesa.Pago;
+}
+
+function baixadaLanza(d: ClienteDespesa): boolean {
+  return resolverStatusCobranca(d) === StatusCobrancaDespesa.Baixado;
 }
 
 function pagaDetran(d: ClienteDespesa): boolean {
@@ -68,6 +73,7 @@ function justificada(d: ClienteDespesa): boolean {
 /** Rótulo exibido na coluna Status da listagem de despesas cliente. */
 export function rotuloStatusDespesaCliente(d: ClienteDespesa): string {
   if (pagaLanza(d)) return SituacaoDespesa.Pago;
+  if (baixadaLanza(d)) return SituacaoDespesa.Baixado;
 
   const situacao = d.situacao?.trim();
   if (situacao && !situacaoGenerica(situacao)) {
@@ -91,6 +97,7 @@ export function rotuloStatusDespesaCliente(d: ClienteDespesa): string {
 
 export function badgeStatusDespesaCliente(d: ClienteDespesa): BadgeStatusDespesa {
   if (pagaLanza(d)) return "ok";
+  if (baixadaLanza(d)) return "muted";
   if (pagaDetran(d) || advertida(d) || justificada(d)) return "muted";
 
   const rotulo = norm(rotuloStatusDespesaCliente(d));
@@ -108,14 +115,14 @@ export function badgeStatusDespesaCliente(d: ClienteDespesa): BadgeStatusDespesa
 
 /** Débito cobrável ao locatário (linha em destaque vermelho). */
 export function despesaCobravelCliente(d: ClienteDespesa): boolean {
-  if (pagaLanza(d)) return false;
+  if (pagaLanza(d) || baixadaLanza(d)) return false;
 
   if (isCategoriaInfracao(d.categoria)) {
     if (pagaDetran(d) || advertida(d) || justificada(d)) return false;
     return true;
   }
 
-  return d.paga !== true;
+  return resolverStatusCobranca(d) === StatusCobrancaDespesa.EmAberto;
 }
 
 export function despesaElegivelBaixaCliente(d: ClienteDespesa): boolean {

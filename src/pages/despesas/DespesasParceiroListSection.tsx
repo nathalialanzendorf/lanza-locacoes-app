@@ -24,7 +24,7 @@ import {
 } from "@/lib/despesaVencimentoSort";
 import { CATEGORIAS_DESPESA_PARCEIRO } from "@/lib/parceiroDespesaCategorias";
 import {
-  STATUS_DESPESA_FILTRO_OPCOES,
+  STATUS_DESPESA_FILTRO_PARCEIRO_OPCOES,
   StatusDespesaFiltro,
   filtroPagamentoParaEmAberto,
   type StatusDespesaFiltroValor,
@@ -144,7 +144,7 @@ export function DespesasParceiroListSection() {
               allowEmpty={false}
               aria-label="Pagamento"
             >
-              {STATUS_DESPESA_FILTRO_OPCOES.map((opt) => (
+              {STATUS_DESPESA_FILTRO_PARCEIRO_OPCOES.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.value === StatusDespesaFiltro.Todos ? SELECT_LABEL_TODOS : opt.label}
                 </option>

@@ -33,7 +33,7 @@ import {
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
   STATUS_DESPESA_FILTRO_OPCOES,
   StatusDespesaFiltro,
-  filtroPagamentoParaEmAberto,
+  filtroStatusCobranca,
   type StatusDespesaFiltroValor,
 } from "@/lib/domain";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
@@ -61,7 +61,7 @@ export function DespesasClienteListSection() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasCliente({
-    emAberto: filtroPagamentoParaEmAberto(pagamento),
+    statusCobranca: filtroStatusCobranca(pagamento),
     clienteId: clienteId || undefined,
     veiculoId: veiculoId || undefined,
     categoria: categoria || undefined,

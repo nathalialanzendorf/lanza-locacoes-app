@@ -62,6 +62,7 @@ export function useContratos(
 export function useDespesasCliente(
   params?: {
     emAberto?: boolean;
+    statusCobranca?: "em_aberto" | "pago" | "baixado";
     ativo?: boolean;
     clienteId?: string;
     veiculoId?: string;

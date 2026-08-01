@@ -315,7 +315,10 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
               if (next === StatusDespesaFiltro.Pago && !pagaEm?.trim()) {
                 setPagaEm(hojeDataBr());
               }
-              if (next === StatusDespesaFiltro.EmAberto) {
+              if (
+                next === StatusDespesaFiltro.EmAberto ||
+                next === StatusDespesaFiltro.Baixado
+              ) {
                 setPagaEm(null);
               }
             }}

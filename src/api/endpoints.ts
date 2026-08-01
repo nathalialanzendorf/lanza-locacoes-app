@@ -137,6 +137,7 @@ export const lanzaApi = {
 
   listarDespesasCliente: (params?: {
     emAberto?: boolean;
+    statusCobranca?: "em_aberto" | "pago" | "baixado";
     ativo?: boolean;
     clienteId?: string;
     veiculoId?: string;
