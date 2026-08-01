@@ -49,8 +49,10 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const editando = Boolean(despesaId);
   const veiculosQuery = useVeiculos();
   const veiculoEscolhidoManualmente = useRef(false);
-  const veiculoRefCarregado = useRef<string | null>(null);
+  const veiculoRefAplicado = useRef<string | null>(null);
 
+  /** Estado (não ref) para o efeito reagir quando a despesa chega após a lista de veículos. */
+  const [veiculoRefCarregado, setVeiculoRefCarregado] = useState<string | null>(null);
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState<CategoriaDespesaClienteCadastro>(
     CategoriaDespesaCliente.Manutencao,
@@ -76,13 +78,14 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     let cancelado = false;
     setCarregando(true);
     setError(null);
-    veiculoRefCarregado.current = null;
+    veiculoRefAplicado.current = null;
+    setVeiculoRefCarregado(null);
     void lanzaApi
       .obterDespesaCliente(despesaId)
       .then((r) => {
         if (cancelado) return;
         const d = r.data;
-        veiculoRefCarregado.current = d.placa ?? d.veiculoId ?? null;
+        setVeiculoRefCarregado(d.placa ?? d.veiculoId ?? null);
         if (d.categoria) setCategoria(d.categoria as CategoriaDespesaClienteCadastro);
         if (d.descricao) setDescricao(d.descricao);
         if (d.valorMulta != null) setValor(String(d.valorMulta));
@@ -111,11 +114,15 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   }, [despesaId]);
 
   useEffect(() => {
-    const ref = veiculoRefCarregado.current;
+    const ref = veiculoRefCarregado;
     if (!despesaId || !ref || !veiculosQuery.data?.items?.length) return;
-    setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data.items, ref, "id"));
+    if (veiculoRefAplicado.current === ref) return;
+    const encontrado = matchVeiculoSelectValue(veiculosQuery.data.items, ref, "id");
+    if (!encontrado) return;
+    veiculoRefAplicado.current = ref;
+    setVeiculoId(encontrado);
     veiculoEscolhidoManualmente.current = true;
-  }, [despesaId, veiculosQuery.data]);
+  }, [despesaId, veiculoRefCarregado, veiculosQuery.data]);
 
   useEffect(() => {
     if (editando || categoria !== CategoriaDespesaCliente.LocacaoSemanal) return;
