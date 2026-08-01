@@ -11,6 +11,8 @@ type Props = {
   loading?: boolean;
   submitDisabled?: boolean;
   submitLabel?: string;
+  /** Botões extras ao lado do Salvar (ex.: confirmar/desvincular). */
+  actions?: ReactNode;
   error?: string | null;
   success?: string | null;
 };
@@ -23,6 +25,7 @@ export function FormCard({
   loading,
   submitDisabled,
   submitLabel = LABEL.salvar,
+  actions,
   error,
   success,
 }: Props) {
@@ -37,9 +40,12 @@ export function FormCard({
     <form className={["form-card", className].filter(Boolean).join(" ")} onSubmit={handleSubmit}>
       {title ? <h2 className="form-card__title">{title}</h2> : null}
       <div className="form-grid">{children}</div>
-      <button type="submit" className="btn btn--primary" disabled={loading || submitDisabled}>
-        {loading ? LABEL.processando : submitLabel}
-      </button>
+      <div className="form-card__action-row">
+        <button type="submit" className="btn btn--primary" disabled={loading || submitDisabled}>
+          {loading ? LABEL.processando : submitLabel}
+        </button>
+        {actions}
+      </div>
     </form>
   );
 }

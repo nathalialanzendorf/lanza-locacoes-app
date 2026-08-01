@@ -6,7 +6,6 @@ import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { ClienteSelect, VeiculoSelect, matchVeiculoSelectValue, NativeSelect } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
-import { ResultPanel } from "@/components/ResultPanel";
 import { useContratos, useVeiculos } from "@/api/hooks";
 import type { Contrato } from "@/api/types";
 import { lanzaApi } from "@/api/endpoints";
@@ -65,7 +64,6 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const [carregando, setCarregando] = useState(editando);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<unknown>(null);
   const [clienteId, setClienteIdState] = useState("");
 
   const contratosClienteQuery = useContratos(
@@ -193,7 +191,6 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           condutorId: clienteId.trim() || null,
           ...statusCampos,
         });
-        setResult(r);
         mergeDespesaClienteNoCache(qc, r.data);
       } else {
         const r = await lanzaApi.criarDespesaCliente(veiculoId.trim(), {
@@ -215,7 +212,6 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           rastreameTipo: categoria === CategoriaDespesaCliente.Manutencao ? "ALIMENTACAO" : "OUTROS",
           ...statusCampos,
         });
-        setResult(r);
         mergeDespesaClienteNoCache(qc, r.data);
       }
       navigate("/despesas/cliente");
@@ -234,7 +230,6 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     try {
       // null/vazio desvincula e reabre confirmação cliente/parceiro.
       const r = await lanzaApi.confirmarClienteDespesa(despesaId, clienteId.trim() || null);
-      setResult(r);
       const d = r.data;
       setClienteIdState(clienteIdDe(d) ?? "");
       mergeDespesaClienteNoCache(qc, d);
@@ -263,6 +258,18 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         onSubmit={gravar}
         loading={loading}
         error={error}
+        actions={
+          editando ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={loading}
+              onClick={() => void confirmarCliente()}
+            >
+              {clienteId.trim() ? "Confirmar cliente" : "Desvincular / reabrir confirmação"}
+            </button>
+          ) : null
+        }
       >
         <Field label="Cliente">
           <ClienteSelect
@@ -355,27 +362,6 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           />
         </Field>
       </FormCard>
-
-      {editando ? (
-        <FormCard
-          title="Confirmar responsável"
-          onSubmit={confirmarCliente}
-          loading={loading}
-          submitLabel={clienteId.trim() ? "Confirmar cliente" : "Desvincular / reabrir confirmação"}
-          error={null}
-        >
-          <Field label="Cliente" hint="Deixe vazio e confirme para reabrir a confirmação de cliente ou parceiro.">
-            <ClienteSelect
-              value={clienteId}
-              onChange={setClienteIdState}
-              variant="cadastro"
-              disabled={loading}
-            />
-          </Field>
-        </FormCard>
-      ) : null}
-
-      <ResultPanel title="Resultado" data={result} />
     </>
   );
 }
