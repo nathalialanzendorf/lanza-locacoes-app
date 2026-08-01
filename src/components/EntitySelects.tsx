@@ -3,8 +3,13 @@ import { useMemo } from "react";
 
 import { useClientes, useContratos, useParceiros, useVeiculos, useVinculosParceiro } from "@/api/hooks";
 import { StatusContrato } from "@/lib/domain";
-import { formatClienteLabel, formatVeiculoLabel } from "@/lib/format";
+import { formatClienteSelectOption, formatVeiculoLabel } from "@/lib/format";
+import { ordenarAtivoDepoisAlfabetico } from "@/lib/listagemCadastro";
 import { selectEmptyLabel, type SelectEmptyVariant } from "@/lib/selectLabels";
+import {
+  clienteOperacionalAtivo,
+  indexarContratosOperacionaisAtivos,
+} from "@/lib/statusCliente";
 import type { Cliente, Parceiro, Veiculo } from "@/api/types";
 
 type SelectBaseProps = {
@@ -120,41 +125,95 @@ export type ClienteSelectProps = SelectBaseProps & {
   ativo?: boolean;
   /** Somente clientes com contrato ativo (inclui o valor já selecionado). */
   somenteContratoAtivo?: boolean;
+  /** Ordena e destaca clientes com contrato operacional ativo (padrão: true). */
+  destacarContratoAtivo?: boolean;
 };
+
+function ClienteSelectOptions({
+  items,
+  valueField,
+  contratosAtivos,
+  destacarContratoAtivo,
+}: {
+  items: Cliente[];
+  valueField: "id" | "cpf" | "nome";
+  contratosAtivos: ReturnType<typeof indexarContratosOperacionaisAtivos>;
+  destacarContratoAtivo: boolean;
+}) {
+  const comContrato: Cliente[] = [];
+  const demais: Cliente[] = [];
+  for (const c of items) {
+    if (clienteOperacionalAtivo(c, contratosAtivos)) comContrato.push(c);
+    else demais.push(c);
+  }
+
+  const renderOption = (c: Cliente) => {
+    const operacional = clienteOperacionalAtivo(c, contratosAtivos);
+    return (
+      <option
+        key={c.id}
+        value={clienteValue(c, valueField)}
+        className={operacional && destacarContratoAtivo ? "select-option--contrato-ativo" : undefined}
+      >
+        {formatClienteSelectOption(c, operacional && destacarContratoAtivo)}
+      </option>
+    );
+  };
+
+  if (!destacarContratoAtivo || demais.length === 0) {
+    return <>{items.map(renderOption)}</>;
+  }
+
+  return (
+    <>
+      {comContrato.length > 0 ? (
+        <optgroup label="Contrato ativo">{comContrato.map(renderOption)}</optgroup>
+      ) : null}
+      {demais.length > 0 ? (
+        <optgroup label="Outros clientes">{demais.map(renderOption)}</optgroup>
+      ) : null}
+    </>
+  );
+}
 
 export function ClienteSelect({
   valueField = "id",
   ativo,
   somenteContratoAtivo,
+  destacarContratoAtivo = true,
   variant = "cadastro",
   value,
   onChange,
   ...props
 }: ClienteSelectProps) {
   const query = useClientes(ativo === undefined ? undefined : { ativo });
-  const contratosQuery = useContratos(
-    { status: StatusContrato.Ativo },
-    { enabled: somenteContratoAtivo === true },
+  const contratosQuery = useContratos({ status: StatusContrato.Ativo });
+  const contratosAtivos = useMemo(
+    () => indexarContratosOperacionaisAtivos(contratosQuery.data?.items),
+    [contratosQuery.data],
   );
-  const idsContratoAtivo = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of contratosQuery.data?.items ?? []) {
-      const id = c.clienteId?.trim();
-      if (id) set.add(id);
-    }
-    return set;
-  }, [contratosQuery.data]);
+  const idsContratoAtivo = useMemo(() => new Set(contratosAtivos.porClienteId.keys()), [contratosAtivos]);
   const items = useMemo(() => {
     let list = [...(query.data?.items ?? [])];
     if (somenteContratoAtivo) {
       const atual = value?.trim();
       list = list.filter((c) => idsContratoAtivo.has(c.id) || c.id === atual);
     }
-    list.sort((a, b) => (a.nome ?? a.id).localeCompare(b.nome ?? b.id, "pt-BR"));
+    list = ordenarAtivoDepoisAlfabetico(list, {
+      ativoDe: (c) => clienteOperacionalAtivo(c, contratosAtivos),
+      rotuloDe: (c) => c.nome ?? c.id,
+    });
     if (valueField === "cpf") return list.filter((c) => c.cpf?.trim());
     if (valueField === "nome") return list.filter((c) => c.nome?.trim());
     return list;
-  }, [query.data, valueField, somenteContratoAtivo, idsContratoAtivo, value]);
+  }, [
+    query.data,
+    valueField,
+    somenteContratoAtivo,
+    idsContratoAtivo,
+    contratosAtivos,
+    value,
+  ]);
 
   return (
     <SelectShell
@@ -162,13 +221,17 @@ export function ClienteSelect({
       variant={variant}
       value={value}
       onChange={onChange}
-      loading={query.isLoading || (somenteContratoAtivo ? contratosQuery.isLoading : false)}
+      loading={query.isLoading || contratosQuery.isLoading}
+      className={[props.className, destacarContratoAtivo ? "select--cliente-contrato" : ""]
+        .filter(Boolean)
+        .join(" ")}
     >
-      {items.map((c) => (
-        <option key={c.id} value={clienteValue(c, valueField)}>
-          {formatClienteLabel(c)}
-        </option>
-      ))}
+      <ClienteSelectOptions
+        items={items}
+        valueField={valueField}
+        contratosAtivos={contratosAtivos}
+        destacarContratoAtivo={destacarContratoAtivo}
+      />
     </SelectShell>
   );
 }

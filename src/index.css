@@ -886,6 +886,16 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* ClienteSelect: contrato operacional ativo primeiro (optgroup + opções). */
+.select--cliente-contrato optgroup[label="Contrato ativo"] {
+  font-weight: 600;
+  color: var(--text, #1a1a1a);
+}
+
+.select--cliente-contrato option.select-option--contrato-ativo {
+  font-weight: 600;
+}
+
 .date-input {
   display: flex;
   align-items: stretch;

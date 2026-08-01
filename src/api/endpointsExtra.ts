@@ -109,6 +109,7 @@ export const lanzaApiExtra = {
     apiRequest<{ data: ClienteDespesa }>(`/api/despesas/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: { ...patch, syncRastreame },
+      timeoutMs: 60_000,
     }),
   removerDespesaCliente: (id: string, syncRastreame?: boolean) =>
     apiRequest<{ data: ClienteDespesa }>(`/api/despesas/${encodeURIComponent(id)}`, {

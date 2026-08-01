@@ -1,4 +1,5 @@
 import { SituacaoDespesa, type SituacaoDespesaValor } from "@/lib/domain/situacaoDespesa";
+import { brToIsoDate } from "@/lib/dateBr";
 
 /** Valor interno de filtro/cadastro (UI). */
 export const StatusDespesaFiltro = {
@@ -38,6 +39,13 @@ export function statusCadastroDeDespesa(d: {
   return StatusDespesaFiltro.EmAberto;
 }
 
+export function pagaEmIsoDeCadastro(pagaEmAtual?: string | null): string {
+  const br = pagaEmAtual?.trim() || new Date().toLocaleDateString("pt-BR");
+  const isoDate = brToIsoDate(br);
+  if (!isoDate) return new Date().toISOString();
+  return new Date(`${isoDate}T12:00:00-03:00`).toISOString();
+}
+
 export function camposStatusDespesaDeCadastro(
   status: StatusDespesaCadastro,
   pagaEmAtual?: string | null,
@@ -46,7 +54,7 @@ export function camposStatusDespesaDeCadastro(
     return {
       paga: true,
       situacao: SituacaoDespesa.Pago,
-      pagaEm: pagaEmAtual?.trim() || new Date().toLocaleDateString("pt-BR"),
+      pagaEm: pagaEmIsoDeCadastro(pagaEmAtual),
     };
   }
   return { paga: false, situacao: SituacaoDespesa.EmAberto, pagaEm: null };

@@ -76,6 +76,13 @@ export function formatClienteLabel(c: ClienteLabelInput): string {
   return nome;
 }
 
+/** Rótulo para `<option>` — destaca cliente com contrato operacional ativo. */
+export function formatClienteSelectOption(c: ClienteLabelInput, contratoAtivo?: boolean): string {
+  const base = formatClienteLabel(c);
+  if (contratoAtivo) return `${base} · ativo`;
+  return base;
+}
+
 /** Nome para exibição quando só há texto (sem cadastro); inativo opcional. */
 export function formatClienteNomeExibicao(nome: string | null | undefined, ativo?: boolean): string {
   const n = nome?.trim();

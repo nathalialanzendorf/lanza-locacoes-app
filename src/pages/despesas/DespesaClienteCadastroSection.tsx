@@ -24,6 +24,7 @@ import {
   type CategoriaDespesaClienteCadastro,
   type StatusDespesaCadastro,
 } from "@/lib/domain";
+import { hojeDataBr } from "@/lib/contratoVencimento";
 import { descricaoPagamentoSemanalDeVencimentoBr } from "@/lib/pagamentoSemanal";
 import { mergeDespesaClienteNoCache } from "@/lib/despesaClienteCache";
 
@@ -48,6 +49,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const editando = Boolean(despesaId);
   const veiculosQuery = useVeiculos();
   const veiculoEscolhidoManualmente = useRef(false);
+  const veiculoRefCarregado = useRef<string | null>(null);
 
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState<CategoriaDespesaClienteCadastro>(
@@ -74,16 +76,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     let cancelado = false;
     setCarregando(true);
     setError(null);
+    veiculoRefCarregado.current = null;
     void lanzaApi
       .obterDespesaCliente(despesaId)
       .then((r) => {
         if (cancelado) return;
         const d = r.data;
-        const veiculoRef = d.placa ?? d.veiculoId;
-        if (veiculoRef) {
-          setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data?.items, veiculoRef, "id"));
-          veiculoEscolhidoManualmente.current = true;
-        }
+        veiculoRefCarregado.current = d.placa ?? d.veiculoId ?? null;
         if (d.categoria) setCategoria(d.categoria as CategoriaDespesaClienteCadastro);
         if (d.descricao) setDescricao(d.descricao);
         if (d.valorMulta != null) setValor(String(d.valorMulta));
@@ -109,6 +108,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     return () => {
       cancelado = true;
     };
+  }, [despesaId]);
+
+  useEffect(() => {
+    const ref = veiculoRefCarregado.current;
+    if (!despesaId || !ref || !veiculosQuery.data?.items?.length) return;
+    setVeiculoId(matchVeiculoSelectValue(veiculosQuery.data.items, ref, "id"));
+    veiculoEscolhidoManualmente.current = true;
   }, [despesaId, veiculosQuery.data]);
 
   useEffect(() => {
@@ -153,6 +159,17 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     if (!veiculoId.trim()) {
       setError("Selecione um veículo.");
       return;
+    }
+    if (status === StatusDespesaFiltro.Pago) {
+      const pagamento = pagaEm?.trim();
+      if (!pagamento) {
+        setError("Informe a data de pagamento.");
+        return;
+      }
+      if (!brToIsoDate(pagamento)) {
+        setError("Data de pagamento inválida. Use DD/MM/AAAA.");
+        return;
+      }
     }
     setLoading(true);
     setError(null);
@@ -292,7 +309,16 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         <Field label="Status">
           <NativeSelect
             value={status}
-            onChange={(v) => setStatus(v as StatusDespesaCadastro)}
+            onChange={(v) => {
+              const next = v as StatusDespesaCadastro;
+              setStatus(next);
+              if (next === StatusDespesaFiltro.Pago && !pagaEm?.trim()) {
+                setPagaEm(hojeDataBr());
+              }
+              if (next === StatusDespesaFiltro.EmAberto) {
+                setPagaEm(null);
+              }
+            }}
             variant="cadastro"
             allowEmpty={false}
             disabled={loading}
@@ -304,6 +330,14 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
               </option>
             ))}
           </NativeSelect>
+        </Field>
+        <Field label="Data pagamento">
+          <DateInput
+            value={pagaEm ?? ""}
+            onChange={(v) => setPagaEm(v.trim() || null)}
+            disabled={loading || status !== StatusDespesaFiltro.Pago}
+            required={status === StatusDespesaFiltro.Pago}
+          />
         </Field>
       </FormCard>
 
