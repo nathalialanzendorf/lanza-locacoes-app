@@ -222,7 +222,11 @@ export function ClienteSelect({
       value={value}
       onChange={onChange}
       loading={query.isLoading || contratosQuery.isLoading}
-      className={[props.className, destacarContratoAtivo ? "select--cliente-contrato" : ""]
+      className={[
+        "select",
+        props.className,
+        destacarContratoAtivo ? "select--cliente-contrato" : undefined,
+      ]
         .filter(Boolean)
         .join(" ")}
     >
