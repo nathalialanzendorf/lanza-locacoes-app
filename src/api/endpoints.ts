@@ -271,7 +271,11 @@ export const lanzaApi = {
     placa?: string;
     syncRastreame?: boolean;
   }) =>
-    apiRequest<{ data: unknown }>("/api/recebimentos/executar", { method: "POST", body }),
+    apiRequest<{ data: unknown }>("/api/recebimentos/executar", {
+      method: "POST",
+      body,
+      timeoutMs: 60_000,
+    }),
 
   metaSync: () => apiRequest<SyncMeta>("/api/sync"),
   listarSyncJobs: (limit = 20) =>
