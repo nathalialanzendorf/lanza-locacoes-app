@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -20,6 +20,7 @@ import {
   vencimentoDespesaSortMs,
 } from "@/lib/despesaVencimentoSort";
 import { precisaConfirmacao } from "@/lib/responsavelDebitoUi";
+import { useSessionJsonState } from "@/lib/useSessionJsonState";
 import {
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
   STATUS_DESPESA_FILTRO_PARCEIRO_OPCOES,
@@ -29,9 +30,20 @@ import {
 } from "@/lib/domain";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
 
-/** Padrão: data final = hoje (pendências com vencimento até hoje). */
-function periodoPadrao(): RelatorioPeriodo {
-  return { dataInicial: "", dataFinal: hojeDataBr() };
+type FiltrosSemResponsavel = {
+  pagamento: StatusDespesaFiltroValor;
+  veiculoId: string;
+  categoria: string;
+  periodo: RelatorioPeriodo;
+};
+
+function filtrosPadraoSemResponsavel(): FiltrosSemResponsavel {
+  return {
+    pagamento: StatusDespesaFiltro.EmAberto,
+    veiculoId: "",
+    categoria: "",
+    periodo: { dataInicial: "", dataFinal: hojeDataBr() },
+  };
 }
 
 function compactPlaca(placa: string | null | undefined): string {
@@ -49,10 +61,11 @@ function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): str
 
 export function DespesasSemResponsavelSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<StatusDespesaFiltroValor>(StatusDespesaFiltro.EmAberto);
-  const [veiculoId, setVeiculoId] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(periodoPadrao);
+  const [filtros, setFiltros] = useSessionJsonState(
+    "despesas-sem-responsavel-filtros",
+    filtrosPadraoSemResponsavel,
+  );
+  const { pagamento, veiculoId, categoria, periodo } = filtros;
 
   const query = useDespesasCliente({
     statusCobranca: filtroStatusCobranca(pagamento),
@@ -92,7 +105,7 @@ export function DespesasSemResponsavelSection() {
             <span className="field__label">Veículo</span>
             <VeiculoSelect
               value={veiculoId}
-              onChange={setVeiculoId}
+              onChange={(id) => setFiltros((f) => ({ ...f, veiculoId: id }))}
               valueField="id"
               variant="filtro"
             />
@@ -101,7 +114,7 @@ export function DespesasSemResponsavelSection() {
             <span className="field__label">Categoria</span>
             <NativeSelect
               value={categoria}
-              onChange={setCategoria}
+              onChange={(v) => setFiltros((f) => ({ ...f, categoria: v }))}
               variant="filtro"
               aria-label="Categoria"
             >
@@ -116,7 +129,9 @@ export function DespesasSemResponsavelSection() {
             <span className="field__label">Status</span>
             <NativeSelect
               value={pagamento}
-              onChange={(v) => setPagamento(v as StatusDespesaFiltroValor)}
+              onChange={(v) =>
+                setFiltros((f) => ({ ...f, pagamento: v as StatusDespesaFiltroValor }))
+              }
               variant="filtro"
               allowEmpty={false}
               aria-label="Status"
@@ -130,7 +145,7 @@ export function DespesasSemResponsavelSection() {
           </label>
           <RelatorioPeriodoFiltro
             value={periodo}
-            onChange={setPeriodo}
+            onChange={(p) => setFiltros((f) => ({ ...f, periodo: p }))}
             hint="Por vencimento — padrão: até hoje"
           />
         </div>

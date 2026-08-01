@@ -23,6 +23,7 @@ import {
   vencimentoParceiroSortMs,
 } from "@/lib/despesaVencimentoSort";
 import { CATEGORIAS_DESPESA_PARCEIRO } from "@/lib/parceiroDespesaCategorias";
+import { useSessionJsonState } from "@/lib/useSessionJsonState";
 import {
   STATUS_DESPESA_FILTRO_PARCEIRO_OPCOES,
   StatusDespesaFiltro,
@@ -32,6 +33,24 @@ import {
 import type { ParceiroDespesa, Veiculo } from "@/api/types";
 
 const CATEGORIAS = CATEGORIAS_DESPESA_PARCEIRO;
+
+type FiltrosDespesasParceiro = {
+  pagamento: StatusDespesaFiltroValor;
+  parceiroId: string;
+  veiculoId: string;
+  categoria: string;
+  periodo: RelatorioPeriodo;
+};
+
+function filtrosPadraoDespesasParceiro(): FiltrosDespesasParceiro {
+  return {
+    pagamento: StatusDespesaFiltro.EmAberto,
+    parceiroId: "",
+    veiculoId: "",
+    categoria: "",
+    periodo: { ...PERIODO_VAZIO },
+  };
+}
 
 function compactPlaca(placa: string | null | undefined): string {
   return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
@@ -48,11 +67,11 @@ function veiculoDespesa(d: ParceiroDespesa, veiculos: Veiculo[] | undefined): st
 
 export function DespesasParceiroListSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<StatusDespesaFiltroValor>(StatusDespesaFiltro.EmAberto);
-  const [parceiroId, setParceiroId] = useState("");
-  const [veiculoId, setVeiculoId] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
+  const [filtros, setFiltros] = useSessionJsonState(
+    "despesas-parceiro-filtros",
+    filtrosPadraoDespesasParceiro,
+  );
+  const { pagamento, parceiroId, veiculoId, categoria, periodo } = filtros;
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasParceiro({
@@ -111,20 +130,24 @@ export function DespesasParceiroListSection() {
             <span className="field__label">Veículo</span>
             <VeiculoSelect
               value={veiculoId}
-              onChange={setVeiculoId}
+              onChange={(id) => setFiltros((f) => ({ ...f, veiculoId: id }))}
               valueField="id"
               variant="filtro"
             />
           </label>
           <label className="field">
             <span className="field__label">Parceiro</span>
-            <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="filtro" />
+            <ParceiroSelect
+              value={parceiroId}
+              onChange={(id) => setFiltros((f) => ({ ...f, parceiroId: id }))}
+              variant="filtro"
+            />
           </label>
           <label className="field">
             <span className="field__label">Categoria</span>
             <NativeSelect
               value={categoria}
-              onChange={setCategoria}
+              onChange={(v) => setFiltros((f) => ({ ...f, categoria: v }))}
               variant="filtro"
               aria-label="Categoria"
             >
@@ -139,7 +162,9 @@ export function DespesasParceiroListSection() {
             <span className="field__label">Pagamento</span>
             <NativeSelect
               value={pagamento}
-              onChange={(v) => setPagamento(v as StatusDespesaFiltroValor)}
+              onChange={(v) =>
+                setFiltros((f) => ({ ...f, pagamento: v as StatusDespesaFiltroValor }))
+              }
               variant="filtro"
               allowEmpty={false}
               aria-label="Pagamento"
@@ -151,7 +176,11 @@ export function DespesasParceiroListSection() {
               ))}
             </NativeSelect>
           </label>
-          <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} hint="" />
+          <RelatorioPeriodoFiltro
+            value={periodo}
+            onChange={(p) => setFiltros((f) => ({ ...f, periodo: p }))}
+            hint=""
+          />
         </div>
         {!query.isLoading ? (
           <p className="field__hint">

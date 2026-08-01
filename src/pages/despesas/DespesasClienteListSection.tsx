@@ -29,6 +29,7 @@ import {
   ordenarDespesasPorVencimentoDesc,
   vencimentoDespesaSortMs,
 } from "@/lib/despesaVencimentoSort";
+import { useSessionJsonState } from "@/lib/useSessionJsonState";
 import {
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
   STATUS_DESPESA_FILTRO_OPCOES,
@@ -38,9 +39,23 @@ import {
 } from "@/lib/domain";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
 
+type FiltrosDespesasCliente = {
+  pagamento: StatusDespesaFiltroValor;
+  clienteId: string;
+  veiculoId: string;
+  categoria: string;
+  periodo: RelatorioPeriodo;
+};
+
 /** Padrão: sem data inicial, data final = hoje (só despesas com vencimento até hoje). */
-function periodoPadraoDespesasCliente(): RelatorioPeriodo {
-  return { dataInicial: "", dataFinal: hojeDataBr() };
+function filtrosPadraoDespesasCliente(): FiltrosDespesasCliente {
+  return {
+    pagamento: StatusDespesaFiltro.EmAberto,
+    clienteId: "",
+    veiculoId: "",
+    categoria: "",
+    periodo: { dataInicial: "", dataFinal: hojeDataBr() },
+  };
 }
 
 function compactPlaca(placa: string | null | undefined): string {
@@ -58,11 +73,11 @@ function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): str
 
 export function DespesasClienteListSection() {
   const qc = useQueryClient();
-  const [pagamento, setPagamento] = useState<StatusDespesaFiltroValor>(StatusDespesaFiltro.EmAberto);
-  const [clienteId, setClienteId] = useState("");
-  const [veiculoId, setVeiculoId] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(periodoPadraoDespesasCliente);
+  const [filtros, setFiltros] = useSessionJsonState(
+    "despesas-cliente-filtros",
+    filtrosPadraoDespesasCliente,
+  );
+  const { pagamento, clienteId, veiculoId, categoria, periodo } = filtros;
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasCliente({
@@ -120,7 +135,7 @@ export function DespesasClienteListSection() {
             <span className="field__label">Veículo</span>
             <VeiculoSelect
               value={veiculoId}
-              onChange={setVeiculoId}
+              onChange={(id) => setFiltros((f) => ({ ...f, veiculoId: id }))}
               valueField="id"
               clienteId={clienteId || undefined}
               variant="filtro"
@@ -128,13 +143,17 @@ export function DespesasClienteListSection() {
           </label>
           <label className="field">
             <span className="field__label">Cliente</span>
-            <ClienteSelect value={clienteId} onChange={setClienteId} variant="filtro" />
+            <ClienteSelect
+              value={clienteId}
+              onChange={(id) => setFiltros((f) => ({ ...f, clienteId: id }))}
+              variant="filtro"
+            />
           </label>
           <label className="field">
             <span className="field__label">Categoria</span>
             <NativeSelect
               value={categoria}
-              onChange={setCategoria}
+              onChange={(v) => setFiltros((f) => ({ ...f, categoria: v }))}
               variant="filtro"
               aria-label="Categoria"
             >
@@ -149,7 +168,9 @@ export function DespesasClienteListSection() {
             <span className="field__label">Status</span>
             <NativeSelect
               value={pagamento}
-              onChange={(v) => setPagamento(v as StatusDespesaFiltroValor)}
+              onChange={(v) =>
+                setFiltros((f) => ({ ...f, pagamento: v as StatusDespesaFiltroValor }))
+              }
               variant="filtro"
               allowEmpty={false}
               aria-label="Status"
@@ -163,7 +184,7 @@ export function DespesasClienteListSection() {
           </label>
           <RelatorioPeriodoFiltro
             value={periodo}
-            onChange={setPeriodo}
+            onChange={(p) => setFiltros((f) => ({ ...f, periodo: p }))}
             hint="Por vencimento — padrão: até hoje"
           />
         </div>
