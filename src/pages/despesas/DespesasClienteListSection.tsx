@@ -5,7 +5,6 @@ import { DataTable } from "@/components/DataTable";
 import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
 import { SELECT_LABEL_TODOS } from "@/lib/selectLabels";
 import {
-  PERIODO_VAZIO,
   RelatorioPeriodoFiltro,
   type RelatorioPeriodo,
 } from "@/components/relatorios/RelatorioPeriodoFiltro";
@@ -15,6 +14,7 @@ import { RowActions } from "@/components/RowActions";
 import { useClientes, useDespesasCliente, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
+import { hojeDataBr } from "@/lib/contratoVencimento";
 import { clienteExibicaoPorId, formatBrl, formatVeiculoLabel } from "@/lib/format";
 import {
   badgeStatusDespesaCliente,
@@ -38,6 +38,11 @@ import {
 } from "@/lib/domain";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
 
+/** Padrão: sem data inicial, data final = hoje (só despesas com vencimento até hoje). */
+function periodoPadraoDespesasCliente(): RelatorioPeriodo {
+  return { dataInicial: "", dataFinal: hojeDataBr() };
+}
+
 function compactPlaca(placa: string | null | undefined): string {
   return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
 }
@@ -57,7 +62,7 @@ export function DespesasClienteListSection() {
   const [clienteId, setClienteId] = useState("");
   const [veiculoId, setVeiculoId] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
+  const [periodo, setPeriodo] = useState<RelatorioPeriodo>(periodoPadraoDespesasCliente);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const query = useDespesasCliente({
@@ -156,7 +161,11 @@ export function DespesasClienteListSection() {
               ))}
             </NativeSelect>
           </label>
-          <RelatorioPeriodoFiltro value={periodo} onChange={setPeriodo} hint="" />
+          <RelatorioPeriodoFiltro
+            value={periodo}
+            onChange={setPeriodo}
+            hint="Por vencimento — padrão: até hoje"
+          />
         </div>
         {!query.isLoading ? (
           <p className="field__hint">
