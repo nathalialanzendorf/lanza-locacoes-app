@@ -189,6 +189,8 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           valorMulta: Number(valor),
           dataVencimentoOriginal: vencimento,
           veiculoId: veiculoId.trim(),
+          /** null limpa o cliente e reabre confirmação cliente/parceiro. */
+          condutorId: clienteId.trim() || null,
           ...statusCampos,
         });
         setResult(r);
@@ -230,9 +232,12 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
     setLoading(true);
     setError(null);
     try {
+      // null/vazio desvincula e reabre confirmação cliente/parceiro.
       const r = await lanzaApi.confirmarClienteDespesa(despesaId, clienteId.trim() || null);
       setResult(r);
-      mergeDespesaClienteNoCache(qc, r.data);
+      const d = r.data;
+      setClienteIdState(clienteIdDe(d) ?? "");
+      mergeDespesaClienteNoCache(qc, d);
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"], refetchType: "none" });
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao confirmar cliente.");
@@ -353,13 +358,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
 
       {editando ? (
         <FormCard
-          title="Confirmar cliente"
+          title="Confirmar responsável"
           onSubmit={confirmarCliente}
           loading={loading}
-          submitLabel="Confirmar cliente"
+          submitLabel={clienteId.trim() ? "Confirmar cliente" : "Desvincular / reabrir confirmação"}
           error={null}
         >
-          <Field label="Cliente">
+          <Field label="Cliente" hint="Deixe vazio e confirme para reabrir a confirmação de cliente ou parceiro.">
             <ClienteSelect
               value={clienteId}
               onChange={setClienteIdState}

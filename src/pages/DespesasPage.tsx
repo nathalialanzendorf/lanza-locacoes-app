@@ -4,6 +4,7 @@ import { PageTabs } from "@/components/PageTabs";
 import { DespesasClienteListSection } from "@/pages/despesas/DespesasClienteListSection";
 import { DespesaClienteCadastroSection } from "@/pages/despesas/DespesaClienteCadastroSection";
 import { DespesaClienteRenegociacaoSection } from "@/pages/despesas/DespesaClienteRenegociacaoSection";
+import { DespesasSemResponsavelSection } from "@/pages/despesas/DespesasSemResponsavelSection";
 import { DespesasParceiroListSection } from "@/pages/despesas/DespesasParceiroListSection";
 import { DespesaParceiroCadastroSection } from "@/pages/despesas/DespesaParceiroCadastroSection";
 import { DespesaParceiroOperacoesSection } from "@/pages/despesas/DespesaParceiroOperacoesSection";
@@ -12,12 +13,13 @@ export function DespesasPage() {
   return (
     <PageHeader
       title="Despesas"
-      description="Débitos do locatário, renegociação no Rastreame e despesas de parceiro."
+      description="Débitos do locatário, pendências sem responsável, renegociação e despesas de parceiro."
     >
       <PageTabs
         ariaLabel="Despesas"
         tabs={[
           { to: "/despesas/cliente", label: "Cliente" },
+          { to: "/despesas/sem-responsavel", label: "Sem responsável", end: true },
           { to: "/despesas/renegociacao", label: "Renegociar débitos", end: true },
           { to: "/despesas/parceiro", label: "Parceiro" },
         ]}
@@ -26,6 +28,7 @@ export function DespesasPage() {
       <Routes>
         <Route index element={<Navigate to="cliente" replace />} />
         <Route path="cliente/*" element={<DespesasClienteRoutes />} />
+        <Route path="sem-responsavel" element={<DespesasSemResponsavelSection />} />
         <Route path="renegociacao" element={<DespesaClienteRenegociacaoSection />} />
         <Route path="parceiro/*" element={<DespesasParceiroRoutes />} />
         <Route path="cliente/renegociacao" element={<Navigate to="/despesas/renegociacao" replace />} />
