@@ -98,6 +98,21 @@ export function FipeSyncResultadosPanel() {
               render: (r) => r.fipeReferencia ?? "—",
             },
             {
+              key: "fonte",
+              header: "Fonte",
+              sortValue: (r) => r.fonte ?? "",
+              render: (r) =>
+                r.fonte === "placafipebrasil" || r.fipe?.includes("placafipebrasil") ? (
+                  <a href={r.fipe ?? "#"} target="_blank" rel="noreferrer">
+                    Placa FIPE Brasil
+                  </a>
+                ) : r.fonte === "parallelum" ? (
+                  "FIPE"
+                ) : (
+                  "—"
+                ),
+            },
+            {
               key: "status",
               header: "Status",
               sortValue: (r) => (r.ok ? "ok" : r.erro ?? "erro"),
@@ -107,6 +122,14 @@ export function FipeSyncResultadosPanel() {
                 ) : (
                   <span className="sync-job-error" title={r.erro}>
                     {r.erro ?? "Erro"}
+                    {r.fipe?.includes("placafipebrasil") ? (
+                      <>
+                        {" "}
+                        <a href={r.fipe} target="_blank" rel="noreferrer">
+                          site
+                        </a>
+                      </>
+                    ) : null}
                   </span>
                 ),
             },

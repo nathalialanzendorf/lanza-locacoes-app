@@ -115,11 +115,6 @@ export function FipeConsultaForm({
       modoSelecao === "veiculo" ? veiculoSelecionado?.marcaModelo?.trim() : marcaModelo.trim();
     const anoEnvio = modoSelecao === "veiculo" ? veiculoSelecionado?.anoModelo?.trim() : anoModelo.trim();
 
-    if (!cadastrado && (!marcaEnvio || !anoEnvio)) {
-      setError("Veículo não cadastrado — informe marca/modelo e ano.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
@@ -174,23 +169,32 @@ export function FipeConsultaForm({
         </Field>
         {modoSelecao === "placa" && !cadastrado && placaNorm ? (
           <>
-            <Field label="Marca / modelo" hint="Ex.: VW/GOL">
+            <p className="field__hint">
+              Sem marca/ano, consulta via{" "}
+              <a
+                href={`https://placafipebrasil.com.br/placa-fipe/${placaNorm}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Placa FIPE Brasil
+              </a>
+              .
+            </p>
+            <Field label="Marca / modelo (opcional)" hint="Ex.: VW/GOL">
               <input
                 className="input"
                 value={marcaModelo}
                 onChange={(e) => setMarcaModelo(e.target.value)}
                 placeholder="MARCA/MODELO"
-                required
                 disabled={loading}
               />
             </Field>
-            <Field label="Ano / modelo" hint="Ex.: 2018/2018">
+            <Field label="Ano / modelo (opcional)" hint="Ex.: 2018/2018">
               <input
                 className="input"
                 value={anoModelo}
                 onChange={(e) => setAnoModelo(e.target.value)}
                 placeholder="2018/2018"
-                required
                 disabled={loading}
               />
             </Field>

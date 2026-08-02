@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { DataFieldsPanel } from "@/components/DataFieldsPanel";
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { Field } from "@/components/FormCard";
+import { Toggle } from "@/components/Toggle";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { useVeiculos, useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
@@ -12,21 +13,28 @@ import { LABEL } from "@/lib/labels";
 import { FipeSyncResultadosPanel } from "@/pages/sync/FipeSyncResultadosPanel";
 import { executarSyncId, useSyncDisparo } from "@/pages/sync/syncShared";
 
+type ModoPlaca = "frota" | "avulsa";
+
 type FipeResposta = {
   cadastrado?: boolean;
   data?: Record<string, unknown>;
   fipe?: Record<string, unknown>;
+  fonte?: string;
+  url?: string;
 };
-
-type ModoPlaca = "frota" | "avulsa";
 
 function normPlaca(placa?: string | null): string {
   return (placa ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
+function urlPlacaFipeBrasil(placa: string): string {
+  return `https://placafipebrasil.com.br/placa-fipe/${normPlaca(placa)}`;
+}
+
 function linhasFipe(resposta: FipeResposta) {
   const veiculo = resposta.data ?? {};
   const fipe = resposta.fipe ?? {};
+  const url = String(resposta.url ?? fipe.url ?? fipe.fipe ?? veiculo.fipe ?? "");
   return [
     { label: "Placa", value: veiculo.placa },
     { label: "Marca / modelo", value: veiculo.marcaModelo },
@@ -35,7 +43,8 @@ function linhasFipe(resposta: FipeResposta) {
     { label: "Código FIPE", value: fipe.fipeCodigo ?? veiculo.fipeCodigo },
     { label: "Valor FIPE", value: fipe.fipeValor ?? veiculo.fipeValor },
     { label: "Mês referência", value: fipe.fipeReferencia ?? veiculo.fipeReferencia },
-    { label: "URL FIPE", value: fipe.fipe ?? veiculo.fipe },
+    { label: "Fonte", value: resposta.fonte === "placafipebrasil" ? "Placa FIPE Brasil" : resposta.fonte },
+    { label: "URL", value: url || undefined },
   ];
 }
 
@@ -103,11 +112,6 @@ export function FipeSyncPanel({
       cadastrado ? veiculoFrota?.marcaModelo?.trim() : marcaModelo.trim();
     const anoEnvio = cadastrado ? veiculoFrota?.anoModelo?.trim() : anoModelo.trim();
 
-    if (!cadastrado && (!marcaEnvio || !anoEnvio)) {
-      setConsultaError("Veículo não cadastrado — informe marca/modelo e ano.");
-      return;
-    }
-
     setConsultaLoading(true);
     setConsultaError(null);
     setResultado(null);
@@ -150,35 +154,24 @@ export function FipeSyncPanel({
       <section className="form-card">
         <h2 className="form-card__title">FIPE</h2>
 
-        <div className="form-grid" style={{ marginBottom: "0.75rem" }}>
-          <label className="field checkbox-inline">
-            <input
-              type="radio"
-              name="fipe-modo"
-              checked={modo === "frota"}
-              onChange={() => {
-                setModo("frota");
-                setResultado(null);
-                setConsultaError(null);
-              }}
-              disabled={consultaLoading || syncRodando}
-            />
-            Selecionar da frota
-          </label>
-          <label className="field checkbox-inline">
-            <input
-              type="radio"
-              name="fipe-modo"
-              checked={modo === "avulsa"}
-              onChange={() => {
-                setModo("avulsa");
-                setResultado(null);
-                setConsultaError(null);
-              }}
-              disabled={consultaLoading || syncRodando}
-            />
-            Digitar placa (consulta avulsa)
-          </label>
+        <div className="fipe-modo-toggle" style={{ marginBottom: "0.75rem" }}>
+          <span className={modo === "frota" ? "fipe-modo-toggle__opt is-active" : "fipe-modo-toggle__opt"}>
+            Selecionar
+          </span>
+          <Toggle
+            checked={modo === "avulsa"}
+            onChange={(digitar) => {
+              setModo(digitar ? "avulsa" : "frota");
+              setResultado(null);
+              setConsultaError(null);
+            }}
+            disabled={consultaLoading || syncRodando}
+            aria-label={modo === "avulsa" ? "Digitar placa" : "Selecionar da frota"}
+            size="compact"
+          />
+          <span className={modo === "avulsa" ? "fipe-modo-toggle__opt is-active" : "fipe-modo-toggle__opt"}>
+            Digitar
+          </span>
         </div>
 
         {modo === "frota" ? (
@@ -199,7 +192,10 @@ export function FipeSyncPanel({
             />
           </Field>
         ) : (
-          <Field label="Placa" hint="Veículo fora da frota — só visualização, não grava.">
+          <Field
+            label="Placa"
+            hint="Sem marca/ano, a consulta usa Placa FIPE Brasil automaticamente."
+          >
             <input
               className="input"
               value={placaAvulsa}
@@ -215,26 +211,34 @@ export function FipeSyncPanel({
         )}
 
         {modo === "avulsa" && placaNorm && !cadastrado ? (
-          <div className="form-grid">
-            <Field label="Marca / modelo" hint="Ex.: VW/GOL">
-              <input
-                className="input"
-                value={marcaModelo}
-                onChange={(e) => setMarcaModelo(e.target.value)}
-                placeholder="MARCA/MODELO"
-                disabled={consultaLoading || syncRodando}
-              />
-            </Field>
-            <Field label="Ano / modelo" hint="Ex.: 2018/2018">
-              <input
-                className="input"
-                value={anoModelo}
-                onChange={(e) => setAnoModelo(e.target.value)}
-                placeholder="2018/2018"
-                disabled={consultaLoading || syncRodando}
-              />
-            </Field>
-          </div>
+          <>
+            <p className="field__hint">
+              Marca/ano opcionais. Sem eles:{" "}
+              <a href={urlPlacaFipeBrasil(placaNorm)} target="_blank" rel="noreferrer">
+                {urlPlacaFipeBrasil(placaNorm)}
+              </a>
+            </p>
+            <div className="form-grid">
+              <Field label="Marca / modelo (opcional)" hint="Ex.: VW/GOL">
+                <input
+                  className="input"
+                  value={marcaModelo}
+                  onChange={(e) => setMarcaModelo(e.target.value)}
+                  placeholder="MARCA/MODELO"
+                  disabled={consultaLoading || syncRodando}
+                />
+              </Field>
+              <Field label="Ano / modelo (opcional)" hint="Ex.: 2018/2018">
+                <input
+                  className="input"
+                  value={anoModelo}
+                  onChange={(e) => setAnoModelo(e.target.value)}
+                  placeholder="2018/2018"
+                  disabled={consultaLoading || syncRodando}
+                />
+              </Field>
+            </div>
+          </>
         ) : null}
 
         {modo === "avulsa" && placaNorm && cadastrado ? (
@@ -276,6 +280,18 @@ export function FipeSyncPanel({
         <>
           {resultado.cadastrado === false ? (
             <p className="field__hint">Consulta avulsa — nada foi gravado.</p>
+          ) : null}
+          {resultado.fonte === "placafipebrasil" || resultado.url ? (
+            <p className="field__hint">
+              Fonte: Placa FIPE Brasil —{" "}
+              <a
+                href={String(resultado.url ?? urlPlacaFipeBrasil(String(resultado.data?.placa ?? placaNorm)))}
+                target="_blank"
+                rel="noreferrer"
+              >
+                abrir no site
+              </a>
+            </p>
           ) : null}
           <DataFieldsPanel title="Consulta FIPE" rows={linhasFipe(resultado)} />
         </>

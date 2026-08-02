@@ -1285,6 +1285,22 @@ code {
   margin-bottom: 1rem;
 }
 
+.fipe-modo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.fipe-modo-toggle__opt {
+  font-size: 0.9rem;
+  color: var(--muted, #6b7280);
+}
+
+.fipe-modo-toggle__opt.is-active {
+  color: var(--text, #111827);
+  font-weight: 600;
+}
+
 .sync-completo {
   display: flex;
   flex-wrap: wrap;

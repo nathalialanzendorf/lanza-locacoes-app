@@ -484,6 +484,7 @@ export type SyncJob = {
       fipeValor?: string;
       fipeReferencia?: string;
       fipe?: string;
+      fonte?: "parallelum" | "placafipebrasil";
       erro?: string;
     }>;
   };
