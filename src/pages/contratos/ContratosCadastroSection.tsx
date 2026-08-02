@@ -30,6 +30,7 @@ import {
   MotivoEncerramento,
   STATUS_CONTRATO_OPCOES,
   StatusContrato,
+  TIPO_CONTRATO_OPCOES,
   TipoContrato,
   isMotivoEncerramentoValor,
   isTipoContratoValor,
@@ -56,6 +57,8 @@ type Props = {
 type ContratoRenovacaoFonte = Contrato & {
   prazoDias?: number | null;
   valorSemanal?: number | null;
+  valorMensal?: number | null;
+  valorDiaria?: number | null;
   valorCaucao?: number | null;
   diaPagamentoSemana?: string | null;
   diaPagamentoMes?: number | null;
@@ -66,6 +69,8 @@ type ContratoRenovacaoFonte = Contrato & {
   motivoEncerramento?: string | null;
   quebraContrato?: boolean | null;
 };
+
+const DIARIA_PADRAO = 120;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -216,6 +221,8 @@ export function ContratosCadastroSection({
   const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [semana, setSemana] = useState("");
+  const [mensal, setMensal] = useState("");
+  const [diaria, setDiaria] = useState(formatValorInput(DIARIA_PADRAO));
   const [caucao, setCaucao] = useState("");
   const [diaPagamento, setDiaPagamento] = useState<string>(DIAS_PAGAMENTO_SEMANAL[0]!.value);
   const [tipoContrato, setTipoContrato] = useState<TipoContratoValor>(TipoContrato.Semanal);
@@ -307,6 +314,8 @@ export function ContratosCadastroSection({
       setClienteId(c.clienteId.trim());
     }
     if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
+    if (c.valorMensal != null) setMensal(formatValorInput(c.valorMensal));
+    if (c.valorDiaria != null) setDiaria(formatValorInput(c.valorDiaria));
     if (c.valorCaucao != null) setCaucao(formatValorInput(c.valorCaucao));
     if (c.diaPagamentoSemana) {
       setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
@@ -510,12 +519,27 @@ export function ContratosCadastroSection({
     setDocError(null);
     try {
       const caucaoTotal = parseValorInput(caucao);
-      const semanaTotal = parseValorInput(semana);
+      const semanaTotal = parseValorInput(semana, { allowZero: true });
+      const mensalTotal = parseValorInput(mensal, { allowZero: true });
+      const diariaTotal = parseValorInput(diaria);
       if (caucaoTotal == null) {
         throw new Error("Informe o valor da caução.");
       }
-      if (semanaTotal == null) {
-        throw new Error("Informe o valor semanal.");
+      if (diariaTotal == null || diariaTotal <= 0) {
+        throw new Error("Informe o valor da diária (usado também no cálculo de atraso).");
+      }
+      if (tipoContrato === TipoContrato.Semanal) {
+        if (semanaTotal == null || semanaTotal <= 0) {
+          throw new Error("Informe o valor semanal.");
+        }
+      } else if (tipoContrato === TipoContrato.Mensal) {
+        if (mensalTotal == null || mensalTotal <= 0) {
+          throw new Error("Informe o valor mensal.");
+        }
+      } else if (tipoContrato === TipoContrato.Diaria) {
+        if (diariaTotal <= 0) {
+          throw new Error("Informe o valor da diária do contrato.");
+        }
       }
       if (!diaPagamento.trim() && tipoContrato !== TipoContrato.Mensal) {
         throw new Error("Informe o dia de pagamento semanal.");
@@ -533,13 +557,16 @@ export function ContratosCadastroSection({
       const body: Record<string, unknown> = {
         veiculoId: veiculoId.trim(),
         clienteId: clienteId.trim(),
-        semana: semanaTotal,
+        semana: semanaTotal ?? 0,
         caucao: caucaoTotal,
+        diaria: diariaTotal,
+        tipoContrato,
         diaPagamento:
           tipoContrato === TipoContrato.Mensal
             ? `dia ${Number.parseInt(diaPagamentoMes.trim(), 10)}`
             : diaPagamento.trim(),
       };
+      if (mensalTotal != null && mensalTotal > 0) body.mensal = mensalTotal;
       if (modo === "renovar" && contratoId?.trim()) {
         body.contratoRenovarId = contratoId.trim();
       }
@@ -562,7 +589,9 @@ export function ContratosCadastroSection({
           horaInicio: hora,
           dataFimPrevista: fim,
           prazoDias: dias,
-          valorSemanal: semanaTotal,
+          valorSemanal: semanaTotal != null && semanaTotal > 0 ? semanaTotal : null,
+          valorMensal: mensalTotal != null && mensalTotal > 0 ? mensalTotal : null,
+          valorDiaria: diariaTotal,
           valorCaucao: caucaoTotal,
           tipoContrato,
         };
@@ -631,6 +660,9 @@ export function ContratosCadastroSection({
       }
 
       if (modo === "criar" && parcelarSemana) {
+        if (semanaTotal == null || semanaTotal <= 0) {
+          throw new Error("Parcelamento da 1ª semana exige valor semanal.");
+        }
         const entrada = parseValorInput(semanaEntrada, { allowZero: true }) ?? 0;
         const saldo = round2(semanaTotal - entrada);
         const { parcelas, valorParcela } = resolverParcelas(
@@ -778,8 +810,63 @@ export function ContratosCadastroSection({
             required
           />
         </Field>
-        <Field label="Valor semanal (R$)">
-          <ValorInput value={semana} onChange={setSemana} required disabled={loading} />
+        <Field label="Tipo de contrato">
+          <NativeSelect
+            value={tipoContrato}
+            onChange={(v) => {
+              if (isTipoContratoValor(v)) setTipoContrato(v);
+            }}
+            variant="cadastro"
+            allowEmpty={false}
+            disabled={loading}
+            aria-label="Tipo de contrato"
+          >
+            {TIPO_CONTRATO_OPCOES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field
+          label="Valor semanal (R$)"
+          hint={
+            tipoContrato === TipoContrato.Semanal
+              ? "Valor da parcela semanal"
+              : "Opcional — útil se o contrato também referencia semana"
+          }
+        >
+          <ValorInput
+            value={semana}
+            onChange={setSemana}
+            required={tipoContrato === TipoContrato.Semanal}
+            disabled={loading}
+          />
+        </Field>
+        <Field
+          label="Valor mensal (R$)"
+          hint={
+            tipoContrato === TipoContrato.Mensal
+              ? "Valor da parcela mensal"
+              : "Opcional — preencha em contratos mensais"
+          }
+        >
+          <ValorInput
+            value={mensal}
+            onChange={setMensal}
+            required={tipoContrato === TipoContrato.Mensal}
+            disabled={loading}
+          />
+        </Field>
+        <Field
+          label="Valor diária (R$)"
+          hint={
+            tipoContrato === TipoContrato.Diaria
+              ? "Valor da diária do contrato"
+              : "Usado no cálculo de atraso (juros/multa). Padrão R$ 120"
+          }
+        >
+          <ValorInput value={diaria} onChange={setDiaria} required disabled={loading} />
         </Field>
         <Field label="Caução (R$)">
           <ValorInput value={caucao} onChange={setCaucao} required disabled={loading} />
@@ -882,7 +969,7 @@ export function ContratosCadastroSection({
                 label="Parcelar caução"
               />
             ) : null}
-            {modo === "criar" ? (
+            {modo === "criar" && tipoContrato === TipoContrato.Semanal ? (
               <Toggle
                 checked={parcelarSemana}
                 onChange={setParcelarSemana}
