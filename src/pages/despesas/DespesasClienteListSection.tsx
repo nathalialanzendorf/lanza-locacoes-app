@@ -270,6 +270,15 @@ export function DespesasClienteListSection() {
             ),
           },
         ]}
+        footer={
+          <tr>
+            <td colSpan={5}>
+              Total em tela ({rows.length} lançamento{rows.length === 1 ? "" : "s"})
+            </td>
+            <td className="num">{formatBrl(total)}</td>
+            <td colSpan={3} />
+          </tr>
+        }
       />
     </>
   );

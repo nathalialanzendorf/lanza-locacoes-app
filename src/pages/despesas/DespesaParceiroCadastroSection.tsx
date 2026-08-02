@@ -7,9 +7,11 @@ import { VeiculoSelect, NativeSelect, matchVeiculoSelectValue } from "@/componen
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
 import { ResultPanel } from "@/components/ResultPanel";
+import { ValorInput } from "@/components/ValorInput";
 import { useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
+import { formatValorInput, parseValorInput } from "@/lib/format";
 import { CATEGORIAS_DESPESA_PARCEIRO } from "@/lib/parceiroDespesaCategorias";
 
 type Props = {
@@ -48,7 +50,7 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
         }
         if (d.categoria) setCategoria(d.categoria);
         if (d.descricao) setDescricao(d.descricao);
-        if (d.valor != null) setValor(String(d.valor));
+        if (d.valor != null) setValor(formatValorInput(Number(d.valor)));
         if (d.data) setData(d.data);
         else if (d.vencimentoBr) setData(d.vencimentoBr);
       })
@@ -76,11 +78,17 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
         setError("Selecione um veículo.");
         return;
       }
+      const valorNum = parseValorInput(valor, { allowZero: true });
+      if (valorNum == null) {
+        setError("Informe um valor válido (ex.: 120,00).");
+        setLoading(false);
+        return;
+      }
       const body = {
         veiculoId: veiculoId.trim(),
         categoria: categoria.trim(),
         descricao: descricao.trim(),
-        valor: Number(valor),
+        valor: valorNum,
         data: data.trim(),
       };
       const r = editando
@@ -148,13 +156,13 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
           <input className="input" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </Field>
         <Field label="Valor (R$)">
-          <input
-            className="input"
-            type="number"
-            step="0.01"
+          <ValorInput
             value={valor}
-            onChange={(e) => setValor(e.target.value)}
+            onChange={setValor}
             required
+            allowZero
+            disabled={loading}
+            aria-label="Valor"
           />
         </Field>
         <Field label="Vencimento">

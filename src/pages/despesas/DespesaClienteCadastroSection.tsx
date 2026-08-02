@@ -6,12 +6,14 @@ import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { ClienteSelect, VeiculoSelect, matchVeiculoSelectValue, NativeSelect } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
+import { ValorInput } from "@/components/ValorInput";
 import { useContratos, useVeiculos } from "@/api/hooks";
 import type { Contrato } from "@/api/types";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { clienteIdDe } from "@/lib/clienteCampo";
 import { brToIsoDate } from "@/lib/dateBr";
+import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
   CategoriaDespesaCliente,
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
@@ -86,7 +88,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         setVeiculoRefCarregado(d.placa ?? d.veiculoId ?? null);
         if (d.categoria) setCategoria(d.categoria as CategoriaDespesaClienteCadastro);
         if (d.descricao) setDescricao(d.descricao);
-        if (d.valorMulta != null) setValor(String(d.valorMulta));
+        if (d.valorMulta != null) setValor(formatValorInput(Number(d.valorMulta)));
         if (d.vencimentoBr) setDataVencimento(d.vencimentoBr);
         else if (d.dataVencimentoOriginal) setDataVencimento(d.dataVencimentoOriginal);
         else if (d.dataLimiteDefesa) setDataVencimento(d.dataLimiteDefesa);
@@ -165,6 +167,11 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
       setError("Selecione um veículo.");
       return;
     }
+    const valorNum = parseValorInput(valor, { allowZero: true });
+    if (valorNum == null) {
+      setError("Informe um valor válido (ex.: 120,00).");
+      return;
+    }
     if (status === StatusDespesaFiltro.Pago) {
       const pagamento = pagaEm?.trim();
       if (!pagamento) {
@@ -184,7 +191,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         const r = await lanzaApi.atualizarDespesaCliente(despesaId!, {
           categoria,
           descricao: descricao.trim() || undefined,
-          valorMulta: Number(valor),
+          valorMulta: valorNum,
           dataVencimentoOriginal: vencimento,
           veiculoId: veiculoId.trim(),
           /** null limpa o cliente e reabre confirmação cliente/parceiro. */
@@ -204,7 +211,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
                 : "Despesa cliente"),
           localInfracao: "",
           dataAutuacao: new Date().toLocaleDateString("pt-BR"),
-          valorMulta: Number(valor),
+          valorMulta: valorNum,
           limiteDefesa: "",
           dataVencimentoOriginal: vencimento,
           categoria,
@@ -308,13 +315,13 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
           <input className="input" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </Field>
         <Field label="Valor (R$)">
-          <input
-            className="input"
-            type="number"
-            step="0.01"
+          <ValorInput
             value={valor}
-            onChange={(e) => setValor(e.target.value)}
+            onChange={setValor}
             required
+            allowZero
+            disabled={loading}
+            aria-label="Valor"
           />
         </Field>
         <Field label="Vencimento">
@@ -345,6 +352,9 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             allowEmpty={false}
             disabled={loading}
             aria-label="Status"
+            className={
+              status === StatusDespesaFiltro.Baixado ? "select select--amber" : "select"
+            }
           >
             {STATUS_DESPESA_CADASTRO_OPCOES.map((opt) => (
               <option key={opt.value} value={opt.value}>

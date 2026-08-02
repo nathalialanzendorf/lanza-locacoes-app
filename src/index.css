@@ -625,6 +625,12 @@ code {
   border: 1px solid #fcd34d;
 }
 
+.select--amber {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
 .badge--danger {
   background: #fafafa;
   color: #09090b;

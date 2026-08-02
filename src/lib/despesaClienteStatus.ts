@@ -7,7 +7,7 @@ import { SituacaoDespesa, StatusCobrancaDespesa, resolverStatusCobranca } from "
  * - `situacao` = texto externo (DETRAN, pedágio, estacionamento…) — pode indicar
  *   pagamento fora da Lanza sem quitar o débito conosco.
  */
-export type BadgeStatusDespesa = "ok" | "warn" | "danger" | "muted";
+export type BadgeStatusDespesa = "ok" | "warn" | "danger" | "muted" | "amber";
 
 function norm(s?: string | null): string {
   return String(s ?? "")
@@ -97,7 +97,7 @@ export function rotuloStatusDespesaCliente(d: ClienteDespesa): string {
 
 export function badgeStatusDespesaCliente(d: ClienteDespesa): BadgeStatusDespesa {
   if (pagaLanza(d)) return "ok";
-  if (baixadaLanza(d)) return "muted";
+  if (baixadaLanza(d)) return "amber";
   if (pagaDetran(d) || advertida(d) || justificada(d)) return "muted";
 
   const rotulo = norm(rotuloStatusDespesaCliente(d));

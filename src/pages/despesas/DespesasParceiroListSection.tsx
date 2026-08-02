@@ -219,6 +219,13 @@ export function DespesasParceiroListSection() {
             render: (d) => d.vencimentoBr?.trim() || d.data?.trim() || "—",
           },
           {
+            key: "valor",
+            header: "Valor",
+            className: "num",
+            sortValue: (d) => Number(d.valor) || 0,
+            render: (d) => formatBrl(Number(d.valor) || 0),
+          },
+          {
             key: "acoes",
             header: "Ações",
             className: "col-acoes",
@@ -231,6 +238,15 @@ export function DespesasParceiroListSection() {
             ),
           },
         ]}
+        footer={
+          <tr>
+            <td colSpan={4}>
+              Total em tela ({rows.length} lançamento{rows.length === 1 ? "" : "s"})
+            </td>
+            <td className="num">{formatBrl(total)}</td>
+            <td />
+          </tr>
+        }
       />
     </>
   );

@@ -229,6 +229,15 @@ export function DespesasSemResponsavelSection() {
             ),
           },
         ]}
+        footer={
+          <tr>
+            <td colSpan={4}>
+              Total em tela ({rows.length} pendência{rows.length === 1 ? "" : "s"})
+            </td>
+            <td className="num">{formatBrl(total)}</td>
+            <td colSpan={2} />
+          </tr>
+        }
       />
     </>
   );
