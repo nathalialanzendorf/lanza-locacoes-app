@@ -20,6 +20,7 @@ import {
   useSyncDisparo,
   useSyncOpcoes,
 } from "@/pages/sync/syncShared";
+import { FipeSyncResultadosPanel } from "@/pages/sync/FipeSyncResultadosPanel";
 import { SyncRegistrosTable } from "@/pages/sync/SyncRegistrosTable";
 import { useSyncRegistrosLinhas } from "@/pages/sync/useSyncRegistrosLinhas";
 
@@ -279,10 +280,13 @@ export function SyncTipoSection({ syncId }: Props) {
       ) : null}
 
       <FlashError message={error} />
-      <ResultPanel
-        title={isFipe ? "Última resposta (job)" : opcoes.dryRun ? "Resultado (dry-run)" : "Última resposta"}
-        data={lastResult}
-      />
+      {isFipe ? <FipeSyncResultadosPanel /> : null}
+      {!isFipe ? (
+        <ResultPanel
+          title={opcoes.dryRun ? "Resultado (dry-run)" : "Última resposta"}
+          data={lastResult}
+        />
+      ) : null}
       <SyncJobsTable syncId={syncId} />
     </>
   );

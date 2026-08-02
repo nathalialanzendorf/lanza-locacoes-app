@@ -474,8 +474,22 @@ export type SyncJob = {
     percent: number;
     sucesso: number;
     falhas: number;
+    resultados?: Array<{
+      placa: string;
+      marcaModelo?: string;
+      anoModelo?: string;
+      ok: boolean;
+      fipeCodigo?: string;
+      fipeModelo?: string;
+      fipeValor?: string;
+      fipeReferencia?: string;
+      fipe?: string;
+      erro?: string;
+    }>;
   };
 };
+
+export type FipeSyncLinha = NonNullable<NonNullable<SyncJob["progress"]>["resultados"]>[number];
 
 export type RenegociacaoDebito = {
   id: string | number;

@@ -167,7 +167,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
   const rotuloTipo = rotuloTipoVeiculoFrota(tipoFrota).toLowerCase();
   const titulo = editando ? `Editar veículo (${rotuloTipo})` : `Novo veículo (${rotuloTipo})`;
   const consultaFipeTo = placa.trim()
-    ? syncFipePath(placa, { renavam, marcaModelo, anoModelo })
+    ? syncFipePath(placa, { marcaModelo, anoModelo })
     : undefined;
 
   if (carregando) {
