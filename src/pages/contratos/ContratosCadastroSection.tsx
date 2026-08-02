@@ -15,6 +15,11 @@ import { useVeiculos } from "@/api/hooks";
 import type { Contrato } from "@/api/types";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
+  datasParcelasParaApi,
+  gerarDatasParcelasPorTipo,
+  validarDatasParcelas,
+} from "@/lib/contratoParcelas";
+import {
   DIAS_PAGAMENTO_SEMANAL,
   PERIODOS_CONTRATO,
   dataFimDePeriodo,
@@ -146,6 +151,8 @@ function ParcelamentoFields({
   onParcelasChange,
   valorParcela,
   onValorParcelaChange,
+  datas,
+  onDatasChange,
   disabled,
 }: {
   titulo: string;
@@ -157,8 +164,13 @@ function ParcelamentoFields({
   onParcelasChange: (v: string) => void;
   valorParcela: string;
   onValorParcelaChange: (v: string) => void;
+  datas: string[];
+  onDatasChange: (v: string[]) => void;
   disabled?: boolean;
 }) {
+  const qtd = Number.parseInt(parcelas, 10);
+  const mostrarDatas = Number.isFinite(qtd) && qtd > 0;
+
   return (
     <div className="form-section field--full">
       <h3 className="form-section-title">{titulo}</h3>
@@ -197,6 +209,30 @@ function ParcelamentoFields({
           />
         </Field>
       </div>
+      {mostrarDatas ? (
+        <div className="form-grid" style={{ marginTop: "0.75rem" }}>
+          {Array.from({ length: qtd }, (_, i) => (
+            <Field
+              key={`parcela-data-${i}`}
+              label={`Data pagamento parcela ${i + 1}`}
+              hint={i === 0 ? "Sugestão automática — ajuste se necessário" : undefined}
+            >
+              <DateInput
+                value={datas[i] ?? ""}
+                onChange={(v) => {
+                  const next = [...datas];
+                  while (next.length < qtd) next.push("");
+                  next[i] = v;
+                  onDatasChange(next.slice(0, qtd));
+                }}
+                disabled={disabled}
+                required
+                aria-label={`Data da parcela ${i + 1}`}
+              />
+            </Field>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -249,9 +285,11 @@ export function ContratosCadastroSection({
   const [caucaoParcelasN, setCaucaoParcelasN] = useState("");
   const [caucaoValorParcela, setCaucaoValorParcela] = useState("");
   const [caucaoAnterior, setCaucaoAnterior] = useState<number | null>(null);
+  const [caucaoDatas, setCaucaoDatas] = useState<string[]>([]);
   const [semanaEntrada, setSemanaEntrada] = useState("");
   const [semanaParcelasN, setSemanaParcelasN] = useState("");
   const [semanaValorParcela, setSemanaValorParcela] = useState("");
+  const [semanaDatas, setSemanaDatas] = useState<string[]>([]);
   const [carregando, setCarregando] = useState(editando && !contratoOrigem);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -465,12 +503,35 @@ export function ContratosCadastroSection({
     return Math.max(0, round2(base - entrada));
   }, [caucao, caucaoEntrada, caucaoAnterior, modo]);
 
+  const valorPeriodoParcelavel = useMemo(() => {
+    if (tipoContrato === TipoContrato.Mensal) {
+      return parseValorInput(mensal) ?? 0;
+    }
+    if (tipoContrato === TipoContrato.Diaria) {
+      return parseValorInput(diaria) ?? 0;
+    }
+    return parseValorInput(semana) ?? 0;
+  }, [tipoContrato, mensal, diaria, semana]);
+
+  const labelPeriodoParcelamento = useMemo(() => {
+    if (tipoContrato === TipoContrato.Mensal) return "1º mês";
+    if (tipoContrato === TipoContrato.Diaria) return "1ª diária";
+    return "1ª semana";
+  }, [tipoContrato]);
+
   const saldoSemanaParcelavel = useMemo(() => {
-    const total = parseValorInput(semana);
-    if (total == null) return 0;
+    if (valorPeriodoParcelavel <= 0) return 0;
     const entrada = parseValorInput(semanaEntrada, { allowZero: true }) ?? 0;
-    return Math.max(0, round2(total - entrada));
-  }, [semana, semanaEntrada]);
+    return Math.max(0, round2(valorPeriodoParcelavel - entrada));
+  }, [valorPeriodoParcelavel, semanaEntrada]);
+
+  const diaPagamentoEfetivo = useMemo(() => {
+    if (tipoContrato === TipoContrato.Mensal) {
+      const dia = Number.parseInt(diaPagamentoMes.trim(), 10);
+      return Number.isFinite(dia) && dia >= 1 && dia <= 31 ? `dia ${dia}` : diaPagamento;
+    }
+    return diaPagamento;
+  }, [tipoContrato, diaPagamento, diaPagamentoMes]);
 
   useEffect(() => {
     if (!parcelarCaucao || saldoCaucaoParcelavel <= 0) return;
@@ -495,6 +556,56 @@ export function ContratosCadastroSection({
       "entrada",
     );
   }, [saldoSemanaParcelavel, parcelarSemana]);
+
+  useEffect(() => {
+    if (!parcelarCaucao) {
+      setCaucaoDatas([]);
+      return;
+    }
+    const qtd = Number.parseInt(caucaoParcelasN, 10);
+    if (!Number.isFinite(qtd) || qtd < 1 || !dataInicio.trim()) {
+      setCaucaoDatas([]);
+      return;
+    }
+    const sugeridas = gerarDatasParcelasPorTipo(dataInicio.trim(), qtd, {
+      tipoContrato,
+      diaPagamento: diaPagamentoEfetivo,
+      diaPagamentoMes,
+    });
+    setCaucaoDatas(sugeridas);
+  }, [
+    parcelarCaucao,
+    caucaoParcelasN,
+    dataInicio,
+    tipoContrato,
+    diaPagamentoEfetivo,
+    diaPagamentoMes,
+  ]);
+
+  useEffect(() => {
+    if (!parcelarSemana) {
+      setSemanaDatas([]);
+      return;
+    }
+    const qtd = Number.parseInt(semanaParcelasN, 10);
+    if (!Number.isFinite(qtd) || qtd < 1 || !dataInicio.trim()) {
+      setSemanaDatas([]);
+      return;
+    }
+    const sugeridas = gerarDatasParcelasPorTipo(dataInicio.trim(), qtd, {
+      tipoContrato,
+      diaPagamento: diaPagamentoEfetivo,
+      diaPagamentoMes,
+    });
+    setSemanaDatas(sugeridas);
+  }, [
+    parcelarSemana,
+    semanaParcelasN,
+    dataInicio,
+    tipoContrato,
+    diaPagamentoEfetivo,
+    diaPagamentoMes,
+  ]);
 
   function saldoCaucaoParcelavelSubmit(caucaoTotal: number): number {
     const entrada = parseValorInput(caucaoEntrada, { allowZero: true }) ?? 0;
@@ -654,26 +765,36 @@ export function ContratosCadastroSection({
           saldo,
           modo === "renovar" ? "Complemento de caução" : "Caução",
         );
+        const erroDatasCaucao = validarDatasParcelas(caucaoDatas, parcelas);
+        if (erroDatasCaucao) throw new Error(erroDatasCaucao);
         body.caucaoParcelasN = parcelas;
         body.caucaoValorParcela = valorParcela;
         body.caucaoSaldoAberto = saldo;
+        const caucaoDatasApi = datasParcelasParaApi(caucaoDatas);
+        if (caucaoDatasApi) body.caucaoDatas = caucaoDatasApi;
       }
 
       if (modo === "criar" && parcelarSemana) {
-        if (semanaTotal == null || semanaTotal <= 0) {
-          throw new Error("Parcelamento da 1ª semana exige valor semanal.");
+        if (valorPeriodoParcelavel <= 0) {
+          throw new Error(`Parcelamento do ${labelPeriodoParcelamento} exige o valor do período.`);
         }
         const entrada = parseValorInput(semanaEntrada, { allowZero: true }) ?? 0;
-        const saldo = round2(semanaTotal - entrada);
+        const saldo = round2(valorPeriodoParcelavel - entrada);
         const { parcelas, valorParcela } = resolverParcelas(
           semanaParcelasN,
           semanaValorParcela,
           saldo,
-          "1ª semana",
+          labelPeriodoParcelamento,
         );
+        const erroDatasSemana = validarDatasParcelas(semanaDatas, parcelas);
+        if (erroDatasSemana) throw new Error(erroDatasSemana);
+        // Backend valida entrada+parcelas contra `semana` — espelha o valor do período.
+        body.semana = valorPeriodoParcelavel;
         body.semanaEntrada = entrada;
         body.semanaParcelasN = parcelas;
         body.semanaValorParcela = valorParcela;
+        const semanaDatasApi = datasParcelasParaApi(semanaDatas);
+        if (semanaDatasApi) body.semanaDatas = semanaDatasApi;
       }
 
       const fn = modo === "criar" ? lanzaApi.criarContrato : lanzaApi.renovarContrato;
@@ -969,12 +1090,12 @@ export function ContratosCadastroSection({
                 label="Parcelar caução"
               />
             ) : null}
-            {modo === "criar" && tipoContrato === TipoContrato.Semanal ? (
+            {modo === "criar" ? (
               <Toggle
                 checked={parcelarSemana}
                 onChange={setParcelarSemana}
                 disabled={loading}
-                label="Parcelar 1ª semana"
+                label={`Parcelar ${labelPeriodoParcelamento}`}
               />
             ) : null}
           </div>
@@ -1004,13 +1125,15 @@ export function ContratosCadastroSection({
             onParcelasChange={setCaucaoParcelasN}
             valorParcela={caucaoValorParcela}
             onValorParcelaChange={setCaucaoValorParcela}
+            datas={caucaoDatas}
+            onDatasChange={setCaucaoDatas}
             disabled={loading}
           />
         ) : null}
 
         {modo === "criar" && parcelarSemana ? (
           <ParcelamentoFields
-            titulo="Parcelamento da 1ª semana (cláusula 3.2)"
+            titulo={`Parcelamento do ${labelPeriodoParcelamento} (cláusula 3.2)`}
             entradaLabel="Pago na retirada (R$)"
             saldo={saldoSemanaParcelavel}
             entrada={semanaEntrada}
@@ -1019,6 +1142,8 @@ export function ContratosCadastroSection({
             onParcelasChange={setSemanaParcelasN}
             valorParcela={semanaValorParcela}
             onValorParcelaChange={setSemanaValorParcela}
+            datas={semanaDatas}
+            onDatasChange={setSemanaDatas}
             disabled={loading}
           />
         ) : null}
