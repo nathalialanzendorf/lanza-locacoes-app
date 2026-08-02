@@ -2,10 +2,10 @@ import { useMemo, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
+import { FipeConsultaForm } from "@/components/FipeConsultaForm";
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
-import { Toggle } from "@/components/Toggle";
 import { useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
@@ -40,17 +40,16 @@ export function SyncTipoSection({ syncId }: Props) {
   const [inferirError, setInferirError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const [placaFipe, setPlacaFipe] = useState("");
-  const [renavamFipe, setRenavamFipe] = useState("");
 
   const isFipe = syncId === "fipe";
+  const placaFipeUrl = isFipe ? searchParams.get("placa")?.trim() ?? "" : "";
+  const marcaFipeUrl = isFipe ? searchParams.get("marcaModelo")?.trim() ?? "" : "";
+  const anoFipeUrl = isFipe ? searchParams.get("anoModelo")?.trim() ?? "" : "";
 
   useEffect(() => {
     if (!isFipe) return;
-    const p = searchParams.get("placa")?.trim();
-    const r = searchParams.get("renavam")?.trim();
-    if (p) setPlacaFipe(p);
-    if (r) setRenavamFipe(r);
-  }, [isFipe, searchParams]);
+    if (placaFipeUrl) setPlacaFipe(placaFipeUrl.toUpperCase());
+  }, [isFipe, placaFipeUrl]);
 
   const tipos = tiposRegistrosSync(syncId);
   const temRegistros = syncTemRegistros(syncId);
@@ -63,8 +62,8 @@ export function SyncTipoSection({ syncId }: Props) {
 
   const placaExecucao = isFipe ? placaFipe : temRegistros ? placaSync : opcoes.placa;
   const globalOpts = useMemo(
-    () => ({ dryRun: opcoes.dryRun, placa: placaExecucao }),
-    [opcoes.dryRun, placaExecucao],
+    () => ({ dryRun: isFipe ? false : opcoes.dryRun, placa: placaExecucao }),
+    [isFipe, opcoes.dryRun, placaExecucao],
   );
 
   function invalidarListagem() {
@@ -74,10 +73,12 @@ export function SyncTipoSection({ syncId }: Props) {
 
   function executar() {
     if (!sync) return;
+    const usarAsync = isFipe ? true : opcoes.usarAsync;
     void disparar(syncId, () =>
-      executarSyncId(metaQuery.data?.syncs ?? [], syncId, globalOpts, opcoes.usarAsync),
+      executarSyncId(metaQuery.data?.syncs ?? [], syncId, globalOpts, usarAsync),
     ).then(() => {
-      if (!opcoes.dryRun && temRegistros) invalidarListagem();
+      if (!globalOpts.dryRun && temRegistros) invalidarListagem();
+      if (isFipe) void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
     });
   }
 
@@ -122,15 +123,23 @@ export function SyncTipoSection({ syncId }: Props) {
           <h2 className="form-card__title">{sync.rotulo}</h2>
           <p className="field__hint">{sync.destino}</p>
           {sync.nota ? <p className="field__hint">{sync.nota}</p> : null}
+          {isFipe ? (
+            <p className="field__hint">
+              Use a consulta abaixo para visualizar FIPE de qualquer placa. O sync grava no PostgreSQL
+              para todos os veículos da base.
+            </p>
+          ) : null}
         </header>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={runningId !== null}
-          onClick={executar}
-        >
-          {runningId === syncId ? LABEL.processando : "Executar sync"}
-        </button>
+        {!isFipe ? (
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={runningId !== null}
+            onClick={executar}
+          >
+            {runningId === syncId ? LABEL.processando : "Executar sync"}
+          </button>
+        ) : null}
       </section>
 
       {temRegistros ? (
@@ -151,48 +160,45 @@ export function SyncTipoSection({ syncId }: Props) {
           </label>
         </section>
       ) : isFipe ? (
-        <section className="form-card sync-options">
-          <h2 className="form-card__title">Veículo</h2>
-          <div className="form-grid">
-            <label className="field">
-              <span className="field__label">Placa</span>
-              <input
-                className="input"
-                value={placaFipe}
-                onChange={(e) => setPlacaFipe(e.target.value.toUpperCase())}
-                placeholder="ABC1D23"
-              />
-              <span className="field__hint">Vazio = atualizar FIPE de toda a frota ativa.</span>
-            </label>
-            <label className="field">
-              <span className="field__label">RENAVAM</span>
-              <input
-                className="input"
-                value={renavamFipe}
-                onChange={(e) => setRenavamFipe(e.target.value.replace(/\D/g, ""))}
-                placeholder="Referência do cadastro"
-              />
-            </label>
-            <Toggle
-              className="field"
-              checked={opcoes.asyncMode}
-              onChange={opcoes.setAsyncMode}
-              disabled={opcoes.dryRun}
-              label="Executar em background (recomendado)"
-            />
-            <Toggle
-              className="field"
-              checked={opcoes.dryRun}
-              onChange={opcoes.toggleDryRun}
-              label="Dry-run (simular, não grava)"
-            />
-          </div>
-          {opcoes.dryRun ? (
-            <p className="field__hint sync-dryrun-hint">
-              Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+        <>
+          <FipeConsultaForm
+            title="Consultar FIPE (visualização)"
+            hint="Digite a placa de qualquer veículo. Se não estiver na frota, informe marca/modelo e ano — nada é gravado nesta consulta."
+            showPersistOption={false}
+            modoSelecao="placa"
+            initialPlaca={placaFipeUrl || placaFipe}
+            initialMarcaModelo={marcaFipeUrl || undefined}
+            initialAnoModelo={anoFipeUrl || undefined}
+          />
+          <section className="form-card sync-options">
+            <h2 className="form-card__title">Atualizar FIPE no PostgreSQL</h2>
+            <p className="field__hint">
+              Consulta a Tabela FIPE e grava em <code>lanza.veiculo_fipe</code>. Placa vazia = todos os
+              veículos da base (ativos e inativos). Sem dry-run — sempre grava. Executa em background
+              com progresso na tabela de jobs.
             </p>
-          ) : null}
-        </section>
+            <div className="form-grid">
+              <label className="field">
+                <span className="field__label">Placa (opcional)</span>
+                <input
+                  className="input"
+                  value={placaFipe}
+                  onChange={(e) => setPlacaFipe(e.target.value.toUpperCase())}
+                  placeholder="ABC1D23"
+                />
+                <span className="field__hint">Vazio = frota completa no PostgreSQL.</span>
+              </label>
+            </div>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={runningId !== null}
+              onClick={executar}
+            >
+              {runningId === syncId ? LABEL.processando : "Executar sync"}
+            </button>
+          </section>
+        </>
       ) : (
         <SyncOpcoesGlobais
           placa={opcoes.placa}
@@ -273,7 +279,10 @@ export function SyncTipoSection({ syncId }: Props) {
       ) : null}
 
       <FlashError message={error} />
-      <ResultPanel title={opcoes.dryRun ? "Resultado (dry-run)" : "Última resposta"} data={lastResult} />
+      <ResultPanel
+        title={isFipe ? "Última resposta (job)" : opcoes.dryRun ? "Resultado (dry-run)" : "Última resposta"}
+        data={lastResult}
+      />
       <SyncJobsTable syncId={syncId} />
     </>
   );

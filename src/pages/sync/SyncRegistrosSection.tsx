@@ -127,8 +127,8 @@ export function SyncRegistrosSection() {
               variant="filtro"
             />
             <span className="field__hint">
-              ---Todos--- sincroniza e lista a frota ativa. Um veículo limita pedágio, SigaPay, DETRAN e
-              FIPE a esse veículo.
+              ---Todos--- sincroniza e lista a frota ativa. Um veículo limita pedágio, SigaPay e DETRAN a
+              esse veículo. FIPE (aba Sync › FIPE) atualiza todos no PostgreSQL.
             </span>
           </label>
           <label className="field checkbox-inline">

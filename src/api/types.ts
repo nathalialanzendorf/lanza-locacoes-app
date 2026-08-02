@@ -468,6 +468,13 @@ export type SyncJob = {
   input?: unknown;
   result?: unknown;
   error?: string;
+  progress?: {
+    total: number;
+    done: number;
+    percent: number;
+    sucesso: number;
+    falhas: number;
+  };
 };
 
 export type RenegociacaoDebito = {

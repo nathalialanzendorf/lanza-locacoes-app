@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/DataTable";
@@ -139,12 +139,24 @@ type SyncJobsProps = {
 };
 
 export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps) {
+  const qc = useQueryClient();
   const jobsQuery = useSyncJobs();
+  const seenFipeDone = useRef(new Set<string>());
   const jobs = useMemo(() => {
     const list = jobsQuery.data?.jobs ?? [];
     if (!syncId) return list;
     return list.filter((j) => j.sync === syncId);
   }, [jobsQuery.data, syncId]);
+
+  useEffect(() => {
+    for (const j of jobsQuery.data?.jobs ?? []) {
+      if (j.sync !== "fipe" || j.status !== "completed" || !j.finishedAt) continue;
+      const key = `${j.id}:${j.finishedAt}`;
+      if (seenFipeDone.current.has(key)) continue;
+      seenFipeDone.current.add(key);
+      void qc.invalidateQueries({ queryKey: ["veiculos"] });
+    }
+  }, [jobsQuery.data, qc]);
 
   return (
     <section className="form-card">
@@ -173,6 +185,28 @@ export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps
               header: "Status",
               sortValue: (j) => j.status,
               render: (j) => <span className={statusBadge(j.status)}>{j.status}</span>,
+            },
+            {
+              key: "progress",
+              header: "Progresso",
+              sortValue: (j) => j.progress?.percent ?? -1,
+              render: (j) => {
+                const p = j.progress;
+                if (!p) return <span className="field__hint">—</span>;
+                return (
+                  <span>
+                    {p.done}/{p.total} · {p.percent}%
+                    {p.falhas > 0 ? (
+                      <>
+                        <br />
+                        <span className="field__hint">
+                          ok {p.sucesso} · falhas {p.falhas}
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
+                );
+              },
             },
             {
               key: "createdAt",

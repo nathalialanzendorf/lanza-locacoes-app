@@ -203,7 +203,11 @@ export function useSyncJobs(limit = 25) {
     refetchInterval: (query) => {
       const jobs = query.state.data?.jobs ?? [];
       const active = jobs.some((j) => j.status === "pending" || j.status === "running");
-      return active ? 3000 : false;
+      if (!active) return false;
+      const fipeRunning = jobs.some(
+        (j) => j.sync === "fipe" && (j.status === "pending" || j.status === "running"),
+      );
+      return fipeRunning ? 1500 : 3000;
     },
   });
 }

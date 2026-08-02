@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DataFieldsPanel } from "@/components/DataFieldsPanel";
@@ -42,23 +42,49 @@ type Props = {
   showPersistOption?: boolean;
   /** placa: digitar placa (relatório, avulso); veiculo: combobox da frota cadastrada. */
   modoSelecao?: "placa" | "veiculo";
+  /** Prefill da placa (ex.: query ?placa=). */
+  initialPlaca?: string;
+  initialMarcaModelo?: string;
+  initialAnoModelo?: string;
+  /** Texto auxiliar sob o título. */
+  hint?: string;
 };
 
 export function FipeConsultaForm({
   title = "Consulta FIPE",
   showPersistOption = true,
   modoSelecao = "placa",
+  initialPlaca,
+  initialMarcaModelo,
+  initialAnoModelo,
+  hint,
 }: Props) {
   const qc = useQueryClient();
   const veiculosQuery = useVeiculos();
-  const [placa, setPlaca] = useState("");
+  const [placa, setPlaca] = useState(() => (initialPlaca ?? "").toUpperCase());
   const [veiculoPlaca, setVeiculoPlaca] = useState("");
-  const [marcaModelo, setMarcaModelo] = useState("");
-  const [anoModelo, setAnoModelo] = useState("");
+  const [marcaModelo, setMarcaModelo] = useState(() => initialMarcaModelo ?? "");
+  const [anoModelo, setAnoModelo] = useState(() => initialAnoModelo ?? "");
   const [persist, setPersist] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<FipeResposta | null>(null);
+
+  useEffect(() => {
+    if (modoSelecao !== "placa") return;
+    const p = initialPlaca?.trim();
+    if (p) setPlaca(p.toUpperCase());
+  }, [initialPlaca, modoSelecao]);
+
+  useEffect(() => {
+    if (modoSelecao !== "placa") return;
+    if (initialMarcaModelo?.trim()) setMarcaModelo(initialMarcaModelo.trim());
+  }, [initialMarcaModelo, modoSelecao]);
+
+  useEffect(() => {
+    if (modoSelecao !== "placa") return;
+    if (initialAnoModelo?.trim()) setAnoModelo(initialAnoModelo.trim());
+  }, [initialAnoModelo, modoSelecao]);
 
   const placaConsulta = modoSelecao === "veiculo" ? veiculoPlaca : placa;
   const placaNorm = normPlaca(placaConsulta);
@@ -124,12 +150,13 @@ export function FipeConsultaForm({
         submitLabel={LABEL.consultar}
         error={error}
       >
+        {hint ? <p className="field__hint">{hint}</p> : null}
         <Field
           label={modoSelecao === "veiculo" ? "Veículo" : "Placa"}
           hint={
             modoSelecao === "veiculo"
               ? "Selecione um veículo cadastrado na frota"
-              : "Digite a placa — cadastrada ou não"
+              : "Digite a placa — cadastrada ou não (só visualização se não gravar)"
           }
         >
           {modoSelecao === "veiculo" ? (

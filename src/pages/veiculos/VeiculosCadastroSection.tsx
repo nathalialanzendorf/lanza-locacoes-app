@@ -166,7 +166,9 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
 
   const rotuloTipo = rotuloTipoVeiculoFrota(tipoFrota).toLowerCase();
   const titulo = editando ? `Editar veículo (${rotuloTipo})` : `Novo veículo (${rotuloTipo})`;
-  const consultaFipeTo = placa.trim() ? syncFipePath(placa, renavam) : undefined;
+  const consultaFipeTo = placa.trim()
+    ? syncFipePath(placa, { renavam, marcaModelo, anoModelo })
+    : undefined;
 
   if (carregando) {
     return (
@@ -183,7 +185,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
       {editando || consultaFipeTo ? (
         <VeiculoFipePanel
           fipe={editando ? fipeDados : {}}
-          emptyHint="Nenhum dado FIPE no cadastro — use Syncs › FIPE para consultar e gravar."
+          emptyHint="Nenhum dado FIPE no cadastro — use Syncs › FIPE para consultar (visualização) ou atualizar o cadastro."
           consultaFipeTo={consultaFipeTo}
         />
       ) : null}
