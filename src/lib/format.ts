@@ -10,20 +10,42 @@ export function formatValorInput(value: number): string {
   });
 }
 
-/** Aceita 610,05 · 1.610,05 · 610.05 (URL/JS). */
+/**
+ * Aceita digitação/cola em pt-BR: 610,05 · 1.610,05 · 0,00 · R$ 120,00 · 610.05.
+ * `allowZero` permite 0,00 (padrão: false).
+ */
 export function parseValorInput(
   raw: string,
   opts?: { allowZero?: boolean },
 ): number | null {
-  const s = String(raw).trim().replace(/\s/g, "");
+  let s = String(raw ?? "")
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/^R\$\s?/i, "");
   if (!s) return null;
 
+  // Só dígitos e separadores
+  s = s.replace(/[^\d.,]/g, "");
+  if (!s || s === "," || s === "." || s === ",," || s === "..") return null;
+
   let normalized: string;
-  if (s.includes(",")) {
+  if (s.includes(",") && s.includes(".")) {
+    // 1.610,05 → milhar com ponto, decimal com vírgula
     normalized = s.replace(/\./g, "").replace(",", ".");
+  } else if (s.includes(",")) {
+    // 610,05 ou 0,00 — vírgula = decimal (ignora vírgulas extras)
+    const parts = s.split(",");
+    const intPart = (parts[0] ?? "").replace(/\D/g, "") || "0";
+    const decPart = (parts.slice(1).join("") || "").replace(/\D/g, "").slice(0, 2);
+    normalized = decPart.length > 0 ? `${intPart}.${decPart}` : intPart;
   } else if (s.includes(".")) {
     const parts = s.split(".");
-    normalized = parts.length === 2 && parts[1]!.length <= 2 ? s : s.replace(/\./g, "");
+    // Um ponto com 1–2 casas → decimal; senão milhar
+    if (parts.length === 2 && (parts[1] ?? "").length <= 2) {
+      normalized = s;
+    } else {
+      normalized = s.replace(/\./g, "");
+    }
   } else {
     normalized = s;
   }
@@ -33,6 +55,37 @@ export function parseValorInput(
   if (n === 0 && !opts?.allowZero) return null;
   return Math.round(n * 100) / 100;
 }
+
+/** Mantém só caracteres válidos ao digitar (dígitos, vírgula/ponto decimal). */
+export function sanitizeValorDigitado(raw: string): string {
+  let s = String(raw ?? "").replace(/[^\d.,]/g, "");
+  if (!s) return "";
+
+  // Preferir vírgula como decimal: se digitar ponto e ainda não há vírgula, troca
+  if (s.includes(".") && !s.includes(",")) {
+    const parts = s.split(".");
+    if (parts.length === 2 && (parts[1] ?? "").length <= 2) {
+      s = `${parts[0]},${parts[1]}`;
+    } else {
+      // vários pontos / milhar → remove pontos (usuário ainda está digitando)
+      s = s.replace(/\./g, "");
+    }
+  }
+
+  // Uma única vírgula decimal
+  const firstComma = s.indexOf(",");
+  if (firstComma >= 0) {
+    const head = s.slice(0, firstComma + 1).replace(/\./g, "");
+    const tail = s
+      .slice(firstComma + 1)
+      .replace(/[^\d]/g, "")
+      .slice(0, 2);
+    s = head + tail;
+  }
+
+  return s;
+}
+
 
 export function formatPlaca(placa?: string): string {
   if (!placa) return "—";

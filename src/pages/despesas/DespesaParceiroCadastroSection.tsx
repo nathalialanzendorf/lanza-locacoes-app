@@ -155,7 +155,7 @@ export function DespesaParceiroCadastroSection({ despesaId }: Props) {
         <Field label="Descrição">
           <input className="input" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </Field>
-        <Field label="Valor (R$)">
+        <Field label="Valor (R$)" hint="Use vírgula para centavos — ex.: 120,00 ou 0,00">
           <ValorInput
             value={valor}
             onChange={setValor}

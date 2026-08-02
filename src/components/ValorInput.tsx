@@ -1,4 +1,4 @@
-import { formatValorInput, parseValorInput } from "@/lib/format";
+import { formatValorInput, parseValorInput, sanitizeValorDigitado } from "@/lib/format";
 
 type ValorInputProps = {
   value: string;
@@ -11,6 +11,10 @@ type ValorInputProps = {
   "aria-label"?: string;
 };
 
+/**
+ * Campo monetário pt-BR (texto): aceita 120,00 · 0,00 · 1.200,50.
+ * Não usa type="number" — o navegador bloqueia a vírgula nesse modo.
+ */
 export function ValorInput({
   value,
   onChange,
@@ -25,8 +29,10 @@ export function ValorInput({
       className="input"
       type="text"
       inputMode="decimal"
+      lang="pt-BR"
+      autoComplete="off"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(sanitizeValorDigitado(e.target.value))}
       onBlur={() => {
         const n = parseValorInput(value, { allowZero });
         if (n != null) onChange(formatValorInput(n));
