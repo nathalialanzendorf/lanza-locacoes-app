@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -12,7 +12,7 @@ import { ValorInput } from "@/components/ValorInput";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { useVeiculos } from "@/api/hooks";
-import type { Contrato } from "@/api/types";
+import type { Contrato, Veiculo } from "@/api/types";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
   datasParcelasParaApi,
@@ -76,6 +76,29 @@ type ContratoRenovacaoFonte = Contrato & {
 };
 
 const DIARIA_PADRAO = 120;
+
+function aplicarTarifasVeiculo(
+  v: Veiculo,
+  setters: {
+    setSemana: (v: string) => void;
+    setMensal: (v: string) => void;
+    setDiaria: (v: string) => void;
+    setCaucao: (v: string) => void;
+  },
+) {
+  if (v.valorSemanal != null && v.valorSemanal > 0) {
+    setters.setSemana(formatValorInput(v.valorSemanal));
+  }
+  if (v.valorMensal != null && v.valorMensal > 0) {
+    setters.setMensal(formatValorInput(v.valorMensal));
+  }
+  if (v.valorDiaria != null && v.valorDiaria > 0) {
+    setters.setDiaria(formatValorInput(v.valorDiaria));
+  }
+  if (v.valorCaucao != null && v.valorCaucao > 0) {
+    setters.setCaucao(formatValorInput(v.valorCaucao));
+  }
+}
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -306,6 +329,7 @@ export function ContratosCadastroSection({
     MotivoEncerramento.Devolvido,
   );
   const [quebraContrato, setQuebraContrato] = useState(false);
+  const ultimoVeiculoTarifas = useRef("");
 
   function handlePeriodoChange(valor: string) {
     setPeriodo(valor);
@@ -410,6 +434,8 @@ export function ContratosCadastroSection({
       setClienteId(c.clienteId.trim());
     }
     if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
+    if (c.valorMensal != null) setMensal(formatValorInput(c.valorMensal));
+    if (c.valorDiaria != null) setDiaria(formatValorInput(c.valorDiaria));
     if (c.valorCaucao != null) {
       setCaucao(formatValorInput(c.valorCaucao));
       setCaucaoAnterior(c.valorCaucao);
@@ -434,6 +460,20 @@ export function ContratosCadastroSection({
     if (modo !== "renovar" || !contratoOrigem) return;
     aplicarContratoRenovacao(contratoOrigem);
   }, [modo, contratoOrigem, veiculosQuery.data]);
+
+  useEffect(() => {
+    if (modo !== "criar" || !veiculoId.trim()) return;
+    const id = veiculoId.trim();
+    const veiculo = veiculosQuery.data?.items?.find((v) => v.id === id);
+    if (!veiculo) return;
+    if (ultimoVeiculoTarifas.current === id) return;
+    ultimoVeiculoTarifas.current = id;
+    setSemana("");
+    setMensal("");
+    setDiaria(formatValorInput(DIARIA_PADRAO));
+    setCaucao("");
+    aplicarTarifasVeiculo(veiculo, { setSemana, setMensal, setDiaria, setCaucao });
+  }, [modo, veiculoId, veiculosQuery.data]);
 
   useEffect(() => {
     if (modo === "editar" && motivoEncerramento === MotivoEncerramento.Troca) setQuebraContrato(false);
@@ -950,46 +990,38 @@ export function ContratosCadastroSection({
           </NativeSelect>
         </Field>
         <Field
-          label="Valor semanal (R$)"
+          label={
+            tipoContrato === TipoContrato.Semanal
+              ? "Valor semanal (R$)"
+              : tipoContrato === TipoContrato.Mensal
+                ? "Valor mensal (R$)"
+                : "Valor diária (R$)"
+          }
           hint={
             tipoContrato === TipoContrato.Semanal
               ? "Valor da parcela semanal"
-              : "Opcional — útil se o contrato também referencia semana"
+              : tipoContrato === TipoContrato.Mensal
+                ? "Valor da parcela mensal"
+                : "Valor da diária do contrato"
           }
         >
-          <ValorInput
-            value={semana}
-            onChange={setSemana}
-            required={tipoContrato === TipoContrato.Semanal}
-            disabled={loading}
-          />
+          {tipoContrato === TipoContrato.Semanal ? (
+            <ValorInput value={semana} onChange={setSemana} required disabled={loading} />
+          ) : tipoContrato === TipoContrato.Mensal ? (
+            <ValorInput value={mensal} onChange={setMensal} required disabled={loading} />
+          ) : (
+            <ValorInput value={diaria} onChange={setDiaria} required disabled={loading} />
+          )}
         </Field>
-        <Field
-          label="Valor mensal (R$)"
-          hint={
-            tipoContrato === TipoContrato.Mensal
-              ? "Valor da parcela mensal"
-              : "Opcional — preencha em contratos mensais"
-          }
-        >
-          <ValorInput
-            value={mensal}
-            onChange={setMensal}
-            required={tipoContrato === TipoContrato.Mensal}
-            disabled={loading}
-          />
-        </Field>
-        <Field
-          label="Valor diária (R$)"
-          hint={
-            tipoContrato === TipoContrato.Diaria
-              ? "Valor da diária do contrato"
-              : "Usado no cálculo de atraso (juros/multa). Padrão R$ 120"
-          }
-        >
-          <ValorInput value={diaria} onChange={setDiaria} required disabled={loading} />
-        </Field>
-        <Field label="Caução (R$)">
+        {tipoContrato === TipoContrato.Semanal ? (
+          <Field
+            label="Diária juros e multa (R$)"
+            hint="Usado no cálculo de atraso. Preenchido do cadastro do veículo — pode alterar."
+          >
+            <ValorInput value={diaria} onChange={setDiaria} required disabled={loading} />
+          </Field>
+        ) : null}
+        <Field label="Caução (R$)" hint="Preenchida do cadastro do veículo — pode alterar.">
           <ValorInput value={caucao} onChange={setCaucao} required disabled={loading} />
         </Field>
         <Field

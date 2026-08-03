@@ -90,6 +90,11 @@ export type Veiculo = {
   fipeReferencia?: string;
   clienteVinculadoId?: string | null;
   rastreameRastreavelKey?: string | number | null;
+  /** Tarifas padrão de locação cadastradas no veículo. */
+  valorSemanal?: number | null;
+  valorMensal?: number | null;
+  valorDiaria?: number | null;
+  valorCaucao?: number | null;
 };
 
 export type Venda = {

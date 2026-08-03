@@ -26,7 +26,9 @@ import {
   type TipoVeiculoFrotaValor,
 } from "@/lib/domain";
 import { VeiculoFipePanel } from "@/components/VeiculoFipePanel";
+import { ValorInput } from "@/components/ValorInput";
 import { fipeCamposDeVeiculo, type FipeCampos } from "@/lib/fipeDisplay";
+import { formatValorInput, parseValorInput } from "@/lib/format";
 import { syncFipePath } from "@/lib/syncFipeNav";
 
 type Props = {
@@ -73,6 +75,10 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
   const [renavam, setRenavam] = useState("");
   const [cor, setCor] = useState("");
   const [ufRegistro, setUfRegistro] = useState("SC");
+  const [valorSemanal, setValorSemanal] = useState("");
+  const [valorMensal, setValorMensal] = useState("");
+  const [valorDiaria, setValorDiaria] = useState("");
+  const [valorCaucao, setValorCaucao] = useState("");
   const [parceiroId, setParceiroId] = useState("");
   const [ativo, setAtivo] = useState(true);
   const [carregando, setCarregando] = useState(editando);
@@ -92,6 +98,26 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
     if (typeof v.renavam === "string") setRenavam(v.renavam);
     if (typeof v.cor === "string") setCor(v.cor);
     if (typeof v.ufRegistro === "string") setUfRegistro(v.ufRegistro);
+    setValorSemanal(
+      typeof v.valorSemanal === "number" && v.valorSemanal > 0
+        ? formatValorInput(v.valorSemanal)
+        : "",
+    );
+    setValorMensal(
+      typeof v.valorMensal === "number" && v.valorMensal > 0
+        ? formatValorInput(v.valorMensal)
+        : "",
+    );
+    setValorDiaria(
+      typeof v.valorDiaria === "number" && v.valorDiaria > 0
+        ? formatValorInput(v.valorDiaria)
+        : "",
+    );
+    setValorCaucao(
+      typeof v.valorCaucao === "number" && v.valorCaucao > 0
+        ? formatValorInput(v.valorCaucao)
+        : "",
+    );
     if (typeof v.ativo === "boolean") setAtivo(v.ativo);
     setFipeDados(fipeCamposDeVeiculo(v));
   }
@@ -145,6 +171,14 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
         ...(mostrarParceiro ? { parceiroId: parceiroId.trim() || undefined } : {}),
         ativo,
         tipoFrota,
+        ...(frotaLocacao
+          ? {
+              valorSemanal: parseValorInput(valorSemanal, { allowZero: true }) ?? undefined,
+              valorMensal: parseValorInput(valorMensal, { allowZero: true }) ?? undefined,
+              valorDiaria: parseValorInput(valorDiaria, { allowZero: true }) ?? undefined,
+              valorCaucao: parseValorInput(valorCaucao, { allowZero: true }) ?? undefined,
+            }
+          : {}),
         ...(editando ? {} : { origem: origemCadastroWeb(tipoFrota) }),
       };
 
@@ -220,6 +254,31 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
           <Field label="Parceiro (proprietário)">
             <ParceiroSelect value={parceiroId} onChange={setParceiroId} variant="cadastro" disabled={loading} />
           </Field>
+        ) : null}
+        {frotaLocacao ? (
+          <div className="form-section field--full">
+            <h3 className="form-section-title">Tarifas de referência</h3>
+            <p className="form-section__lead">
+              Valores padrão usados ao criar contratos — podem ser alterados no contrato.
+            </p>
+            <div className="form-grid">
+              <Field label="Valor semanal (R$)">
+                <ValorInput value={valorSemanal} onChange={setValorSemanal} disabled={loading} />
+              </Field>
+              <Field label="Valor mensal (R$)">
+                <ValorInput value={valorMensal} onChange={setValorMensal} disabled={loading} />
+              </Field>
+              <Field
+                label="Valor diária (R$)"
+                hint="Contratos diários e cálculo de juros/multa em contratos semanais"
+              >
+                <ValorInput value={valorDiaria} onChange={setValorDiaria} disabled={loading} />
+              </Field>
+              <Field label="Caução (R$)">
+                <ValorInput value={valorCaucao} onChange={setValorCaucao} disabled={loading} />
+              </Field>
+            </div>
+          </div>
         ) : null}
         <Field
           label="Status"
