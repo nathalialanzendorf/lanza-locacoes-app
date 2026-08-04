@@ -6,6 +6,7 @@ import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { ClienteSelect, VeiculoSelect, matchVeiculoSelectValue, NativeSelect } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard } from "@/components/FormCard";
+import { TimeInput, normalizeHoraBr } from "@/components/TimeInput";
 import { ValorInput } from "@/components/ValorInput";
 import { useContratos, useVeiculos } from "@/api/hooks";
 import type { Contrato } from "@/api/types";
@@ -13,6 +14,13 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { clienteIdDe } from "@/lib/clienteCampo";
 import { brToIsoDate } from "@/lib/dateBr";
+import {
+  categoriaUsaHoraDescricao,
+  categoriaUsaParcelaDescricao,
+  categoriaUsaTipoInfracao,
+  descricaoDespesaAuto,
+  TIPOS_INFRACAO_CADASTRO,
+} from "@/lib/descricaoDespesaAuto";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
   CategoriaDespesaCliente,
@@ -26,8 +34,18 @@ import {
   type StatusDespesaCadastro,
 } from "@/lib/domain";
 import { hojeDataBr } from "@/lib/contratoVencimento";
-import { descricaoPagamentoSemanalDeVencimentoBr } from "@/lib/pagamentoSemanal";
 import { mergeDespesaClienteNoCache } from "@/lib/despesaClienteCache";
+
+function horaAgoraBr(): string {
+  const n = new Date();
+  return normalizeHoraBr(`${n.getHours()}:${String(n.getMinutes()).padStart(2, "0")}`) || "12:00";
+}
+
+function parseParcelaPositiva(raw: string): number | null {
+  const n = Number(String(raw).trim().replace(",", "."));
+  if (!Number.isFinite(n) || n < 1) return null;
+  return Math.floor(n);
+}
 
 type Props = {
   despesaId?: string;
@@ -61,6 +79,10 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
+  const [horaDescricao, setHoraDescricao] = useState(horaAgoraBr);
+  const [parcelaAtual, setParcelaAtual] = useState("");
+  const [totalParcelas, setTotalParcelas] = useState("");
+  const [tipoInfracao, setTipoInfracao] = useState("");
   const [status, setStatus] = useState<StatusDespesaCadastro>(StatusDespesaFiltro.EmAberto);
   const [pagaEm, setPagaEm] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(editando);
@@ -125,10 +147,25 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   }, [despesaId, veiculoRefCarregado, veiculosQuery.data]);
 
   useEffect(() => {
-    if (editando || categoria !== CategoriaDespesaCliente.LocacaoSemanal) return;
-    const auto = descricaoPagamentoSemanalDeVencimentoBr(dataVencimento);
+    if (editando) return;
+    const auto = descricaoDespesaAuto({
+      categoria,
+      vencimentoBr: dataVencimento,
+      horaBr: horaDescricao,
+      parcela: parseParcelaPositiva(parcelaAtual),
+      totalParcelas: parseParcelaPositiva(totalParcelas),
+      tipoInfracao,
+    });
     if (auto) setDescricao(auto);
-  }, [categoria, dataVencimento, editando]);
+  }, [
+    categoria,
+    dataVencimento,
+    horaDescricao,
+    parcelaAtual,
+    totalParcelas,
+    tipoInfracao,
+    editando,
+  ]);
 
   useEffect(() => {
     if (editando || !clienteId.trim() || veiculoEscolhidoManualmente.current) return;
@@ -183,6 +220,31 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         return;
       }
     }
+    if (
+      !editando &&
+      categoria === CategoriaDespesaCliente.Renegociacao &&
+      (parseParcelaPositiva(parcelaAtual) == null ||
+        parseParcelaPositiva(totalParcelas) == null)
+    ) {
+      setError("Informe parcela e total de parcelas da renegociação.");
+      return;
+    }
+    if (
+      !editando &&
+      categoria === CategoriaDespesaCliente.Infracao &&
+      !tipoInfracao.trim()
+    ) {
+      setError("Informe o tipo da infração.");
+      return;
+    }
+    if (
+      !editando &&
+      categoriaUsaHoraDescricao(categoria) &&
+      !normalizeHoraBr(horaDescricao)
+    ) {
+      setError("Informe o horário (HH:MM).");
+      return;
+    }
     setLoading(true);
     setError(null);
     const statusCampos = camposStatusDespesaDeCadastro(status, pagaEm);
@@ -200,15 +262,21 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         });
         mergeDespesaClienteNoCache(qc, r.data);
       } else {
+        const descFallback =
+          descricaoDespesaAuto({
+            categoria,
+            vencimentoBr: vencimento,
+            horaBr: horaDescricao,
+            parcela: parseParcelaPositiva(parcelaAtual),
+            totalParcelas: parseParcelaPositiva(totalParcelas),
+            tipoInfracao,
+          }) ??
+          (categoria === CategoriaDespesaCliente.Manutencao
+            ? "Acionamento Franquia"
+            : "Despesa cliente");
         const r = await lanzaApi.criarDespesaCliente(veiculoId.trim(), {
           autoInfracao: `WEB-${Date.now()}`,
-          descricao:
-            descricao.trim() ||
-            (categoria === CategoriaDespesaCliente.Manutencao
-              ? "Acionamento Franquia"
-              : categoria === CategoriaDespesaCliente.LocacaoSemanal
-                ? descricaoPagamentoSemanalDeVencimentoBr(vencimento) ?? "Despesa cliente"
-                : "Despesa cliente"),
+          descricao: descricao.trim() || descFallback,
           localInfracao: "",
           dataAutuacao: new Date().toLocaleDateString("pt-BR"),
           valorMulta: valorNum,
@@ -311,6 +379,63 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             ))}
           </NativeSelect>
         </Field>
+        {categoriaUsaTipoInfracao(categoria) ? (
+          <Field label="Tipo da infração" hint="Ex.: velocidade, sinal, cinto">
+            <NativeSelect
+              value={tipoInfracao}
+              onChange={setTipoInfracao}
+              variant="cadastro"
+              allowEmpty
+              emptyLabel="Selecione o tipo"
+              required
+              disabled={loading}
+              aria-label="Tipo da infração"
+            >
+              {TIPOS_INFRACAO_CADASTRO.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        ) : null}
+        {categoriaUsaParcelaDescricao(categoria) ? (
+          <>
+            <Field
+              label="Parcela"
+              hint={
+                categoria === CategoriaDespesaCliente.Caucao
+                  ? "Opcional — se informar, vira Pagamento caução - NxN"
+                  : "Ex.: 3 de 8 → Pagamento renegociação 3x8"
+              }
+            >
+              <input
+                className="input"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={parcelaAtual}
+                onChange={(e) => setParcelaAtual(e.target.value)}
+                disabled={loading}
+                required={categoria === CategoriaDespesaCliente.Renegociacao}
+                aria-label="Parcela atual"
+              />
+            </Field>
+            <Field label="Total de parcelas">
+              <input
+                className="input"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={totalParcelas}
+                onChange={(e) => setTotalParcelas(e.target.value)}
+                disabled={loading}
+                required={categoria === CategoriaDespesaCliente.Renegociacao}
+                aria-label="Total de parcelas"
+              />
+            </Field>
+          </>
+        ) : null}
         <Field label="Descrição">
           <input className="input" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </Field>
@@ -332,6 +457,17 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             disabled={loading}
           />
         </Field>
+        {categoriaUsaHoraDescricao(categoria) ? (
+          <Field label="Horário" hint="Entra na descrição (dd/mm/aaaa HH:mm)">
+            <TimeInput
+              value={horaDescricao}
+              onChange={setHoraDescricao}
+              required
+              disabled={loading}
+              aria-label="Horário da ocorrência"
+            />
+          </Field>
+        ) : null}
         <Field label="Status">
           <NativeSelect
             value={status}
