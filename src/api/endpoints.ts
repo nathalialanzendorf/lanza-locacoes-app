@@ -87,10 +87,11 @@ export const lanzaApi = {
     motivoEncerramento: string;
     quebraContrato?: boolean;
   }) => apiRequest<{ data: unknown }>("/api/contratos/encerrar", { method: "POST", body }),
-  gerarDocumentoContrato: (id: string, formato: "docx" | "pdf" = "docx") =>
+  gerarDocumentoContrato: (id: string, formato: "docx" | "pdf" = "docx", filename?: string) =>
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/gerar-documento`, {
       method: "POST",
       params: { download: formato },
+      filename,
     }),
   downloadContratoAssinado: (id: string, filename?: string) =>
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, { filename }),

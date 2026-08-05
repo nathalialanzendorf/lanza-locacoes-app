@@ -11,7 +11,7 @@ import { Toggle } from "@/components/Toggle";
 import { ValorInput } from "@/components/ValorInput";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { useVeiculos } from "@/api/hooks";
+import { useVeiculos, useClientes } from "@/api/hooks";
 import type { Contrato, Veiculo } from "@/api/types";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import {
@@ -19,6 +19,7 @@ import {
   gerarDatasParcelasPorTipo,
   validarDatasParcelas,
 } from "@/lib/contratoParcelas";
+import { nomeArquivoContrato } from "@/lib/contratoArquivo";
 import {
   DIAS_PAGAMENTO_SEMANAL,
   PERIODOS_CONTRATO,
@@ -273,12 +274,14 @@ export function ContratosCadastroSection({
   const qc = useQueryClient();
   const editando = Boolean(contratoId);
   const veiculosQuery = useVeiculos();
+  const clientesQuery = useClientes();
   const labelSubmit =
     submitLabel ??
     (modo === "editar" ? "Salvar" : modo === "renovar" ? "Confirmar renovação" : "Salvar contrato");
 
   const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState("");
+  const [clienteNome, setClienteNome] = useState("");
   const [semana, setSemana] = useState("");
   const [mensal, setMensal] = useState("");
   const [diaria, setDiaria] = useState(formatValorInput(DIARIA_PADRAO));
@@ -331,6 +334,13 @@ export function ContratosCadastroSection({
   const [quebraContrato, setQuebraContrato] = useState(false);
   const ultimoVeiculoTarifas = useRef("");
 
+  const nomeClienteDocumento = useMemo(() => {
+    if (clienteNome.trim()) return clienteNome.trim();
+    const id = clienteId.trim();
+    if (!id) return "";
+    return clientesQuery.data?.items.find((c) => c.id === id)?.nome?.trim() ?? "";
+  }, [clienteNome, clienteId, clientesQuery.data]);
+
   function handlePeriodoChange(valor: string) {
     setPeriodo(valor);
     setPeriodoPersonalizado(false);
@@ -374,6 +384,9 @@ export function ContratosCadastroSection({
     }
     if (c.clienteId?.trim()) {
       setClienteId(c.clienteId.trim());
+    }
+    if (c.clienteNome?.trim()) {
+      setClienteNome(c.clienteNome.trim());
     }
     if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
     if (c.valorMensal != null) setMensal(formatValorInput(c.valorMensal));
@@ -432,6 +445,9 @@ export function ContratosCadastroSection({
     }
     if (c.clienteId?.trim()) {
       setClienteId(c.clienteId.trim());
+    }
+    if (c.clienteNome?.trim()) {
+      setClienteNome(c.clienteNome.trim());
     }
     if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
     if (c.valorMensal != null) setMensal(formatValorInput(c.valorMensal));
@@ -878,7 +894,11 @@ export function ContratosCadastroSection({
     setDocLoading(true);
     setDocError(null);
     try {
-      await lanzaApi.gerarDocumentoContrato(id, formato);
+      await lanzaApi.gerarDocumentoContrato(
+        id,
+        formato,
+        nomeClienteDocumento ? nomeArquivoContrato(nomeClienteDocumento, formato) : undefined,
+      );
     } catch (err) {
       setDocError(
         err instanceof LanzaApiError

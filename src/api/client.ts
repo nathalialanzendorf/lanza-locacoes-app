@@ -137,6 +137,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return payload as T;
 }
 
+function parseContentDispositionFilename(dispo: string): string | null {
+  const utf8 = /filename\*=UTF-8''([^;\s]+)/i.exec(dispo);
+  if (utf8?.[1]) {
+    try {
+      return decodeURIComponent(utf8[1]);
+    } catch {
+      /* ignore */
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(dispo);
+  return quoted?.[1]?.trim() || null;
+}
+
 /** Transferência de ficheiro (Word/PDF) com autenticação. */
 export async function apiDownload(
   path: string,
@@ -174,8 +187,7 @@ export async function apiDownload(
 
   const blob = await res.blob();
   const dispo = res.headers.get("Content-Disposition") ?? "";
-  const match = /filename="([^"]+)"/i.exec(dispo);
-  const filename = options.filename ?? match?.[1] ?? "documento";
+  const filename = options.filename ?? parseContentDispositionFilename(dispo) ?? "documento";
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
