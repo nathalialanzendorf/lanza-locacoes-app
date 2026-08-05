@@ -22,7 +22,6 @@ import { RelatorioInfracoesSection } from "@/pages/relatorios/RelatorioInfracoes
 import { RelatorioIpvaLicenciamentoSection } from "@/pages/relatorios/RelatorioIpvaLicenciamentoSection";
 import { RelatorioPedagiosSection } from "@/pages/relatorios/RelatorioPedagiosSection";
 import { RelatorioEstacionamentoSection } from "@/pages/relatorios/RelatorioEstacionamentoSection";
-import { RelatorioVeiculoDadosSection } from "@/pages/relatorios/RelatorioVeiculoDadosSection";
 
 import { LoginPage } from "@/pages/LoginPage";
 
@@ -148,6 +147,7 @@ export default function App() {
                 <Route path="sync/*" element={<SyncPage />} />
 
                 <Route path="relatorios">
+                  <Route path="veiculo" element={<Navigate to="/sync/veiculo" replace />} />
                   <Route element={<RelatoriosConsultaShell />}>
                     <Route index element={<RelatoriosConsultaIndexRedirect />} />
                     <Route path="infracoes" element={<RelatorioInfracoesSection />} />
@@ -157,7 +157,6 @@ export default function App() {
                     />
                     <Route path="pedagios" element={<RelatorioPedagiosSection />} />
                     <Route path="estacionamento" element={<RelatorioEstacionamentoSection />} />
-                    <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
                     <Route path="fipe" element={<RelatorioFipeSection />} />
                   </Route>
                   <Route element={<RelatoriosLocacaoShell />}>

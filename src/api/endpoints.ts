@@ -35,8 +35,13 @@ export const lanzaApi = {
   obterCliente: (id: string) =>
     apiRequest<DataEnvelope<Cliente>>(`/api/clientes/${encodeURIComponent(id)}`),
 
-  listarVeiculos: (params?: { ativo?: boolean; placa?: string; particular?: boolean; tipoFrota?: string }) =>
-    apiRequest<ListEnvelope<Veiculo>>("/api/veiculos", { params }),
+  listarVeiculos: (params?: {
+    ativo?: boolean;
+    placa?: string;
+    particular?: boolean;
+    tipoFrota?: string;
+    comFipe?: boolean;
+  }) => apiRequest<ListEnvelope<Veiculo>>("/api/veiculos", { params }),
   criarVeiculo: (body: {
     placa: string;
     marcaModelo?: string;

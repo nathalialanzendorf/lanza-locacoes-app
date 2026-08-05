@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable";
-import { ClienteSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
+import { ClienteSelect, ParceiroSelect, VeiculoSelect, NativeSelect } from "@/components/EntitySelects";
 import { SELECT_LABEL_TODOS } from "@/lib/selectLabels";
 import { ResponsavelDebitoCell } from "@/components/relatorios/ResponsavelDebitoCell";
 import { QueryError } from "@/components/PageHeader";
@@ -12,10 +12,10 @@ import {
   RelatorioPeriodoFiltro,
   type RelatorioPeriodo,
 } from "@/components/relatorios/RelatorioPeriodoFiltro";
-import { useDespesasCliente, useVeiculos } from "@/api/hooks";
+import { useDespesasCliente, useVeiculos, useVinculosParceiro } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { formatBrl, formatPlaca } from "@/lib/format";
+import { formatBrl, formatVeiculoLabel } from "@/lib/format";
 import { TipoVeiculoFrota } from "@/lib/domain";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
 import {
@@ -23,12 +23,26 @@ import {
   ROTULO_SIGAPAY,
   rotuloEstacionamentoRotativo,
 } from "@/lib/estacionamentoLabels";
-import type { ClienteDespesa } from "@/api/types";
+import type { ClienteDespesa, Veiculo } from "@/api/types";
 
 type FiltroSituacao = "em_aberto" | "quitado" | "todos";
 
 function valorAviso(d: ClienteDespesa): number {
   return Number(d.valorMulta) || 0;
+}
+
+function compactPlaca(placa: string | null | undefined): string {
+  return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
+}
+
+function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): string {
+  if (d.veiculoLabel?.trim()) return d.veiculoLabel.trim();
+  const placaKey = compactPlaca(d.placa ?? d.veiculoId);
+  const v = veiculos?.find(
+    (x) => x.id === d.veiculoId || compactPlaca(x.placa) === placaKey,
+  );
+  if (v) return formatVeiculoLabel(v);
+  return formatVeiculoLabel({ placa: d.placa ?? d.veiculoId ?? undefined });
 }
 
 function situacaoLabel(d: ClienteDespesa): { text: string; className: string } {
@@ -49,6 +63,7 @@ export function RelatorioEstacionamentoSection() {
   const queryClient = useQueryClient();
   const [veiculoId, setVeiculoId] = useState("");
   const [clienteId, setClienteId] = useState("");
+  const [parceiroId, setParceiroId] = useState("");
   const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [situacao, setSituacao] = useState<FiltroSituacao>("em_aberto");
   const [semResponsavel, setSemResponsavel] = useState(false);
@@ -70,16 +85,33 @@ export function RelatorioEstacionamentoSection() {
     semCliente: semResponsavel || undefined,
   });
   const veiculosQuery = useVeiculos({ ativo: true, tipoFrota: TipoVeiculoFrota.Locacao });
+  const veiculos = veiculosQuery.data?.items;
+  const vinculosQuery = useVinculosParceiro(parceiroId ? { parceiroId } : undefined);
+
+  const veiculoIdsParceiro = useMemo(() => {
+    if (!parceiroId) return null;
+    return new Set((vinculosQuery.data?.items ?? []).map((v) => v.veiculoId));
+  }, [parceiroId, vinculosQuery.data]);
 
   const placaFiltro = useMemo(() => {
     if (!veiculoId) return undefined;
     return veiculosQuery.data?.items.find((v) => v.id === veiculoId)?.placa;
   }, [veiculoId, veiculosQuery.data]);
 
-  const rows = query.data?.items ?? [];
+  const rows = useMemo(() => {
+    const items = query.data?.items ?? [];
+    if (!veiculoIdsParceiro) return items;
+    return items.filter(
+      (d) =>
+        d.debitoParceiroId === parceiroId ||
+        (d.veiculoId != null && veiculoIdsParceiro.has(d.veiculoId)),
+    );
+  }, [query.data?.items, veiculoIdsParceiro, parceiroId]);
+
   const temFiltro = Boolean(
     veiculoId ||
       clienteId ||
+      parceiroId ||
       situacao !== "em_aberto" ||
       semResponsavel ||
       periodoPreenchido(periodo),
@@ -87,7 +119,7 @@ export function RelatorioEstacionamentoSection() {
 
   const total = useMemo(() => rows.reduce((sum, d) => sum + valorAviso(d), 0), [rows]);
 
-  const loading = query.isLoading;
+  const loading = query.isLoading || (Boolean(parceiroId) && vinculosQuery.isLoading);
 
   async function atribuirResponsaveis(dryRun: boolean) {
     setAcaoLoading(dryRun ? "preview" : "atribuir");
@@ -160,8 +192,7 @@ export function RelatorioEstacionamentoSection() {
       {!loading ? (
         <p className="relatorio-infracoes__resumo">
           <span className="badge badge--muted">
-            {query.data?.total ?? 0} aviso{(query.data?.total ?? 0) === 1 ? "" : "s"} ·{" "}
-            {formatBrl(total)}
+            {rows.length} aviso{rows.length === 1 ? "" : "s"} · {formatBrl(total)}
           </span>
         </p>
       ) : null}
@@ -176,11 +207,15 @@ export function RelatorioEstacionamentoSection() {
               valueField="id"
               ativo
               tipoFrota={TipoVeiculoFrota.Locacao}
+              parceiroId={parceiroId || undefined}
               variant="filtro"
             />
           </FieldLike>
           <FieldLike label="Cliente">
             <ClienteSelect value={clienteId} onChange={setClienteId} ativo variant="filtro" />
+          </FieldLike>
+          <FieldLike label="Parceiro">
+            <ParceiroSelect value={parceiroId} onChange={setParceiroId} ativo variant="filtro" />
           </FieldLike>
           <RelatorioPeriodoFiltro
             value={periodo}
@@ -297,10 +332,10 @@ export function RelatorioEstacionamentoSection() {
             render: (d) => <strong>{d.autoInfracao ?? d.id.slice(0, 8)}</strong>,
           },
           {
-            key: "placa",
-            header: "Placa",
-            sortValue: (d) => formatPlaca(d.placa ?? d.veiculoId),
-            render: (d) => formatPlaca(d.placa ?? d.veiculoId),
+            key: "veiculo",
+            header: "Veículo",
+            sortValue: (d) => veiculoDespesa(d, veiculos),
+            render: (d) => veiculoDespesa(d, veiculos),
           },
           {
             key: "desc",

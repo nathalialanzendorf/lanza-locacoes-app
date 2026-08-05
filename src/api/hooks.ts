@@ -26,7 +26,13 @@ export function useClientes(opts?: { ativo?: boolean; cpf?: string; nome?: strin
   });
 }
 
-export function useVeiculos(params?: { ativo?: boolean; placa?: string; particular?: boolean; tipoFrota?: string }) {
+export function useVeiculos(params?: {
+  ativo?: boolean;
+  placa?: string;
+  particular?: boolean;
+  tipoFrota?: string;
+  comFipe?: boolean;
+}) {
   return useQuery({
     queryKey: ["veiculos", params],
     queryFn: () => lanzaApi.listarVeiculos(params),

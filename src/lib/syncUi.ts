@@ -98,11 +98,12 @@ export type SyncNavItem = {
   end?: boolean;
 };
 
-/** Abas da SyncPage (Registros, integrações ativas e Legado). */
+/** Abas da SyncPage (Registros, dados do veículo, integrações ativas e Legado). */
 export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
   const { ativos, legado } = abasSync(syncs);
   return [
     { to: "/sync/registros", label: "Registros", end: true },
+    { to: "/sync/veiculo", label: "Dados do veículo", end: true },
     ...ativos.map((s) => ({
       to: syncPath(s.id),
       label: rotuloAbaSync(s),

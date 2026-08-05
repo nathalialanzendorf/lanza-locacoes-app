@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageTabs } from "@/components/PageTabs";
 import { useSyncMeta } from "@/api/hooks";
 import { syncNavItems } from "@/lib/syncUi";
+import { RelatorioVeiculoDadosSection } from "@/pages/relatorios/RelatorioVeiculoDadosSection";
 import { SyncRegistrosSection } from "@/pages/sync/SyncRegistrosSection";
 import { SyncLegadoSection, SyncTipoSection } from "@/pages/sync/SyncTipoSection";
 
@@ -30,6 +31,7 @@ export function SyncPage() {
       <Routes>
         <Route index element={<Navigate to="registros" replace />} />
         <Route path="registros" element={<SyncRegistrosSection />} />
+        <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
         <Route path="executar" element={<Navigate to="/sync/registros" replace />} />
         <Route path="legado" element={<SyncLegadoSection />} />
         <Route path=":syncId" element={<SyncTipoRoute />} />

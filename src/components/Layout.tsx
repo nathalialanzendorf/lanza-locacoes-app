@@ -52,6 +52,11 @@ const sharedNavSections: NavSection[] = [
         label: "Relatórios",
         isActive: (pathname) => relatoriosConsultaNavAtivo(pathname),
       },
+      {
+        to: "/sync/registros",
+        label: "Syncs",
+        isActive: (pathname) => syncNavAtivo(pathname),
+      },
     ],
   },
 ];
@@ -72,11 +77,6 @@ const moduleNavSections: NavSection[] = [
       },
       { to: "/parceiros", label: "Parceiros" },
       { to: "/movimentacao", label: "Movimentação" },
-      {
-        to: "/sync/registros",
-        label: "Syncs",
-        isActive: (pathname) => syncNavAtivo(pathname),
-      },
       {
         to: "/relatorios/cobrancas",
         label: "Relatórios",

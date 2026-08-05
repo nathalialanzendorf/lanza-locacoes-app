@@ -3,8 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageTabs } from "@/components/PageTabs";
 
 export const RELATORIOS_CONSULTA_TABS = [
-  { to: "/relatorios/veiculo", label: "Dados do veículo", end: true },
-  { to: "/relatorios/infracoes", label: "Infrações" },
+  { to: "/relatorios/infracoes", label: "Infrações", end: true },
   { to: "/relatorios/ipva-licenciamento", label: "IPVA/Licenciamento" },
   { to: "/relatorios/pedagios", label: "Pedágio Digital" },
   { to: "/relatorios/estacionamento", label: "SigaPay" },
@@ -65,7 +64,7 @@ export function RelatoriosShell() {
 }
 
 export function RelatoriosConsultaIndexRedirect() {
-  return <Navigate to="veiculo" replace />;
+  return <Navigate to="infracoes" replace />;
 }
 
 export function RelatoriosLocacaoIndexRedirect() {
