@@ -283,6 +283,9 @@ export type Infracao = {
   valorMulta?: number;
   situacao?: string;
   status?: string;
+  /** Status bruto DETRAN: Advertida | Paga | Notificada | Justificada. */
+  statusInfracao?: string | null;
+  statusDetran?: string | null;
   limiteDefesa?: string;
   dataLimiteDefesa?: string;
   quitadaDetran?: boolean;

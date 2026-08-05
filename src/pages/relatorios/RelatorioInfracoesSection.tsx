@@ -12,18 +12,92 @@ import {
   RelatorioPeriodoFiltro,
   type RelatorioPeriodo,
 } from "@/components/relatorios/RelatorioPeriodoFiltro";
-import { useInfracoes } from "@/api/hooks";
+import { useInfracoes, useVeiculos } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { formatBrl, formatPlaca } from "@/lib/format";
+import { formatBrl, formatVeiculoLabel } from "@/lib/format";
 import { TipoVeiculoFrota } from "@/lib/domain";
 import { periodoPreenchido } from "@/lib/periodoRelatorio";
-import type { Infracao } from "@/api/types";
+import { statusResponsavel } from "@/lib/responsavelDebitoUi";
+import type { Infracao, Veiculo } from "@/api/types";
 
-type FiltroSituacao = "em_aberto" | "quitado" | "todos";
+/** Situações DETRAN + agrupamentos usados no filtro. */
+type FiltroSituacao =
+  | "em_aberto"
+  | "notificada"
+  | "paga"
+  | "advertida"
+  | "justificada"
+  | "cancelada"
+  | "todos";
+
+type FiltroResponsavel = "" | "parceiro_confirmado" | "cliente_confirmado" | "nao_confirmado";
+
+type ChaveSituacao =
+  | "em_aberto"
+  | "notificada"
+  | "paga"
+  | "advertida"
+  | "justificada"
+  | "cancelada";
 
 function valorInfracao(i: Infracao): number {
   return Number(i.valorMulta ?? i.valor) || 0;
+}
+
+function compactPlaca(placa: string | null | undefined): string {
+  return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
+}
+
+function veiculoInfracao(i: Infracao, veiculos: Veiculo[] | undefined): string {
+  const ref = String(i.veiculoId ?? "").trim();
+  const placaKey = compactPlaca(ref);
+  const v = veiculos?.find((x) => x.id === ref || compactPlaca(x.placa) === placaKey);
+  if (v) return formatVeiculoLabel(v);
+  return formatVeiculoLabel({ placa: ref || undefined });
+}
+
+function normStatus(s?: string | null): string {
+  return String(s ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function chaveSituacaoInfracao(i: Infracao): ChaveSituacao {
+  if (i.quitadaDetran === true) return "paga";
+
+  const statusInfracao = normStatus(i.statusInfracao);
+  const statusDetran = normStatus(i.statusDetran);
+  const status = normStatus(i.status);
+  const situacao = normStatus(i.situacao);
+  const raw = statusInfracao || statusDetran || status || situacao;
+
+  if (raw === "advertida" || raw === "advertido") return "advertida";
+  if (raw === "justificada") return "justificada";
+  if (raw === "cancelada" || raw === "cancelado") return "cancelada";
+  if (raw === "paga" || /quitad|pago/.test(raw)) return "paga";
+  if (raw === "notificada" || /notificad|autua|penalidade/.test(raw)) return "notificada";
+  if (raw === "em aberto" || /aberto/.test(raw)) return "em_aberto";
+  return "em_aberto";
+}
+
+function passaFiltroSituacao(i: Infracao, filtro: FiltroSituacao): boolean {
+  if (filtro === "todos") return true;
+  const chave = chaveSituacaoInfracao(i);
+  if (filtro === "em_aberto") {
+    return chave === "em_aberto" || chave === "notificada";
+  }
+  return chave === filtro;
+}
+
+function passaFiltroResponsavel(i: Infracao, filtro: FiltroResponsavel): boolean {
+  if (!filtro) return true;
+  const status = statusResponsavel(i);
+  if (filtro === "parceiro_confirmado") return status === "confirmado-parceiro";
+  if (filtro === "cliente_confirmado") return status === "confirmado-cliente";
+  return status !== "confirmado-parceiro" && status !== "confirmado-cliente";
 }
 
 function situacaoLabel(i: Infracao): { text: string; className: string } {
@@ -47,11 +121,13 @@ export function RelatorioInfracoesSection() {
   const [parceiroId, setParceiroId] = useState("");
   const [periodo, setPeriodo] = useState<RelatorioPeriodo>(PERIODO_VAZIO);
   const [situacao, setSituacao] = useState<FiltroSituacao>("em_aberto");
+  const [responsavel, setResponsavel] = useState<FiltroResponsavel>("");
   const [atribuirLoading, setAtribuirLoading] = useState(false);
   const [atribuirResult, setAtribuirResult] = useState<unknown>(null);
   const [atribuirError, setAtribuirError] = useState<string | null>(null);
 
-  const emAberto = situacao === "em_aberto" ? true : situacao === "quitado" ? false : undefined;
+  const emAberto =
+    situacao === "em_aberto" ? true : situacao === "paga" ? false : undefined;
 
   const query = useInfracoes({
     veiculoId: veiculoId || undefined,
@@ -62,9 +138,23 @@ export function RelatorioInfracoesSection() {
     emAberto,
     ativo: true,
   });
-  const rows = query.data?.items ?? [];
+  const veiculosQuery = useVeiculos({ ativo: true, tipoFrota: TipoVeiculoFrota.Locacao });
+  const veiculos = veiculosQuery.data?.items;
+
+  const rows = useMemo(() => {
+    const items = query.data?.items ?? [];
+    return items.filter(
+      (i) => passaFiltroSituacao(i, situacao) && passaFiltroResponsavel(i, responsavel),
+    );
+  }, [query.data?.items, situacao, responsavel]);
+
   const temFiltro = Boolean(
-    veiculoId || clienteId || parceiroId || situacao !== "em_aberto" || periodoPreenchido(periodo),
+    veiculoId ||
+      clienteId ||
+      parceiroId ||
+      situacao !== "em_aberto" ||
+      responsavel ||
+      periodoPreenchido(periodo),
   );
 
   const total = useMemo(() => rows.reduce((sum, i) => sum + valorInfracao(i), 0), [rows]);
@@ -95,8 +185,7 @@ export function RelatorioInfracoesSection() {
       {!loading ? (
         <p className="relatorio-infracoes__resumo">
           <span className="badge badge--muted">
-            {query.data?.total ?? 0} registo{(query.data?.total ?? 0) === 1 ? "" : "s"} ·{" "}
-            {formatBrl(total)}
+            {rows.length} registo{rows.length === 1 ? "" : "s"} · {formatBrl(total)}
           </span>
         </p>
       ) : null}
@@ -135,20 +224,32 @@ export function RelatorioInfracoesSection() {
               aria-label="Situação"
             >
               <option value="em_aberto">Em aberto</option>
-              <option value="quitado">Quitadas / pagas</option>
+              <option value="notificada">Notificada</option>
+              <option value="paga">Paga</option>
+              <option value="advertida">Advertida</option>
+              <option value="justificada">Justificada</option>
+              <option value="cancelada">Cancelada</option>
               <option value="todos">{SELECT_LABEL_TODOS}</option>
+            </NativeSelect>
+          </FieldLike>
+          <FieldLike label="Responsável">
+            <NativeSelect
+              value={responsavel}
+              onChange={(v) => setResponsavel(v as FiltroResponsavel)}
+              variant="filtro"
+              allowEmpty
+              emptyLabel={SELECT_LABEL_TODOS}
+              aria-label="Responsável"
+            >
+              <option value="parceiro_confirmado">Parceiro confirmado</option>
+              <option value="cliente_confirmado">Cliente confirmado</option>
+              <option value="nao_confirmado">Não confirmado</option>
             </NativeSelect>
           </FieldLike>
         </div>
       </section>
 
-      <section className="form-card">
-        <p className="field__hint">
-          «Inferir responsáveis» aplica as mesmas regras de contrato/manutenção/reserva para multas e
-          pedágios. Cliente ou parceiro ficam como <strong>sugestão</strong> até confirmar na linha
-          (ou escolher outro responsável).
-        </p>
-      </section>
+
 
       <div className="despesas-toolbar">
         <button
@@ -197,10 +298,10 @@ export function RelatorioInfracoesSection() {
             render: (i) => <strong>{i.numeroAuto}</strong>,
           },
           {
-            key: "placa",
-            header: "Placa",
-            sortValue: (i) => formatPlaca(i.veiculoId),
-            render: (i) => formatPlaca(i.veiculoId),
+            key: "veiculo",
+            header: "Veículo",
+            sortValue: (i) => veiculoInfracao(i, veiculos),
+            render: (i) => veiculoInfracao(i, veiculos),
           },
           {
             key: "desc",
@@ -245,17 +346,6 @@ export function RelatorioInfracoesSection() {
                 onConfirmed={() => void queryClient.invalidateQueries({ queryKey: ["infracoes"] })}
               />
             ),
-          },
-          {
-            key: "despesa",
-            header: "Despesa",
-            sortValue: (i) => (i.clienteDespesaId ? 1 : 0),
-            render: (i) =>
-              i.clienteDespesaId ? (
-                <span className="badge badge--ok">Vinculada</span>
-              ) : (
-                <span className="badge badge--muted">—</span>
-              ),
           },
         ]}
       />
