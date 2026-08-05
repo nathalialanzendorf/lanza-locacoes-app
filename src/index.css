@@ -1267,6 +1267,21 @@ code {
   margin-bottom: 0.25rem;
 }
 
+.sync-rastreame-grupo {
+  margin-top: 1.25rem;
+}
+
+.sync-rastreame-grupo__titulo {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sync-rastreame-aviso {
+  margin-top: 0.5rem;
+  color: var(--color-warn, #b45309);
+}
+
 .sync-status__linha {
   display: flex;
   align-items: center;

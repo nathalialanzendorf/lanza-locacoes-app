@@ -2,20 +2,26 @@ import { Toggle } from "@/components/Toggle";
 import { useRastreameEspelho } from "@/hooks/useRastreameEspelho";
 
 export function RastreameEspelhoToggle() {
-  const { config } = useRastreameEspelho();
+  const { ativo, config, loading, setAtivo } = useRastreameEspelho();
 
   if (!config) return null;
 
   return (
-    <div className="rastreame-espelho rastreame-espelho--deprecated">
+    <div className="rastreame-espelho">
       <Toggle
-        checked={false}
-        onChange={() => {}}
-        disabled
-        label="Rastreame (descontinuado)"
-        aria-label="Integração Rastreame descontinuada"
+        checked={ativo}
+        onChange={(next) => void setAtivo(next)}
+        disabled={loading || !config.editavelViaApi}
+        label="Espelhar no Rastreame"
+        aria-label="Espelhar no Rastreame"
       />
-      <span className="rastreame-espelho__hint">só Lanza</span>
+      {!config.editavelViaApi ? (
+        <span className="rastreame-espelho__hint">via env</span>
+      ) : (
+        <span className={`rastreame-espelho__status ${ativo ? "is-on" : "is-off"}`}>
+          {ativo ? "ligado" : "desligado"}
+        </span>
+      )}
     </div>
   );
 }

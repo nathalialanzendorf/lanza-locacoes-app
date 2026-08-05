@@ -9,6 +9,26 @@ const ENVIAR_SYNC_IDS = new Set([
   "manutencao",
 ]);
 
+export const RASTREAME_SYNC_IDS = new Set([
+  "motoristas",
+  "rastreaveis",
+  "rastreaveis-enviar",
+  "recebimentos",
+  "manutencao",
+]);
+
+const RASTREAME_SYNC_ORDEM = [
+  "rastreaveis",
+  "motoristas",
+  "rastreaveis-enviar",
+  "recebimentos",
+  "manutencao",
+] as const;
+
+export function isSyncRastreame(id: string): boolean {
+  return RASTREAME_SYNC_IDS.has(id);
+}
+
 export function direcaoEfetiva(sync: SyncCatalogEntry): SyncDirecao {
   if (sync.direcao === "enviar" || sync.direcao === "buscar") return sync.direcao;
   return ENVIAR_SYNC_IDS.has(sync.id) ? "enviar" : "buscar";
@@ -20,12 +40,11 @@ const BUSCAR_ORDEM = [
   "infracoes",
   "ipva-licenciamento",
   "detran-rs",
-  "rastreaveis",
   "fipe",
   "seguro",
 ] as const;
 
-const ENVIAR_ORDEM = ["motoristas", "rastreaveis-enviar", "recebimentos", "manutencao"] as const;
+const ENVIAR_ORDEM = [] as const;
 
 export function ordenarSyncsPorDirecao(
   syncs: SyncCatalogEntry[],
@@ -36,6 +55,20 @@ export function ordenarSyncsPorDirecao(
   const map = new Map(filtrados.map((s) => [s.id, s]));
   const ordered: SyncCatalogEntry[] = [];
   for (const id of ordem) {
+    const item = map.get(id);
+    if (item) ordered.push(item);
+  }
+  for (const s of filtrados) {
+    if (!ordered.some((o) => o.id === s.id)) ordered.push(s);
+  }
+  return ordered;
+}
+
+export function ordenarSyncsRastreame(syncs: SyncCatalogEntry[]): SyncCatalogEntry[] {
+  const filtrados = syncs.filter((s) => isSyncRastreame(s.id) && syncAtivo(s));
+  const map = new Map(filtrados.map((s) => [s.id, s]));
+  const ordered: SyncCatalogEntry[] = [];
+  for (const id of RASTREAME_SYNC_ORDEM) {
     const item = map.get(id);
     if (item) ordered.push(item);
   }
@@ -59,6 +92,14 @@ export function opcoesSyncCompleto(
   const base = bodySyncGlobal(opts);
   const ativos = syncs.filter((s) => !s.depreciado);
   return Object.fromEntries(ativos.map((s) => [s.id, { ...base }]));
+}
+
+export function opcoesSyncRastreame(
+  syncs: SyncCatalogEntry[],
+  opts: { dryRun: boolean; placa: string },
+): Record<string, Record<string, unknown>> {
+  const base = bodySyncGlobal(opts);
+  return Object.fromEntries(ordenarSyncsRastreame(syncs).map((s) => [s.id, { ...base }]));
 }
 
 export function syncAtivo(sync: SyncCatalogEntry): boolean {
@@ -98,9 +139,9 @@ export type SyncNavItem = {
   end?: boolean;
 };
 
-/** Abas da SyncPage (Registros, dados do veículo, integrações ativas e Legado). */
+/** Abas da SyncPage (Registros, dados do veículo, integrações ativas, Rastreame e Legado). */
 export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
-  const { ativos, legado } = abasSync(syncs);
+  const { ativos, rastreame, legado } = abasSync(syncs);
   return [
     { to: "/sync/registros", label: "Registros", end: true },
     { to: "/sync/veiculo", label: "Dados do veículo", end: true },
@@ -109,6 +150,9 @@ export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
       label: rotuloAbaSync(s),
       end: true as const,
     })),
+    ...(rastreame.length > 0
+      ? [{ to: "/sync/rastreame", label: "Rastreame", end: true as const }]
+      : []),
     ...(legado.length > 0 ? [{ to: "/sync/legado", label: "Legado", end: true as const }] : []),
   ];
 }
@@ -137,12 +181,16 @@ export function syncTemRegistros(syncId: string): boolean {
 
 export function abasSync(syncs: SyncCatalogEntry[]): {
   ativos: SyncCatalogEntry[];
+  rastreame: SyncCatalogEntry[];
   legado: SyncCatalogEntry[];
 } {
+  const rastreame = ordenarSyncsRastreame(syncs);
+  const rastreameIds = new Set(rastreame.map((s) => s.id));
+  const outrosAtivos = syncs.filter((s) => syncAtivo(s) && !rastreameIds.has(s.id));
   const ativos = [
-    ...ordenarSyncsPorDirecao(syncs, "buscar").filter(syncAtivo),
-    ...ordenarSyncsPorDirecao(syncs, "enviar").filter(syncAtivo),
+    ...ordenarSyncsPorDirecao(outrosAtivos, "buscar"),
+    ...ordenarSyncsPorDirecao(outrosAtivos, "enviar"),
   ];
   const legado = syncs.filter((s) => !syncAtivo(s));
-  return { ativos, legado };
+  return { ativos, rastreame, legado };
 }
