@@ -20,14 +20,13 @@ export function SyncRegistrosSection() {
   const qc = useQueryClient();
   const metaQuery = useSyncMeta();
   const [veiculoId, setVeiculoId] = useState("");
-  const [semConfirmacao, setSemConfirmacao] = useState(false);
   const [acaoLoading, setAcaoLoading] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<unknown>(null);
   const [inferirResult, setInferirResult] = useState<unknown>(null);
   const [acaoError, setAcaoError] = useState<string | null>(null);
 
   const { linhas, total, loading, placaSync, veiculoIdFiltro, infracoesQuery, despesasQuery } =
-    useSyncRegistrosLinhas({ veiculoId, semConfirmacao });
+    useSyncRegistrosLinhas({ veiculoId });
 
   async function sincronizarFrota() {
     setAcaoLoading("sync");
@@ -130,14 +129,6 @@ export function SyncRegistrosSection() {
               ---Todos--- sincroniza e lista a frota ativa. Um veículo limita pedágio, SigaPay e DETRAN a
               esse veículo. FIPE (aba Sync › FIPE) atualiza todos no PostgreSQL.
             </span>
-          </label>
-          <label className="field checkbox-inline">
-            <input
-              type="checkbox"
-              checked={semConfirmacao}
-              onChange={(e) => setSemConfirmacao(e.target.checked)}
-            />
-            Só registos sem confirmação de responsável
           </label>
         </div>
         {!loading ? (

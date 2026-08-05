@@ -5,7 +5,6 @@ import { isCategoriaEstacionamento } from "@/lib/estacionamentoLabels";
 import { formatPlaca } from "@/lib/format";
 import { isCategoriaPedagio } from "@/lib/pedagioLabels";
 import { CategoriaDespesaCliente } from "@/lib/domain";
-import { precisaConfirmacao } from "@/lib/responsavelDebitoUi";
 import type { SyncRegistroTipo } from "@/lib/syncUi";
 import type { ClienteDespesa, Infracao } from "@/api/types";
 
@@ -39,11 +38,10 @@ function categoriaDespesaSync(
 
 type Params = {
   veiculoId?: string;
-  semConfirmacao?: boolean;
   tipos?: SyncRegistroTipo[] | null;
 };
 
-export function useSyncRegistrosLinhas({ veiculoId, semConfirmacao, tipos }: Params) {
+export function useSyncRegistrosLinhas({ veiculoId, tipos }: Params) {
   const veiculoIdFiltro = veiculoId?.trim() || undefined;
   const veiculosQuery = useVeiculos({ ativo: true });
 
@@ -112,13 +110,8 @@ export function useSyncRegistrosLinhas({ veiculoId, semConfirmacao, tipos }: Par
       return a.tipo.localeCompare(b.tipo, "pt-BR");
     });
 
-    if (!semConfirmacao) return out;
-
-    return out.filter((l) => {
-      const item = l.infracao ?? l.despesa;
-      return item ? precisaConfirmacao(item) : false;
-    });
-  }, [infracoesQuery.data, despesasQuery.data, semConfirmacao, tipos, incluirInfracoes, incluirDespesas]);
+    return out;
+  }, [infracoesQuery.data, despesasQuery.data, tipos, incluirInfracoes, incluirDespesas]);
 
   const total = useMemo(() => linhas.reduce((s, l) => s + l.valor, 0), [linhas]);
 

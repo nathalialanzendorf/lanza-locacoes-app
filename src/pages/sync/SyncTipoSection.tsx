@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
+import { Toggle } from "@/components/Toggle";
 import { useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
@@ -34,7 +35,6 @@ export function SyncTipoSection({ syncId }: Props) {
   const opcoes = useSyncOpcoes();
   const { runningId, error, lastResult, disparar } = useSyncDisparo();
   const [veiculoId, setVeiculoId] = useState("");
-  const [semConfirmacao, setSemConfirmacao] = useState(false);
   const [inferirLoading, setInferirLoading] = useState(false);
   const [inferirResult, setInferirResult] = useState<unknown>(null);
   const [inferirError, setInferirError] = useState<string | null>(null);
@@ -50,7 +50,6 @@ export function SyncTipoSection({ syncId }: Props) {
   const { linhas, total, loading, placaSync, veiculoIdFiltro, infracoesQuery, despesasQuery } =
     useSyncRegistrosLinhas({
       veiculoId: temRegistros ? veiculoId : undefined,
-      semConfirmacao: temRegistros ? semConfirmacao : false,
       tipos,
     });
 
@@ -117,75 +116,79 @@ export function SyncTipoSection({ syncId }: Props) {
             <p className="field__hint">{sync.destino}</p>
             {sync.nota ? <p className="field__hint">{sync.nota}</p> : null}
           </header>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={runningId !== null}
-            onClick={executar}
-          >
-            {runningId === syncId ? LABEL.processando : "Executar sync"}
-          </button>
-        </section>
-      ) : null}
 
-      {temRegistros ? (
-        <section className="form-card">
-          <h2 className="form-card__title">Veículo</h2>
-          <label className="field">
-            <span className="field__label">Filtrar registos e sync</span>
-            <VeiculoSelect
-              value={veiculoId}
-              onChange={setVeiculoId}
-              valueField="id"
-              ativo
-              variant="filtro"
+          <div className="form-grid sync-executar-opcoes">
+            {temRegistros ? (
+              <label className="field">
+                <span className="field__label">Veículo</span>
+                <VeiculoSelect
+                  value={veiculoId}
+                  onChange={setVeiculoId}
+                  valueField="id"
+                  ativo
+                  variant="filtro"
+                />
+                <span className="field__hint">
+                  ---Todos--- = frota inteira. Um veículo limita o sync e a listagem.
+                </span>
+              </label>
+            ) : (
+              <label className="field">
+                <span className="field__label">Veículo</span>
+                <VeiculoSelect
+                  value={opcoes.placa}
+                  onChange={opcoes.setPlaca}
+                  valueField="placa"
+                  variant="filtro"
+                />
+                <span className="field__hint">
+                  ---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado.
+                </span>
+              </label>
+            )}
+            <Toggle
+              className="field"
+              checked={opcoes.asyncMode}
+              onChange={opcoes.setAsyncMode}
+              disabled={opcoes.dryRun}
+              label="Executar em background (recomendado)"
             />
-            <span className="field__hint">
-              ---Todos--- = frota inteira. Um veículo limita o sync e a listagem.
-            </span>
-          </label>
+            <Toggle
+              className="field"
+              checked={opcoes.dryRun}
+              onChange={opcoes.toggleDryRun}
+              label="Dry-run (simular, não grava)"
+            />
+          </div>
+          {opcoes.dryRun ? (
+            <p className="field__hint sync-dryrun-hint">
+              Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+            </p>
+          ) : null}
+
+          <div className="despesas-toolbar">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={runningId !== null}
+              onClick={executar}
+            >
+              {runningId === syncId ? LABEL.processando : "Executar sync"}
+            </button>
+          </div>
         </section>
-      ) : isFipe ? (
+      ) : (
         <FipeSyncPanel
           initialPlaca={placaFipeUrl || undefined}
           initialMarcaModelo={marcaFipeUrl || undefined}
           initialAnoModelo={anoFipeUrl || undefined}
         />
-      ) : (
-        <SyncOpcoesGlobais
-          placa={opcoes.placa}
-          onPlacaChange={opcoes.setPlaca}
-          asyncMode={opcoes.asyncMode}
-          onAsyncModeChange={opcoes.setAsyncMode}
-          dryRun={opcoes.dryRun}
-          onDryRunChange={opcoes.toggleDryRun}
-        />
       )}
-
-      {temRegistros ? (
-        <SyncOpcoesGlobais
-          placa={placaExecucao}
-          onPlacaChange={() => {}}
-          asyncMode={opcoes.asyncMode}
-          onAsyncModeChange={opcoes.setAsyncMode}
-          dryRun={opcoes.dryRun}
-          onDryRunChange={opcoes.toggleDryRun}
-          hideVeiculo
-        />
-      ) : null}
 
       {temRegistros ? (
         <>
           <section className="form-card">
             <h2 className="form-card__title">Registos em aberto</h2>
-            <label className="field checkbox-inline">
-              <input
-                type="checkbox"
-                checked={semConfirmacao}
-                onChange={(e) => setSemConfirmacao(e.target.checked)}
-              />
-              Só registos sem confirmação de responsável
-            </label>
             {!loading ? (
               <p className="field__hint">
                 {linhas.length} registo{linhas.length === 1 ? "" : "s"} · {formatBrl(total)}
