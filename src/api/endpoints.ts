@@ -137,6 +137,27 @@ export const lanzaApi = {
       "/api/portais/detran-sc/captura",
       { method: "DELETE" },
     ),
+  statusSigapaySessao: () =>
+    apiRequest<{ data: import("./types").SigapaySessaoStatus }>("/api/portais/sigapay/sessao"),
+  gravarSigapaySessao: (body: { cookie?: string; token?: string; apiBase?: string | null }) =>
+    apiRequest<{ data: import("./types").SigapaySessaoStatus & { ok?: boolean } }>(
+      "/api/portais/sigapay/sessao",
+      { method: "PUT", body },
+    ),
+  removerSigapaySessao: () =>
+    apiRequest<{ data: { ok: boolean; configured: boolean } }>("/api/portais/sigapay/sessao", {
+      method: "DELETE",
+    }),
+  statusCapturaSigapay: () =>
+    apiRequest<{ data: import("./types").SigapayCapturaState }>("/api/portais/sigapay/captura"),
+  iniciarCapturaSigapay: () =>
+    apiRequest<{ data: import("./types").SigapayCapturaState }>("/api/portais/sigapay/captura", {
+      method: "POST",
+    }),
+  pararCapturaSigapay: () =>
+    apiRequest<{ data: import("./types").SigapayCapturaState }>("/api/portais/sigapay/captura", {
+      method: "DELETE",
+    }),
   downloadDocumento: (pathname: string, filename?: string) =>
     apiDownload("/api/documentos/download", { params: { pathname }, filename }),
 

@@ -14,7 +14,7 @@ import { TipoVeiculoFrota } from "@/lib/domain";
 import { CATEGORIA_ESTACIONAMENTO } from "@/lib/estacionamentoLabels";
 import { CATEGORIA_PEDAGIO } from "@/lib/pedagioLabels";
 import { bodySyncGlobal, opcoesSyncCompleto } from "@/lib/syncUi";
-import { SyncJobsTable, useSyncOpcoes } from "@/pages/sync/syncShared";
+import { SyncJobsTable, SyncStatusBanner, useSyncOpcoes } from "@/pages/sync/syncShared";
 import { SyncRegistrosTable } from "@/pages/sync/SyncRegistrosTable";
 import { useSyncRegistrosLinhas } from "@/pages/sync/useSyncRegistrosLinhas";
 
@@ -201,7 +201,8 @@ export function SyncRegistrosSection() {
       </section>
 
       <FlashError message={acaoError} />
-      <ResultPanel title={opcoes.dryRun ? "Resultado (dry-run)" : "Resultado sync"} data={syncResult} />
+      <SyncStatusBanner />
+      {opcoes.dryRun ? <ResultPanel title="Resultado (dry-run)" data={syncResult} /> : null}
       <ResultPanel title="Inferência de responsáveis" data={inferirResult} />
 
       {infracoesQuery.isError || despesasQuery.isError ? (

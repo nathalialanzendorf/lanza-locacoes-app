@@ -386,6 +386,22 @@ export type DetranScCapturaState = {
   available: boolean;
 };
 
+export type SigapaySessaoStatus = {
+  configured: boolean;
+  updatedAt?: string;
+  cookiePreview?: string;
+  tokenPreview?: string;
+  origem?: "env" | "store";
+};
+
+export type SigapayCapturaState = {
+  status: DetranScCapturaStatus;
+  message?: string;
+  startedAt?: string;
+  capturedAt?: string;
+  available: boolean;
+};
+
 export type LinhaPlanoBaixa = {
   num: number;
   operacao: string;

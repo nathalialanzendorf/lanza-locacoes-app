@@ -1267,6 +1267,24 @@ code {
   margin-bottom: 0.25rem;
 }
 
+.sync-status__linha {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.sync-status--erro {
+  border-color: #fecaca;
+}
+
+.sync-status__erro {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--danger);
+}
+
 .sync-dryrun-hint {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.85rem;

@@ -16,11 +16,13 @@ import { LABEL } from "@/lib/labels";
 import { abasSync, rotuloAbaSync, syncTemRegistros, tiposRegistrosSync } from "@/lib/syncUi";
 import {
   SyncJobsTable,
+  SyncStatusBanner,
   executarSyncId,
   useSyncDisparo,
   useSyncOpcoes,
 } from "@/pages/sync/syncShared";
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
+import { SigapaySessaoPanel } from "@/pages/sync/SigapaySessaoPanel";
 import { SyncRegistrosTable } from "@/pages/sync/SyncRegistrosTable";
 import { useSyncRegistrosLinhas } from "@/pages/sync/useSyncRegistrosLinhas";
 
@@ -115,60 +117,64 @@ export function SyncTipoSection({ syncId }: Props) {
   return (
     <>
       {!isFipe ? (
-        <section className="form-card">
-          <header className="sync-section__head">
-            <h2 className="form-card__title">{sync.rotulo}</h2>
-            <p className="field__hint">{sync.destino}</p>
-            {sync.nota ? <p className="field__hint">{sync.nota}</p> : null}
-          </header>
+        <>
+          <section className="form-card">
+            <header className="sync-section__head">
+              <h2 className="form-card__title">{sync.rotulo}</h2>
+              <p className="field__hint">{sync.destino}</p>
+              {sync.nota ? <p className="field__hint">{sync.nota}</p> : null}
+            </header>
 
-          <div className="form-grid sync-executar-opcoes">
-            <label className="field">
-              <span className="field__label">Veículo</span>
-              <VeiculoSelect
-                value={veiculoId}
-                onChange={setVeiculoId}
-                valueField="id"
-                ativo
-                tipoFrota={TipoVeiculoFrota.Locacao}
-                variant="filtro"
+            <div className="form-grid sync-executar-opcoes">
+              <label className="field">
+                <span className="field__label">Veículo</span>
+                <VeiculoSelect
+                  value={veiculoId}
+                  onChange={setVeiculoId}
+                  valueField="id"
+                  ativo
+                  tipoFrota={TipoVeiculoFrota.Locacao}
+                  variant="filtro"
+                />
+                <span className="field__hint">
+                  ---Todos--- = frota inteira. Um veículo limita o sync
+                  {temRegistros ? " e a listagem" : ""}.
+                </span>
+              </label>
+              <Toggle
+                className="field"
+                checked={opcoes.asyncMode}
+                onChange={opcoes.setAsyncMode}
+                disabled={opcoes.dryRun}
+                label="Executar em background (recomendado)"
               />
-              <span className="field__hint">
-                ---Todos--- = frota inteira. Um veículo limita o sync
-                {temRegistros ? " e a listagem" : ""}.
-              </span>
-            </label>
-            <Toggle
-              className="field"
-              checked={opcoes.asyncMode}
-              onChange={opcoes.setAsyncMode}
-              disabled={opcoes.dryRun}
-              label="Executar em background (recomendado)"
-            />
-            <Toggle
-              className="field"
-              checked={opcoes.dryRun}
-              onChange={opcoes.toggleDryRun}
-              label="Dry-run (simular, não grava)"
-            />
-          </div>
-          {opcoes.dryRun ? (
-            <p className="field__hint sync-dryrun-hint">
-              Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
-            </p>
-          ) : null}
+              <Toggle
+                className="field"
+                checked={opcoes.dryRun}
+                onChange={opcoes.toggleDryRun}
+                label="Dry-run (simular, não grava)"
+              />
+            </div>
+            {opcoes.dryRun ? (
+              <p className="field__hint sync-dryrun-hint">
+                Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+              </p>
+            ) : null}
 
-          <div className="despesas-toolbar">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={runningId !== null}
-              onClick={executar}
-            >
-              {runningId === syncId ? LABEL.processando : "Executar sync"}
-            </button>
-          </div>
-        </section>
+            <div className="despesas-toolbar">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={runningId !== null}
+                onClick={executar}
+              >
+                {runningId === syncId ? LABEL.processando : "Executar sync"}
+              </button>
+            </div>
+          </section>
+          <SyncStatusBanner syncId={syncId} />
+          {syncId === "estacionamento" ? <SigapaySessaoPanel /> : null}
+        </>
       ) : (
         <FipeSyncPanel
           initialPlaca={placaFipeUrl || undefined}
@@ -229,10 +235,7 @@ export function SyncTipoSection({ syncId }: Props) {
       <FlashError message={error} />
       {!isFipe ? (
         <>
-          <ResultPanel
-            title={opcoes.dryRun ? "Resultado (dry-run)" : "Última resposta"}
-            data={lastResult}
-          />
+          {opcoes.dryRun ? <ResultPanel title="Resultado (dry-run)" data={lastResult} /> : null}
           <SyncJobsTable syncId={syncId} />
         </>
       ) : null}
@@ -329,7 +332,7 @@ export function SyncLegadoSection() {
         </div>
       )}
 
-      <ResultPanel title={opcoes.dryRun ? "Resultado (dry-run)" : "Última resposta"} data={lastResult} />
+      {opcoes.dryRun ? <ResultPanel title="Resultado (dry-run)" data={lastResult} /> : null}
       <SyncJobsTable />
     </>
   );

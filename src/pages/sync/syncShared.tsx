@@ -127,6 +127,17 @@ export function SyncOpcoesGlobais({
   );
 }
 
+const SYNC_STATUS_LABEL: Record<SyncJob["status"], string> = {
+  pending: "Na fila",
+  running: "Executando",
+  completed: "Concluído",
+  failed: "Falhou",
+};
+
+export function statusSyncLabel(status: SyncJob["status"]): string {
+  return SYNC_STATUS_LABEL[status] ?? status;
+}
+
 function statusBadge(status: SyncJob["status"]) {
   switch (status) {
     case "completed":
@@ -138,6 +149,40 @@ function statusBadge(status: SyncJob["status"]) {
     default:
       return "badge badge--muted";
   }
+}
+
+/** Último job do sync (status, progresso e erro) — substitui o JSON da resposta. */
+export function SyncStatusBanner({ syncId }: { syncId?: string }) {
+  const jobsQuery = useSyncJobs();
+  const job = useMemo(() => {
+    const list = jobsQuery.data?.jobs ?? [];
+    const doSync = syncId ? list.filter((j) => j.sync === syncId) : list;
+    return [...doSync].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  }, [jobsQuery.data, syncId]);
+
+  if (!job) return null;
+
+  const p = job.progress;
+  const emCurso = job.status === "pending" || job.status === "running";
+
+  return (
+    <section
+      className={`form-card sync-status${job.status === "failed" ? " sync-status--erro" : ""}`}
+    >
+      <p className="sync-status__linha">
+        <span className={statusBadge(job.status)}>{statusSyncLabel(job.status)}</span>
+        <span className="field__hint">
+          {new Date(job.finishedAt ?? job.startedAt ?? job.createdAt).toLocaleString("pt-BR")}
+          {p ? ` · ${p.done}/${p.total} (${p.percent}%)` : ""}
+          {p && p.falhas > 0 ? ` · ${p.sucesso} ok, ${p.falhas} com falha` : ""}
+        </span>
+      </p>
+      {job.error ? <p className="sync-status__erro">{job.error}</p> : null}
+      {emCurso ? (
+        <p className="field__hint">A execução continua em background — a lista atualiza sozinha.</p>
+      ) : null}
+    </section>
+  );
 }
 
 type SyncJobsProps = {
@@ -191,7 +236,9 @@ export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps
               key: "status",
               header: "Status",
               sortValue: (j) => j.status,
-              render: (j) => <span className={statusBadge(j.status)}>{j.status}</span>,
+              render: (j) => (
+                <span className={statusBadge(j.status)}>{statusSyncLabel(j.status)}</span>
+              ),
             },
             {
               key: "progress",
