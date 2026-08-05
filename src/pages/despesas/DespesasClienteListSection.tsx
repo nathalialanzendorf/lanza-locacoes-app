@@ -33,11 +33,17 @@ import { useSessionJsonState } from "@/lib/useSessionJsonState";
 import {
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
   STATUS_DESPESA_FILTRO_OPCOES,
+  StatusCobrancaDespesa,
   StatusDespesaFiltro,
   filtroStatusCobranca,
+  resolverStatusCobranca,
   type StatusDespesaFiltroValor,
 } from "@/lib/domain";
 import type { ClienteDespesa, Veiculo } from "@/api/types";
+
+function valorDespesa(d: ClienteDespesa): number {
+  return Number(d.valorMulta) || 0;
+}
 
 type FiltrosDespesasCliente = {
   pagamento: StatusDespesaFiltroValor;
@@ -105,10 +111,17 @@ export function DespesasClienteListSection() {
       periodoPreenchido(periodo),
   );
 
-  const total = useMemo(
-    () => rows.reduce((sum, d) => sum + (Number(d.valorMulta) || 0), 0),
-    [rows],
-  );
+  const { totalNaoPago, totalPago } = useMemo(() => {
+    let naoPago = 0;
+    let pago = 0;
+    for (const d of rows) {
+      const v = valorDespesa(d);
+      const status = resolverStatusCobranca(d);
+      if (status === StatusCobrancaDespesa.Pago) pago += v;
+      else if (status === StatusCobrancaDespesa.EmAberto) naoPago += v;
+    }
+    return { totalNaoPago: naoPago, totalPago: pago };
+  }, [rows]);
 
   async function excluir(despesa: ClienteDespesa) {
     const label = despesa.descricao ?? despesa.categoria ?? despesa.id;
@@ -190,7 +203,8 @@ export function DespesasClienteListSection() {
         </div>
         {!query.isLoading ? (
           <p className="field__hint">
-            {rows.length} lançamento{rows.length === 1 ? "" : "s"} · {formatBrl(total)}
+            {rows.length} lançamento{rows.length === 1 ? "" : "s"} · em aberto{" "}
+            {formatBrl(totalNaoPago)} · pago {formatBrl(totalPago)}
           </p>
         ) : null}
       </section>
@@ -273,9 +287,12 @@ export function DespesasClienteListSection() {
         footer={
           <tr>
             <td colSpan={5}>
-              Total em tela ({rows.length} lançamento{rows.length === 1 ? "" : "s"})
+              Totais em tela ({rows.length} lançamento{rows.length === 1 ? "" : "s"})
             </td>
-            <td className="num">{formatBrl(total)}</td>
+            <td className="num">
+              <div>Em aberto {formatBrl(totalNaoPago)}</div>
+              <div>Pago {formatBrl(totalPago)}</div>
+            </td>
             <td colSpan={3} />
           </tr>
         }
