@@ -9,6 +9,7 @@ import { FlashError } from "@/context/ScreenFlashContext";
 import { useVeiculos, useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { LABEL } from "@/lib/labels";
 import { FipeSyncResultadosPanel } from "@/pages/sync/FipeSyncResultadosPanel";
 import { executarSyncId, useSyncDisparo } from "@/pages/sync/syncShared";
@@ -187,6 +188,8 @@ export function FipeSyncPanel({
                 setConsultaError(null);
               }}
               valueField="placa"
+              ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
               variant="filtro"
               disabled={consultaLoading || syncRodando}
             />

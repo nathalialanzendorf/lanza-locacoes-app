@@ -8,6 +8,8 @@ type Props = {
   linhas: SyncRegistroLinha[];
   veiculoIdFiltro?: string;
   emptyMessage?: string;
+  /** Abas de sync único (infrações / pedágio / SigaPay) — coluna Tipo é redundante. */
+  ocultarTipo?: boolean;
   onConfirmed: () => void;
 };
 
@@ -16,6 +18,7 @@ export function SyncRegistrosTable({
   linhas,
   veiculoIdFiltro,
   emptyMessage,
+  ocultarTipo,
   onConfirmed,
 }: Props) {
   return (
@@ -30,12 +33,18 @@ export function SyncRegistrosTable({
           : "Nenhum registo em aberto. Selecione a frota ou um veículo e sincronize.")
       }
       columns={[
-        {
-          key: "tipo",
-          header: "Tipo",
-          sortValue: (l) => l.tipo,
-          render: (l) => <span className="badge badge--muted">{l.tipo}</span>,
-        },
+        ...(ocultarTipo
+          ? []
+          : [
+              {
+                key: "tipo",
+                header: "Tipo",
+                sortValue: (l: SyncRegistroLinha) => l.tipo,
+                render: (l: SyncRegistroLinha) => (
+                  <span className="badge badge--muted">{l.tipo}</span>
+                ),
+              },
+            ]),
         {
           key: "ref",
           header: "Ref.",
@@ -43,10 +52,10 @@ export function SyncRegistrosTable({
           render: (l) => <strong>{l.ref}</strong>,
         },
         {
-          key: "placa",
-          header: "Placa",
-          sortValue: (l) => l.placa,
-          render: (l) => l.placa,
+          key: "veiculo",
+          header: "Veículo",
+          sortValue: (l) => l.veiculo,
+          render: (l) => l.veiculo,
         },
         {
           key: "desc",

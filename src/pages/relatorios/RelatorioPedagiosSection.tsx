@@ -242,14 +242,6 @@ export function RelatorioPedagiosSection() {
         </div>
       </section>
 
-      <section className="form-card">
-        <p className="field__hint">
-          Mesmas regras das multas (contrato, manutenção, reserva). «Inferir» grava sugestão de cliente
-          ou parceiro; confirme na linha ou escolha outro responsável. Só após confirmar parceiro o
-          débito espelha em Despesas → Parceiro.
-        </p>
-      </section>
-
       <div className="despesas-toolbar">
         <button
           type="button"

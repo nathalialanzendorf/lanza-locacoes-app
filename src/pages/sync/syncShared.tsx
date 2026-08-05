@@ -7,6 +7,7 @@ import { Toggle } from "@/components/Toggle";
 import { useSyncJobs } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { bodySyncGlobal, direcaoEfetiva, syncAtivo } from "@/lib/syncUi";
 import { LABEL } from "@/lib/labels";
 import type { SyncCatalogEntry, SyncJob } from "@/api/types";
@@ -85,12 +86,18 @@ export function SyncOpcoesGlobais({
 }: SyncOpcoesProps) {
   return (
     <section className="form-card sync-options">
-      <h2 className="form-card__title">Opções</h2>
-      <div className="form-grid">
+      <div className="form-grid sync-executar-opcoes">
         {hideVeiculo ? null : (
           <label className="field">
             <span className="field__label">Veículo</span>
-            <VeiculoSelect value={placa} onChange={onPlacaChange} valueField="placa" variant="filtro" />
+            <VeiculoSelect
+              value={placa}
+              onChange={onPlacaChange}
+              valueField="placa"
+              ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
+              variant="filtro"
+            />
             <span className="field__hint">
               {hint ??
                 "---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado."}

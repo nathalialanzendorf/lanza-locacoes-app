@@ -248,14 +248,6 @@ export function RelatorioEstacionamentoSection() {
         </div>
       </section>
 
-      <section className="form-card">
-        <p className="field__hint">
-          Mesmas regras das multas e pedágios (contrato vigente na data do ACT). «Inferir» grava
-          sugestão de cliente ou parceiro; confirme na linha ou escolha outro responsável. Só após
-          confirmar parceiro o débito espelha em Despesas → Parceiro.
-        </p>
-      </section>
-
       <div className="despesas-toolbar">
         <button
           type="button"

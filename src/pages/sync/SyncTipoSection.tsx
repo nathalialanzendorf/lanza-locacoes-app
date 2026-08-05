@@ -11,11 +11,11 @@ import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { formatBrl } from "@/lib/format";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { LABEL } from "@/lib/labels";
 import { abasSync, rotuloAbaSync, syncTemRegistros, tiposRegistrosSync } from "@/lib/syncUi";
 import {
   SyncJobsTable,
-  SyncOpcoesGlobais,
   executarSyncId,
   useSyncDisparo,
   useSyncOpcoes,
@@ -49,19 +49,19 @@ export function SyncTipoSection({ syncId }: Props) {
   const temRegistros = syncTemRegistros(syncId);
   const { linhas, total, loading, placaSync, veiculoIdFiltro, infracoesQuery, despesasQuery } =
     useSyncRegistrosLinhas({
-      veiculoId: temRegistros ? veiculoId : undefined,
-      tipos,
+      veiculoId,
+      tipos: temRegistros ? (tipos ?? []) : [],
     });
 
-  const placaExecucao = temRegistros ? placaSync : opcoes.placa;
   const globalOpts = useMemo(
-    () => ({ dryRun: opcoes.dryRun, placa: placaExecucao }),
-    [opcoes.dryRun, placaExecucao],
+    () => ({ dryRun: opcoes.dryRun, placa: placaSync }),
+    [opcoes.dryRun, placaSync],
   );
 
   function invalidarListagem() {
     void qc.invalidateQueries({ queryKey: ["infracoes"] });
     void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
+    void qc.invalidateQueries({ queryKey: ["despesas-parceiro"] });
   }
 
   function executar() {
@@ -69,7 +69,7 @@ export function SyncTipoSection({ syncId }: Props) {
     void disparar(syncId, () =>
       executarSyncId(metaQuery.data?.syncs ?? [], syncId, globalOpts, opcoes.usarAsync),
     ).then(() => {
-      if (!opcoes.dryRun && temRegistros) invalidarListagem();
+      if (!opcoes.dryRun) invalidarListagem();
     });
   }
 
@@ -78,10 +78,15 @@ export function SyncTipoSection({ syncId }: Props) {
     setInferirError(null);
     setInferirResult(null);
     try {
-      if (syncId === "infracoes" || syncId === "pedagios") {
+      if (syncId === "infracoes") {
         const r = await lanzaApi.atribuirClientesInfracoes({
           veiculoId: veiculoIdFiltro,
-          incluirPedagios: syncId === "pedagios",
+        });
+        setInferirResult(r);
+      } else if (syncId === "pedagios") {
+        const r = await lanzaApi.atribuirClientesDespesas({
+          veiculoId: veiculoIdFiltro,
+          escopo: "pedagio",
         });
         setInferirResult(r);
       } else if (syncId === "estacionamento") {
@@ -118,34 +123,21 @@ export function SyncTipoSection({ syncId }: Props) {
           </header>
 
           <div className="form-grid sync-executar-opcoes">
-            {temRegistros ? (
-              <label className="field">
-                <span className="field__label">Veículo</span>
-                <VeiculoSelect
-                  value={veiculoId}
-                  onChange={setVeiculoId}
-                  valueField="id"
-                  ativo
-                  variant="filtro"
-                />
-                <span className="field__hint">
-                  ---Todos--- = frota inteira. Um veículo limita o sync e a listagem.
-                </span>
-              </label>
-            ) : (
-              <label className="field">
-                <span className="field__label">Veículo</span>
-                <VeiculoSelect
-                  value={opcoes.placa}
-                  onChange={opcoes.setPlaca}
-                  valueField="placa"
-                  variant="filtro"
-                />
-                <span className="field__hint">
-                  ---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado.
-                </span>
-              </label>
-            )}
+            <label className="field">
+              <span className="field__label">Veículo</span>
+              <VeiculoSelect
+                value={veiculoId}
+                onChange={setVeiculoId}
+                valueField="id"
+                ativo
+                tipoFrota={TipoVeiculoFrota.Locacao}
+                variant="filtro"
+              />
+              <span className="field__hint">
+                ---Todos--- = frota inteira. Um veículo limita o sync
+                {temRegistros ? " e a listagem" : ""}.
+              </span>
+            </label>
             <Toggle
               className="field"
               checked={opcoes.asyncMode}
@@ -228,6 +220,7 @@ export function SyncTipoSection({ syncId }: Props) {
             loading={loading}
             linhas={linhas}
             veiculoIdFiltro={veiculoIdFiltro}
+            ocultarTipo={Boolean(tipos && tipos.length === 1)}
             onConfirmed={invalidarListagem}
           />
         </>
@@ -256,20 +249,48 @@ export function SyncLegadoSection() {
   return (
     <>
       <section className="form-card">
-        <h2 className="form-card__title">Integrações Rastreame (descontinuadas)</h2>
-        <p className="field__hint">
-          Mantidas só por compatibilidade — não enviar nem buscar dados do Rastreame.
-        </p>
-      </section>
+        <header className="sync-section__head">
+          <h2 className="form-card__title">Integrações Rastreame (descontinuadas)</h2>
+          <p className="field__hint">
+            Mantidas só por compatibilidade — não enviar nem buscar dados do Rastreame.
+          </p>
+        </header>
 
-      <SyncOpcoesGlobais
-        placa={opcoes.placa}
-        onPlacaChange={opcoes.setPlaca}
-        asyncMode={opcoes.asyncMode}
-        onAsyncModeChange={opcoes.setAsyncMode}
-        dryRun={opcoes.dryRun}
-        onDryRunChange={opcoes.toggleDryRun}
-      />
+        <div className="form-grid sync-executar-opcoes">
+          <label className="field">
+            <span className="field__label">Veículo</span>
+            <VeiculoSelect
+              value={opcoes.placa}
+              onChange={opcoes.setPlaca}
+              valueField="placa"
+              ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
+              variant="filtro"
+            />
+            <span className="field__hint">
+              ---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado.
+            </span>
+          </label>
+          <Toggle
+            className="field"
+            checked={opcoes.asyncMode}
+            onChange={opcoes.setAsyncMode}
+            disabled={opcoes.dryRun}
+            label="Executar em background (recomendado)"
+          />
+          <Toggle
+            className="field"
+            checked={opcoes.dryRun}
+            onChange={opcoes.toggleDryRun}
+            label="Dry-run (simular, não grava)"
+          />
+        </div>
+        {opcoes.dryRun ? (
+          <p className="field__hint sync-dryrun-hint">
+            Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+          </p>
+        ) : null}
+      </section>
 
       {metaQuery.isError ? (
         <QueryError

@@ -4,21 +4,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
+import { Toggle } from "@/components/Toggle";
 import { useSyncMeta } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { formatBrl } from "@/lib/format";
+import { TipoVeiculoFrota } from "@/lib/domain";
 import { CATEGORIA_ESTACIONAMENTO } from "@/lib/estacionamentoLabels";
 import { CATEGORIA_PEDAGIO } from "@/lib/pedagioLabels";
 import { bodySyncGlobal, opcoesSyncCompleto } from "@/lib/syncUi";
-import { SyncJobsTable } from "@/pages/sync/syncShared";
+import { SyncJobsTable, useSyncOpcoes } from "@/pages/sync/syncShared";
 import { SyncRegistrosTable } from "@/pages/sync/SyncRegistrosTable";
 import { useSyncRegistrosLinhas } from "@/pages/sync/useSyncRegistrosLinhas";
 
 export function SyncRegistrosSection() {
   const qc = useQueryClient();
   const metaQuery = useSyncMeta();
+  const opcoes = useSyncOpcoes();
   const [veiculoId, setVeiculoId] = useState("");
   const [acaoLoading, setAcaoLoading] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<unknown>(null);
@@ -34,12 +37,16 @@ export function SyncRegistrosSection() {
     setSyncResult(null);
     try {
       const syncs = metaQuery.data?.syncs ?? [];
-      const r = await lanzaApi.executarSyncCompleto({
-        ...bodySyncGlobal({ dryRun: false, placa: placaSync }),
-        opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa: placaSync }),
-      });
+      const opts = { dryRun: opcoes.dryRun, placa: placaSync };
+      const r = await lanzaApi.executarSyncCompleto(
+        {
+          ...bodySyncGlobal(opts),
+          opcoes: opcoesSyncCompleto(syncs, opts),
+        },
+        { async: opcoes.usarAsync },
+      );
       setSyncResult(r);
-      invalidarListagem();
+      if (!opcoes.dryRun) invalidarListagem();
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao sincronizar.");
     } finally {
@@ -54,13 +61,16 @@ export function SyncRegistrosSection() {
     try {
       const rInf = await lanzaApi.atribuirClientesInfracoes({
         veiculoId: veiculoIdFiltro,
-        incluirPedagios: true,
+      });
+      const rPed = await lanzaApi.atribuirClientesDespesas({
+        veiculoId: veiculoIdFiltro,
+        escopo: "pedagio",
       });
       const rEst = await lanzaApi.atribuirClientesDespesas({
         veiculoId: veiculoIdFiltro,
         escopo: "estacionamento",
       });
-      setInferirResult({ infracoes: rInf, estacionamento: rEst });
+      setInferirResult({ infracoes: rInf, pedagios: rPed, estacionamento: rEst });
       invalidarListagem();
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha ao inferir responsáveis.");
@@ -76,20 +86,28 @@ export function SyncRegistrosSection() {
     setInferirResult(null);
     try {
       const syncs = metaQuery.data?.syncs ?? [];
-      const rSync = await lanzaApi.executarSyncCompleto({
-        ...bodySyncGlobal({ dryRun: false, placa: placaSync }),
-        opcoes: opcoesSyncCompleto(syncs, { dryRun: false, placa: placaSync }),
-      });
+      const opts = { dryRun: opcoes.dryRun, placa: placaSync };
+      const rSync = await lanzaApi.executarSyncCompleto(
+        {
+          ...bodySyncGlobal(opts),
+          opcoes: opcoesSyncCompleto(syncs, opts),
+        },
+        { async: opcoes.usarAsync },
+      );
       setSyncResult(rSync);
+      if (opcoes.dryRun) return;
       const rInf = await lanzaApi.atribuirClientesInfracoes({
         veiculoId: veiculoIdFiltro,
-        incluirPedagios: true,
+      });
+      const rPed = await lanzaApi.atribuirClientesDespesas({
+        veiculoId: veiculoIdFiltro,
+        escopo: "pedagio",
       });
       const rEst = await lanzaApi.atribuirClientesDespesas({
         veiculoId: veiculoIdFiltro,
         escopo: "estacionamento",
       });
-      setInferirResult({ infracoes: rInf, estacionamento: rEst });
+      setInferirResult({ infracoes: rInf, pedagios: rPed, estacionamento: rEst });
       invalidarListagem();
     } catch (err) {
       setAcaoError(err instanceof LanzaApiError ? err.message : "Falha no sync e inferência.");
@@ -106,16 +124,15 @@ export function SyncRegistrosSection() {
   return (
     <>
       <section className="form-card">
-        <h2 className="form-card__title">Visão geral</h2>
-        <p className="field__hint">
-          Multas, {CATEGORIA_PEDAGIO.toLowerCase()} e {CATEGORIA_ESTACIONAMENTO.toLowerCase()} em aberto.
-          Use as abas individuais para executar um sync específico.
-        </p>
-      </section>
+        <header className="sync-section__head">
+          <h2 className="form-card__title">Registros</h2>
+          <p className="field__hint">
+            Multas, {CATEGORIA_PEDAGIO.toLowerCase()} e {CATEGORIA_ESTACIONAMENTO.toLowerCase()} em
+            aberto. Use as abas individuais para um sync específico.
+          </p>
+        </header>
 
-      <section className="form-card">
-        <h2 className="form-card__title">Veículo</h2>
-        <div className="form-grid">
+        <div className="form-grid sync-executar-opcoes">
           <label className="field">
             <span className="field__label">Veículo</span>
             <VeiculoSelect
@@ -123,50 +140,68 @@ export function SyncRegistrosSection() {
               onChange={setVeiculoId}
               valueField="id"
               ativo
+              tipoFrota={TipoVeiculoFrota.Locacao}
               variant="filtro"
             />
             <span className="field__hint">
-              ---Todos--- sincroniza e lista a frota ativa. Um veículo limita pedágio, SigaPay e DETRAN a
-              esse veículo. FIPE (aba Sync › FIPE) atualiza todos no PostgreSQL.
+              ---Todos--- = frota inteira. Um veículo limita o sync e a listagem.
             </span>
           </label>
+          <Toggle
+            className="field"
+            checked={opcoes.asyncMode}
+            onChange={opcoes.setAsyncMode}
+            disabled={opcoes.dryRun}
+            label="Executar em background (recomendado)"
+          />
+          <Toggle
+            className="field"
+            checked={opcoes.dryRun}
+            onChange={opcoes.toggleDryRun}
+            label="Dry-run (simular, não grava)"
+          />
         </div>
+        {opcoes.dryRun ? (
+          <p className="field__hint sync-dryrun-hint">
+            Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+          </p>
+        ) : null}
         {!loading ? (
           <p className="field__hint">
             {linhas.length} registo{linhas.length === 1 ? "" : "s"} · {formatBrl(total)}
           </p>
         ) : null}
+
+        <div className="despesas-toolbar">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={Boolean(acaoLoading)}
+            onClick={() => void sincronizarFrota()}
+          >
+            {acaoLoading === "sync" ? "Sincronizando…" : "Sync completo"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={Boolean(acaoLoading) || opcoes.dryRun}
+            onClick={() => void inferirResponsaveis()}
+          >
+            {acaoLoading === "inferir" ? "Inferindo…" : "Inferir responsáveis"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={Boolean(acaoLoading)}
+            onClick={() => void sincronizarEInferir()}
+          >
+            {acaoLoading === "tudo" ? "A processar…" : "Sync completo e inferir"}
+          </button>
+        </div>
       </section>
 
-      <div className="despesas-toolbar">
-        <button
-          type="button"
-          className="btn btn--ghost"
-          disabled={Boolean(acaoLoading)}
-          onClick={() => void sincronizarFrota()}
-        >
-          {acaoLoading === "sync" ? "Sincronizando…" : "Sync completo"}
-        </button>
-        <button
-          type="button"
-          className="btn btn--ghost"
-          disabled={Boolean(acaoLoading)}
-          onClick={() => void inferirResponsaveis()}
-        >
-          {acaoLoading === "inferir" ? "Inferindo…" : "Inferir responsáveis"}
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={Boolean(acaoLoading)}
-          onClick={() => void sincronizarEInferir()}
-        >
-          {acaoLoading === "tudo" ? "A processar…" : "Sync completo e inferir"}
-        </button>
-      </div>
-
       <FlashError message={acaoError} />
-      <ResultPanel title="Resultado sync" data={syncResult} />
+      <ResultPanel title={opcoes.dryRun ? "Resultado (dry-run)" : "Resultado sync"} data={syncResult} />
       <ResultPanel title="Inferência de responsáveis" data={inferirResult} />
 
       {infracoesQuery.isError || despesasQuery.isError ? (

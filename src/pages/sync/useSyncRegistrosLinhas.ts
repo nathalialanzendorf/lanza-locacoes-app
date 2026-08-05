@@ -2,16 +2,17 @@ import { useMemo } from "react";
 
 import { useDespesasCliente, useInfracoes, useVeiculos } from "@/api/hooks";
 import { isCategoriaEstacionamento } from "@/lib/estacionamentoLabels";
-import { formatPlaca } from "@/lib/format";
+import { formatPlaca, formatVeiculoLabel } from "@/lib/format";
 import { isCategoriaPedagio } from "@/lib/pedagioLabels";
-import { CategoriaDespesaCliente } from "@/lib/domain";
+import { CategoriaDespesaCliente, TipoVeiculoFrota } from "@/lib/domain";
 import type { SyncRegistroTipo } from "@/lib/syncUi";
-import type { ClienteDespesa, Infracao } from "@/api/types";
+import type { ClienteDespesa, Infracao, Veiculo } from "@/api/types";
 
 export type SyncRegistroLinha = {
   id: string;
   tipo: SyncRegistroTipo;
   placa: string;
+  veiculo: string;
   ref: string;
   descricao: string;
   data: string;
@@ -26,6 +27,22 @@ function valorInfracao(i: Infracao): number {
 
 function valorDespesa(d: ClienteDespesa): number {
   return Number(d.valorMulta) || 0;
+}
+
+function compactPlaca(placa: string | null | undefined): string {
+  return (placa ?? "").replace(/-/g, "").trim().toUpperCase();
+}
+
+function labelVeiculo(
+  ref: string | null | undefined,
+  veiculos: Veiculo[] | undefined,
+  veiculoLabel?: string | null,
+): string {
+  if (veiculoLabel?.trim()) return veiculoLabel.trim();
+  const key = compactPlaca(ref);
+  const v = veiculos?.find((x) => x.id === ref || compactPlaca(x.placa) === key);
+  if (v) return formatVeiculoLabel(v);
+  return formatVeiculoLabel({ placa: ref || undefined });
 }
 
 function categoriaDespesaSync(
@@ -43,7 +60,8 @@ type Params = {
 
 export function useSyncRegistrosLinhas({ veiculoId, tipos }: Params) {
   const veiculoIdFiltro = veiculoId?.trim() || undefined;
-  const veiculosQuery = useVeiculos({ ativo: true });
+  const veiculosQuery = useVeiculos({ ativo: true, tipoFrota: TipoVeiculoFrota.Locacao });
+  const veiculos = veiculosQuery.data?.items;
 
   const incluirInfracoes = !tipos || tipos.includes(CategoriaDespesaCliente.Infracao);
   const incluirDespesas =
@@ -77,6 +95,7 @@ export function useSyncRegistrosLinhas({ veiculoId, tipos }: Params) {
           id: `infracao:${i.numeroAuto ?? i.id}`,
           tipo: CategoriaDespesaCliente.Infracao,
           placa: formatPlaca(i.veiculoId),
+          veiculo: labelVeiculo(i.veiculoId, veiculos),
           ref: i.numeroAuto ?? i.id,
           descricao: i.descricao?.trim() || "—",
           data: i.dataAutuacao?.slice(0, 16) ?? "—",
@@ -95,6 +114,7 @@ export function useSyncRegistrosLinhas({ veiculoId, tipos }: Params) {
           id: `despesa:${d.id}`,
           tipo: cat,
           placa: formatPlaca(d.placa ?? d.veiculoId),
+          veiculo: labelVeiculo(d.placa ?? d.veiculoId, veiculos, d.veiculoLabel),
           ref: d.autoInfracao ?? d.id.slice(0, 8),
           descricao: d.descricao?.trim() || d.titulo?.trim() || "—",
           data: d.dataAutuacao?.slice(0, 16) ?? d.vencimentoBr?.trim() ?? "—",
@@ -105,13 +125,13 @@ export function useSyncRegistrosLinhas({ veiculoId, tipos }: Params) {
     }
 
     out.sort((a, b) => {
-      const pc = a.placa.localeCompare(b.placa, "pt-BR");
+      const pc = a.veiculo.localeCompare(b.veiculo, "pt-BR");
       if (pc !== 0) return pc;
       return a.tipo.localeCompare(b.tipo, "pt-BR");
     });
 
     return out;
-  }, [infracoesQuery.data, despesasQuery.data, tipos, incluirInfracoes, incluirDespesas]);
+  }, [infracoesQuery.data, despesasQuery.data, tipos, incluirInfracoes, incluirDespesas, veiculos]);
 
   const total = useMemo(() => linhas.reduce((s, l) => s + l.valor, 0), [linhas]);
 
@@ -122,8 +142,8 @@ export function useSyncRegistrosLinhas({ veiculoId, tipos }: Params) {
 
   const placaSync = useMemo(() => {
     if (!veiculoIdFiltro) return "";
-    return veiculosQuery.data?.items.find((v) => v.id === veiculoIdFiltro)?.placa?.trim() ?? "";
-  }, [veiculoIdFiltro, veiculosQuery.data]);
+    return veiculos?.find((v) => v.id === veiculoIdFiltro)?.placa?.trim() ?? "";
+  }, [veiculoIdFiltro, veiculos]);
 
   return {
     linhas,
