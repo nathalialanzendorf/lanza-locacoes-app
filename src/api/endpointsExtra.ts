@@ -98,6 +98,14 @@ export const lanzaApiExtra = {
       body: { ativo },
     }),
 
+  rastreameAuthStatus: () =>
+    apiRequest<import("./types").RastreameAuthStatus>("/api/rastreame/auth"),
+  rastreameLogin: (save = false) =>
+    apiRequest<{ ok: boolean; token?: string; gravado?: boolean }>("/api/rastreame/login", {
+      method: "POST",
+      body: { save },
+    }),
+
   obterDespesaCliente: (id: string) =>
     apiRequest<DataEnvelope<ClienteDespesa>>(`/api/despesas/${encodeURIComponent(id)}`),
   criarDespesaCliente: (veiculoId: string, despesa: Record<string, unknown>, syncRastreame?: boolean) =>

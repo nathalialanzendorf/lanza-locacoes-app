@@ -1282,6 +1282,19 @@ code {
   color: var(--color-warn, #b45309);
 }
 
+.sync-rastreame-auth__vars {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+  padding: 0;
+}
+
+.sync-rastreame-auth__status {
+  margin: 0.75rem 0 0;
+}
+
+.sync-rastreame-auth__ok {
+  color: var(--color-ok, #15803d);
+}
+
 .sync-status__linha {
   display: flex;
   align-items: center;

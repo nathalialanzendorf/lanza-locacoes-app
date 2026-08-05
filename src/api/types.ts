@@ -448,6 +448,12 @@ export type RastreameEspelhoConfig = {
   depreciado?: boolean;
 };
 
+export type RastreameAuthStatus = {
+  configurado: boolean;
+  loginDisponivel: boolean;
+  metodo: "token" | "login" | "login_pendente" | null;
+};
+
 export type Health = {
   status: "ok" | "degraded";
   service: string;
