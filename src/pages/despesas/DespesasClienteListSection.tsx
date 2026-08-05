@@ -203,9 +203,20 @@ export function DespesasClienteListSection() {
         </div>
         {!query.isLoading ? (
           <p className="field__hint">
-            {rows.length} lançamento{rows.length === 1 ? "" : "s"} · em aberto{" "}
-            {formatBrl(totalNaoPago)} · pago {formatBrl(totalPago)}
+            {rows.length} lançamento{rows.length === 1 ? "" : "s"} em tela
           </p>
+        ) : null}
+        {!query.isLoading ? (
+          <dl className="despesas-list-totais">
+            <div>
+              <dt>Em aberto</dt>
+              <dd>{formatBrl(totalNaoPago)}</dd>
+            </div>
+            <div>
+              <dt>Pago</dt>
+              <dd>{formatBrl(totalPago)}</dd>
+            </div>
+          </dl>
         ) : null}
       </section>
 
@@ -284,18 +295,6 @@ export function DespesasClienteListSection() {
             ),
           },
         ]}
-        footer={
-          <tr>
-            <td colSpan={5}>
-              Totais em tela ({rows.length} lançamento{rows.length === 1 ? "" : "s"})
-            </td>
-            <td className="num">
-              <div>Em aberto {formatBrl(totalNaoPago)}</div>
-              <div>Pago {formatBrl(totalPago)}</div>
-            </td>
-            <td colSpan={3} />
-          </tr>
-        }
       />
     </>
   );
