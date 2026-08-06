@@ -6,13 +6,12 @@ import { PageTabs } from "@/components/PageTabs";
 import { useSyncMeta } from "@/api/hooks";
 import { syncNavItems, isSyncRastreame } from "@/lib/syncUi";
 import { RelatorioVeiculoDadosSection } from "@/pages/relatorios/RelatorioVeiculoDadosSection";
-import { SyncRegistrosSection } from "@/pages/sync/SyncRegistrosSection";
 import { SyncRastreameSection } from "@/pages/sync/SyncRastreameSection";
 import { SyncLegadoSection, SyncTipoSection } from "@/pages/sync/SyncTipoSection";
 
 function SyncTipoRoute() {
   const { syncId } = useParams();
-  if (!syncId) return <Navigate to="/sync/registros" replace />;
+  if (!syncId) return <Navigate to="/sync/veiculo" replace />;
   if (isSyncRastreame(syncId)) return <Navigate to="/sync/rastreame" replace />;
   return <SyncTipoSection syncId={syncId} />;
 }
@@ -27,18 +26,18 @@ export function SyncPage() {
   return (
     <PageHeader
       title="Sincronizações"
-      description="Uma aba por integração — buscar dados externos, conferir registos e confirmar responsável."
+      description="Uma aba por integração para buscar e enviar dados externos."
     >
       <PageTabs ariaLabel="Sincronizações" tabs={tabs} />
       <Routes>
-        <Route index element={<Navigate to="registros" replace />} />
-        <Route path="registros" element={<SyncRegistrosSection />} />
+        <Route index element={<Navigate to="veiculo" replace />} />
         <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
-        <Route path="executar" element={<Navigate to="/sync/registros" replace />} />
+        <Route path="registros" element={<Navigate to="/sync/veiculo" replace />} />
+        <Route path="executar" element={<Navigate to="/sync/veiculo" replace />} />
         <Route path="rastreame" element={<SyncRastreameSection />} />
         <Route path="legado" element={<SyncLegadoSection />} />
         <Route path=":syncId" element={<SyncTipoRoute />} />
-        <Route path="*" element={<Navigate to="registros" replace />} />
+        <Route path="*" element={<Navigate to="veiculo" replace />} />
       </Routes>
     </PageHeader>
   );

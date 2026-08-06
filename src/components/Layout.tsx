@@ -53,7 +53,7 @@ const sharedNavSections: NavSection[] = [
         isActive: (pathname) => relatoriosConsultaNavAtivo(pathname),
       },
       {
-        to: "/sync/registros",
+        to: "/sync/veiculo",
         label: "Syncs",
         isActive: (pathname) => syncNavAtivo(pathname),
       },

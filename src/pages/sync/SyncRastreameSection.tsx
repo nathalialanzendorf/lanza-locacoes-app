@@ -32,10 +32,7 @@ export function SyncRastreameSection() {
     [rastreame],
   );
 
-  const globalOpts = useMemo(
-    () => ({ dryRun: opcoes.dryRun, placa: opcoes.placa }),
-    [opcoes.dryRun, opcoes.placa],
-  );
+  const globalOpts = useMemo(() => ({ dryRun: opcoes.dryRun }), [opcoes.dryRun]);
 
   function executar(syncId: string) {
     void disparar(syncId, () =>
@@ -65,8 +62,6 @@ export function SyncRastreameSection() {
       </section>
 
       <SyncOpcoesGlobais
-        placa={opcoes.placa}
-        onPlacaChange={opcoes.setPlaca}
         asyncMode={opcoes.asyncMode}
         onAsyncModeChange={opcoes.setAsyncMode}
         dryRun={opcoes.dryRun}

@@ -1,19 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
-import { VeiculoSelect } from "@/components/EntitySelects";
 import { QueryError } from "@/components/PageHeader";
 import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
 import { useSyncMeta } from "@/api/hooks";
-import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
-import { formatBrl } from "@/lib/format";
-import { TipoVeiculoFrota } from "@/lib/domain";
 import { LABEL } from "@/lib/labels";
-import { abasSync, rotuloAbaSync, syncTemRegistros, tiposRegistrosSync } from "@/lib/syncUi";
+import { abasSync, rotuloAbaSync } from "@/lib/syncUi";
 import {
   SyncJobsTable,
   SyncStatusBanner,
@@ -23,8 +19,6 @@ import {
 } from "@/pages/sync/syncShared";
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { SigapaySessaoPanel } from "@/pages/sync/SigapaySessaoPanel";
-import { SyncRegistrosTable } from "@/pages/sync/SyncRegistrosTable";
-import { useSyncRegistrosLinhas } from "@/pages/sync/useSyncRegistrosLinhas";
 
 type Props = {
   syncId: string;
@@ -36,10 +30,6 @@ export function SyncTipoSection({ syncId }: Props) {
   const sync = metaQuery.data?.syncs.find((s) => s.id === syncId);
   const opcoes = useSyncOpcoes();
   const { runningId, error, lastResult, disparar } = useSyncDisparo();
-  const [veiculoId, setVeiculoId] = useState("");
-  const [inferirLoading, setInferirLoading] = useState(false);
-  const [inferirResult, setInferirResult] = useState<unknown>(null);
-  const [inferirError, setInferirError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
   const isFipe = syncId === "fipe";
@@ -47,18 +37,7 @@ export function SyncTipoSection({ syncId }: Props) {
   const marcaFipeUrl = isFipe ? searchParams.get("marcaModelo")?.trim() ?? "" : "";
   const anoFipeUrl = isFipe ? searchParams.get("anoModelo")?.trim() ?? "" : "";
 
-  const tipos = tiposRegistrosSync(syncId);
-  const temRegistros = syncTemRegistros(syncId);
-  const { linhas, total, loading, placaSync, veiculoIdFiltro, infracoesQuery, despesasQuery } =
-    useSyncRegistrosLinhas({
-      veiculoId,
-      tipos: temRegistros ? (tipos ?? []) : [],
-    });
-
-  const globalOpts = useMemo(
-    () => ({ dryRun: opcoes.dryRun, placa: placaSync }),
-    [opcoes.dryRun, placaSync],
-  );
+  const globalOpts = useMemo(() => ({ dryRun: opcoes.dryRun }), [opcoes.dryRun]);
 
   function invalidarListagem() {
     void qc.invalidateQueries({ queryKey: ["infracoes"] });
@@ -73,37 +52,6 @@ export function SyncTipoSection({ syncId }: Props) {
     ).then(() => {
       if (!opcoes.dryRun) invalidarListagem();
     });
-  }
-
-  async function inferirResponsaveis() {
-    setInferirLoading(true);
-    setInferirError(null);
-    setInferirResult(null);
-    try {
-      if (syncId === "infracoes") {
-        const r = await lanzaApi.atribuirClientesInfracoes({
-          veiculoId: veiculoIdFiltro,
-        });
-        setInferirResult(r);
-      } else if (syncId === "pedagios") {
-        const r = await lanzaApi.atribuirClientesDespesas({
-          veiculoId: veiculoIdFiltro,
-          escopo: "pedagio",
-        });
-        setInferirResult(r);
-      } else if (syncId === "estacionamento") {
-        const r = await lanzaApi.atribuirClientesDespesas({
-          veiculoId: veiculoIdFiltro,
-          escopo: "estacionamento",
-        });
-        setInferirResult(r);
-      }
-      invalidarListagem();
-    } catch (err) {
-      setInferirError(err instanceof LanzaApiError ? err.message : "Falha ao inferir responsáveis.");
-    } finally {
-      setInferirLoading(false);
-    }
   }
 
   if (metaQuery.isLoading) {
@@ -126,21 +74,6 @@ export function SyncTipoSection({ syncId }: Props) {
             </header>
 
             <div className="form-grid sync-executar-opcoes">
-              <label className="field">
-                <span className="field__label">Veículo</span>
-                <VeiculoSelect
-                  value={veiculoId}
-                  onChange={setVeiculoId}
-                  valueField="id"
-                  ativo
-                  tipoFrota={TipoVeiculoFrota.Locacao}
-                  variant="filtro"
-                />
-                <span className="field__hint">
-                  ---Todos--- = frota inteira. Um veículo limita o sync
-                  {temRegistros ? " e a listagem" : ""}.
-                </span>
-              </label>
               <Toggle
                 className="field"
                 checked={opcoes.asyncMode}
@@ -183,55 +116,6 @@ export function SyncTipoSection({ syncId }: Props) {
         />
       )}
 
-      {temRegistros ? (
-        <>
-          <section className="form-card">
-            <h2 className="form-card__title">Registos em aberto</h2>
-            {!loading ? (
-              <p className="field__hint">
-                {linhas.length} registo{linhas.length === 1 ? "" : "s"} · {formatBrl(total)}
-              </p>
-            ) : null}
-          </section>
-
-          {(syncId === "infracoes" || syncId === "pedagios" || syncId === "estacionamento") && (
-            <div className="despesas-toolbar">
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={inferirLoading || runningId !== null}
-                onClick={() => void inferirResponsaveis()}
-              >
-                {inferirLoading ? "Inferindo…" : "Inferir responsáveis"}
-              </button>
-            </div>
-          )}
-
-          <FlashError message={inferirError} />
-          <ResultPanel title="Inferência de responsáveis" data={inferirResult} />
-
-          {infracoesQuery.isError || despesasQuery.isError ? (
-            <QueryError
-              message={
-                infracoesQuery.error instanceof LanzaApiError
-                  ? infracoesQuery.error.message
-                  : despesasQuery.error instanceof LanzaApiError
-                    ? despesasQuery.error.message
-                    : "Falha ao listar registos."
-              }
-            />
-          ) : null}
-
-          <SyncRegistrosTable
-            loading={loading}
-            linhas={linhas}
-            veiculoIdFiltro={veiculoIdFiltro}
-            ocultarTipo={Boolean(tipos && tipos.length === 1)}
-            onConfirmed={invalidarListagem}
-          />
-        </>
-      ) : null}
-
       <FlashError message={error} />
       {!isFipe ? (
         <>
@@ -260,20 +144,6 @@ export function SyncLegadoSection() {
         </header>
 
         <div className="form-grid sync-executar-opcoes">
-          <label className="field">
-            <span className="field__label">Veículo</span>
-            <VeiculoSelect
-              value={opcoes.placa}
-              onChange={opcoes.setPlaca}
-              valueField="placa"
-              ativo
-              tipoFrota={TipoVeiculoFrota.Locacao}
-              variant="filtro"
-            />
-            <span className="field__hint">
-              ---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado.
-            </span>
-          </label>
           <Toggle
             className="field"
             checked={opcoes.asyncMode}

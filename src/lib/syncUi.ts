@@ -1,5 +1,4 @@
 import type { SyncCatalogEntry, SyncDirecao } from "@/api/types";
-import { CategoriaDespesaCliente } from "@/lib/domain";
 
 /** Syncs Rastreame que só enviam (fallback se a API não enviar `direcao`). */
 const ENVIAR_SYNC_IDS = new Set([
@@ -78,16 +77,19 @@ export function ordenarSyncsRastreame(syncs: SyncCatalogEntry[]): SyncCatalogEnt
   return ordered;
 }
 
-export function bodySyncGlobal(opts: { dryRun: boolean; placa: string }): Record<string, unknown> {
+export type SyncGlobalOpts = { dryRun: boolean; placa?: string };
+
+export function bodySyncGlobal(opts: SyncGlobalOpts): Record<string, unknown> {
+  const placa = opts.placa?.trim();
   return {
     dryRun: opts.dryRun,
-    placa: opts.placa.trim() || undefined,
+    ...(placa ? { placa } : {}),
   };
 }
 
 export function opcoesSyncCompleto(
   syncs: SyncCatalogEntry[],
-  opts: { dryRun: boolean; placa: string },
+  opts: SyncGlobalOpts,
 ): Record<string, Record<string, unknown>> {
   const base = bodySyncGlobal(opts);
   const ativos = syncs.filter((s) => !s.depreciado);
@@ -96,7 +98,7 @@ export function opcoesSyncCompleto(
 
 export function opcoesSyncRastreame(
   syncs: SyncCatalogEntry[],
-  opts: { dryRun: boolean; placa: string },
+  opts: SyncGlobalOpts,
 ): Record<string, Record<string, unknown>> {
   const base = bodySyncGlobal(opts);
   return Object.fromEntries(ordenarSyncsRastreame(syncs).map((s) => [s.id, { ...base }]));
@@ -139,11 +141,10 @@ export type SyncNavItem = {
   end?: boolean;
 };
 
-/** Abas da SyncPage (Registros, dados do veículo, integrações ativas, Rastreame e Legado). */
+/** Abas da SyncPage (dados do veículo, integrações ativas, Rastreame e Legado). */
 export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
   const { ativos, rastreame, legado } = abasSync(syncs);
   return [
-    { to: "/sync/registros", label: "Registros", end: true },
     { to: "/sync/veiculo", label: "Dados do veículo", end: true },
     ...ativos.map((s) => ({
       to: syncPath(s.id),
@@ -155,28 +156,6 @@ export function syncNavItems(syncs: SyncCatalogEntry[]): SyncNavItem[] {
       : []),
     ...(legado.length > 0 ? [{ to: "/sync/legado", label: "Legado", end: true as const }] : []),
   ];
-}
-
-export type SyncRegistroTipo =
-  | typeof CategoriaDespesaCliente.Infracao
-  | typeof CategoriaDespesaCliente.Pedagio
-  | typeof CategoriaDespesaCliente.Estacionamento;
-
-export function tiposRegistrosSync(syncId: string): SyncRegistroTipo[] | null {
-  switch (syncId) {
-    case "pedagios":
-      return [CategoriaDespesaCliente.Pedagio];
-    case "estacionamento":
-      return [CategoriaDespesaCliente.Estacionamento];
-    case "infracoes":
-      return [CategoriaDespesaCliente.Infracao];
-    default:
-      return null;
-  }
-}
-
-export function syncTemRegistros(syncId: string): boolean {
-  return tiposRegistrosSync(syncId) !== null;
 }
 
 export function abasSync(syncs: SyncCatalogEntry[]): {

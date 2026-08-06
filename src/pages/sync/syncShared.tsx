@@ -2,13 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/DataTable";
-import { VeiculoSelect } from "@/components/EntitySelects";
 import { Toggle } from "@/components/Toggle";
 import { useSyncJobs } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { TipoVeiculoFrota } from "@/lib/domain";
-import { bodySyncGlobal, direcaoEfetiva, syncAtivo } from "@/lib/syncUi";
+import { bodySyncGlobal, direcaoEfetiva, syncAtivo, type SyncGlobalOpts } from "@/lib/syncUi";
 import { LABEL } from "@/lib/labels";
 import type { SyncCatalogEntry, SyncJob } from "@/api/types";
 
@@ -41,9 +39,8 @@ export function useSyncDisparo() {
 export function useSyncOpcoes() {
   const [dryRun, setDryRun] = useState(false);
   const [asyncMode, setAsyncMode] = useState(true);
-  const [placa, setPlaca] = useState("");
 
-  const globalOpts = useMemo(() => ({ dryRun, placa }), [dryRun, placa]);
+  const globalOpts = useMemo(() => ({ dryRun }), [dryRun]);
   const usarAsync = asyncMode && !dryRun;
 
   function toggleDryRun(checked: boolean) {
@@ -54,56 +51,29 @@ export function useSyncOpcoes() {
   return {
     dryRun,
     asyncMode,
-    placa,
     globalOpts,
     usarAsync,
-    setPlaca,
     setAsyncMode,
     toggleDryRun,
   };
 }
 
 type SyncOpcoesProps = {
-  placa: string;
-  onPlacaChange: (placa: string) => void;
   asyncMode: boolean;
   onAsyncModeChange: (checked: boolean) => void;
   dryRun: boolean;
   onDryRunChange: (checked: boolean) => void;
-  hint?: string;
-  hideVeiculo?: boolean;
 };
 
 export function SyncOpcoesGlobais({
-  placa,
-  onPlacaChange,
   asyncMode,
   onAsyncModeChange,
   dryRun,
   onDryRunChange,
-  hint,
-  hideVeiculo,
 }: SyncOpcoesProps) {
   return (
     <section className="form-card sync-options">
       <div className="form-grid sync-executar-opcoes">
-        {hideVeiculo ? null : (
-          <label className="field">
-            <span className="field__label">Veículo</span>
-            <VeiculoSelect
-              value={placa}
-              onChange={onPlacaChange}
-              valueField="placa"
-              ativo
-              tipoFrota={TipoVeiculoFrota.Locacao}
-              variant="filtro"
-            />
-            <span className="field__hint">
-              {hint ??
-                "---Todos--- = frota inteira. Uma placa limita o sync ao veículo selecionado."}
-            </span>
-          </label>
-        )}
         <Toggle
           className="field"
           checked={asyncMode}
@@ -329,7 +299,7 @@ export function SyncCard({ sync, running, disabled, onExecutar }: SyncCardProps)
 export function executarSyncId(
   syncs: SyncCatalogEntry[],
   id: string,
-  globalOpts: { dryRun: boolean; placa: string },
+  globalOpts: SyncGlobalOpts,
   usarAsync: boolean,
 ) {
   const entry = syncs.find((s) => s.id === id);
