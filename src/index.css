@@ -1282,17 +1282,16 @@ code {
   color: var(--color-warn, #b45309);
 }
 
-.sync-rastreame-auth__vars {
-  margin: 0.5rem 0 0.75rem 1.25rem;
-  padding: 0;
+.rastreame-espelho--panel {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
 }
 
-.sync-rastreame-auth__status {
-  margin: 0.75rem 0 0;
-}
-
-.sync-rastreame-auth__ok {
-  color: var(--color-ok, #15803d);
+.rastreame-espelho__hint--erro {
+  color: var(--danger, #dc2626);
+  flex-basis: 100%;
 }
 
 .sync-status__linha {
