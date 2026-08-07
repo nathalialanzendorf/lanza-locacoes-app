@@ -18,7 +18,6 @@ import {
   useSyncOpcoes,
 } from "@/pages/sync/syncShared";
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
-import { SigapaySessaoPanel } from "@/pages/sync/SigapaySessaoPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
 import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
@@ -108,13 +107,13 @@ export function SyncTipoSection({ syncId }: Props) {
               </button>
             </div>
           </section>
-          <SyncStatusBanner syncId={syncId} activeJobId={activeJobId} onJobFinished={releaseRunning} />
-          {syncId === "estacionamento" ? (
-            <>
-              <SigapaySessaoPanel />
-              <SigapayPortalPanel />
-            </>
-          ) : null}
+          <SyncStatusBanner
+            syncId={syncId}
+            activeJobId={activeJobId}
+            onJobFinished={releaseRunning}
+            hideWhileRunning={syncId === "infracoes" || syncId === "pedagios"}
+          />
+          {syncId === "estacionamento" ? <SigapayPortalPanel /> : null}
         </>
       ) : (
         <FipeSyncPanel
@@ -125,22 +124,18 @@ export function SyncTipoSection({ syncId }: Props) {
       )}
 
       <FlashError message={error} />
-      {!isFipe ? (
+      {!isFipe && opcoes.dryRun ? (
         <>
-          {opcoes.dryRun ? (
-            <>
-              <SyncAlteracoesFromResult
-                data={lastResult}
-                title="Alterações do sync (dry-run)"
-              />
-              {!hasSyncAlteracoes(lastResult) ? (
-                <ResultPanel title="Resultado (dry-run)" data={lastResult} />
-              ) : null}
-            </>
+          <SyncAlteracoesFromResult
+            data={lastResult}
+            title="Alterações do sync (dry-run)"
+          />
+          {!hasSyncAlteracoes(lastResult) ? (
+            <ResultPanel title="Resultado (dry-run)" data={lastResult} />
           ) : null}
-          <SyncJobsTable syncId={syncId} />
         </>
       ) : null}
+      <SyncJobsTable syncId={syncId} />
     </>
   );
 }

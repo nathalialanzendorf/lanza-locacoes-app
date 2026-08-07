@@ -148,10 +148,13 @@ export function SyncStatusBanner({
   syncId,
   activeJobId,
   onJobFinished,
+  hideWhileRunning = false,
 }: {
   syncId?: string;
   activeJobId?: string | null;
   onJobFinished?: () => void;
+  /** Oculta o banner enquanto pending/running (progresso fica só em Jobs recentes). */
+  hideWhileRunning?: boolean;
 }) {
   const qc = useQueryClient();
   const jobsQuery = useSyncJobs(25, activeJobId);
@@ -215,6 +218,8 @@ export function SyncStatusBanner({
 
   const p = job.progress;
   const emCurso = job.status === "pending" || job.status === "running";
+
+  if (hideWhileRunning && emCurso) return null;
 
   return (
     <section
