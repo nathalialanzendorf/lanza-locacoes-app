@@ -18,6 +18,7 @@ import {
   useSyncOpcoes,
 } from "@/pages/sync/syncShared";
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
+import { PedagioPortalPanel } from "@/pages/sync/PedagioPortalPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
 import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
@@ -113,6 +114,7 @@ export function SyncTipoSection({ syncId }: Props) {
             onJobFinished={releaseRunning}
             hideWhileRunning={syncId === "infracoes" || syncId === "pedagios"}
           />
+          {syncId === "pedagios" ? <PedagioPortalPanel /> : null}
           {syncId === "estacionamento" ? <SigapayPortalPanel /> : null}
         </>
       ) : (

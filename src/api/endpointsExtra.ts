@@ -7,6 +7,7 @@ import type {
   Infracao,
   ListEnvelope,
   Locacao,
+  PedagioPassagensResposta,
   SigapayAvisosResposta,
   Venda,
   PagBankLote,
@@ -173,11 +174,10 @@ export const lanzaApiExtra = {
       method: registrar ? "POST" : "GET",
       body: registrar ? { registrar: true } : undefined,
     }),
-  pedagioPassagens: (placa: string, status: "aberto" | "pago" | "todos" = "aberto") =>
-    apiRequest<{ total: number; items: unknown[]; placa: string; status: string }>(
-      "/api/pedagio/passagens",
-      { params: { placa, status } },
-    ),
+  pedagioPassagens: (placa?: string, status: "aberto" | "pago" | "todos" = "aberto") =>
+    apiRequest<PedagioPassagensResposta>("/api/pedagio/passagens", {
+      params: { ...(placa?.trim() ? { placa: placa.trim() } : {}), status },
+    }),
   estacionamentoConferir: (registrar?: boolean) =>
     apiRequest<{ data: unknown }>("/api/estacionamento/conferir", {
       method: registrar ? "POST" : "GET",

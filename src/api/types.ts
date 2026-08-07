@@ -404,6 +404,25 @@ export type SigapayAvisoPortal = {
   emAberto: boolean;
 };
 
+export type PedagioPassagemPortal = {
+  id: string;
+  placa: string;
+  dataHoraRaw: string;
+  dataHoraIso?: string | null;
+  valor: number;
+  praca?: string | null;
+  rodovia?: string | null;
+  emAberto: boolean;
+};
+
+export type PedagioPassagensResposta = {
+  status: string;
+  total: number;
+  items: PedagioPassagemPortal[];
+  placa?: string;
+  placas?: string[];
+};
+
 export type SigapayAvisosResposta = {
   status: string;
   total: number;
