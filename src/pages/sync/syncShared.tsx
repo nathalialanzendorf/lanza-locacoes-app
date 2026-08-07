@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/DataTable";
+import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
 import { useSyncJobs } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
@@ -9,10 +10,12 @@ import { LanzaApiError } from "@/api/client";
 import { bodySyncGlobal, direcaoEfetiva, syncAtivo, type SyncGlobalOpts } from "@/lib/syncUi";
 import { LABEL } from "@/lib/labels";
 import type { SyncCatalogEntry, SyncJob } from "@/api/types";
+import { SigapayAvisosFromResult } from "@/pages/sync/SigapayPortalPanel";
 
 export function useSyncDisparo() {
   const qc = useQueryClient();
   const [runningId, setRunningId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<unknown>(null);
 
@@ -20,20 +23,34 @@ export function useSyncDisparo() {
     setRunningId(label);
     setError(null);
     setLastResult(null);
+    setActiveJobId(null);
     try {
-      const r = await fn();
+      const r = (await fn()) as { jobId?: string; status?: string; data?: unknown } | null;
       setLastResult(r);
+      if (r?.jobId) {
+        setActiveJobId(r.jobId);
+      } else {
+        setRunningId(null);
+      }
       void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
       return r;
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao executar sync.");
-      throw err;
-    } finally {
       setRunningId(null);
+      throw err;
     }
   }
 
-  return { runningId, error, lastResult, disparar, setError };
+  function releaseRunning() {
+    setRunningId(null);
+  }
+
+  function clearActiveJob() {
+    setActiveJobId(null);
+    setRunningId(null);
+  }
+
+  return { runningId, activeJobId, error, lastResult, disparar, setError, releaseRunning, clearActiveJob };
 }
 
 export function useSyncOpcoes() {
@@ -122,13 +139,67 @@ function statusBadge(status: SyncJob["status"]) {
 }
 
 /** Último job do sync (status, progresso e erro) — substitui o JSON da resposta. */
-export function SyncStatusBanner({ syncId }: { syncId?: string }) {
-  const jobsQuery = useSyncJobs();
+export function SyncStatusBanner({
+  syncId,
+  activeJobId,
+  onJobFinished,
+}: {
+  syncId?: string;
+  activeJobId?: string | null;
+  onJobFinished?: () => void;
+}) {
+  const qc = useQueryClient();
+  const jobsQuery = useSyncJobs(25, activeJobId);
+  const [trackedJob, setTrackedJob] = useState<SyncJob | null>(null);
+  const [pollErro, setPollErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeJobId) return;
+    setTrackedJob(null);
+    setPollErro(null);
+  }, [activeJobId]);
+
+  useEffect(() => {
+    if (!activeJobId) return;
+    const jobId = activeJobId;
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const job = await lanzaApi.obterSyncJob(jobId);
+        if (cancelled) return;
+        setPollErro(null);
+        setTrackedJob(job);
+        void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+        if (job.status === "completed" || job.status === "failed") {
+          onJobFinished?.();
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const msg =
+          err instanceof LanzaApiError && err.status === 404
+            ? "Job não encontrado nesta instância da API (jobs em memória ou migration pendente)."
+            : null;
+        if (msg) setPollErro(msg);
+      }
+    }
+
+    void poll();
+    const timer = setInterval(() => {
+      void poll();
+    }, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [activeJobId, onJobFinished, qc]);
+
   const job = useMemo(() => {
+    if (trackedJob && (!syncId || trackedJob.sync === syncId)) return trackedJob;
     const list = jobsQuery.data?.jobs ?? [];
     const doSync = syncId ? list.filter((j) => j.sync === syncId) : list;
     return [...doSync].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-  }, [jobsQuery.data, syncId]);
+  }, [jobsQuery.data, syncId, trackedJob]);
 
   if (!job) return null;
 
@@ -143,13 +214,21 @@ export function SyncStatusBanner({ syncId }: { syncId?: string }) {
         <span className={statusBadge(job.status)}>{statusSyncLabel(job.status)}</span>
         <span className="field__hint">
           {new Date(job.finishedAt ?? job.startedAt ?? job.createdAt).toLocaleString("pt-BR")}
+          {p?.fase ? ` · ${p.fase}` : ""}
           {p ? ` · ${p.done}/${p.total} (${p.percent}%)` : ""}
           {p && p.falhas > 0 ? ` · ${p.sucesso} ok, ${p.falhas} com falha` : ""}
         </span>
       </p>
       {job.error ? <p className="sync-status__erro">{job.error}</p> : null}
+      {pollErro && emCurso ? <p className="sync-status__erro">{pollErro}</p> : null}
       {emCurso ? (
-        <p className="field__hint">A execução continua em background — a lista atualiza sozinha.</p>
+        <p className="field__hint">A execução continua em background — o status atualiza sozinho.</p>
+      ) : null}
+      {job.status === "completed" && job.result != null ? (
+        <>
+          <SigapayAvisosFromResult data={job.result} />
+          <ResultPanel title="Resultado" data={job.result} />
+        </>
       ) : null}
     </section>
   );
@@ -219,6 +298,12 @@ export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps
                 if (!p) return <span className="field__hint">—</span>;
                 return (
                   <span>
+                    {p.fase ? (
+                      <>
+                        {p.fase}
+                        <br />
+                      </>
+                    ) : null}
                     {p.done}/{p.total} · {p.percent}%
                     {p.falhas > 0 ? (
                       <>

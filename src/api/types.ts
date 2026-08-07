@@ -394,6 +394,24 @@ export type SigapaySessaoStatus = {
   origem?: "env" | "store";
 };
 
+export type SigapayAvisoPortal = {
+  id: string;
+  placa: string;
+  dataHoraRaw: string;
+  dataHoraIso?: string | null;
+  valor: number;
+  local?: string | null;
+  emAberto: boolean;
+};
+
+export type SigapayAvisosResposta = {
+  status: string;
+  total: number;
+  items: SigapayAvisoPortal[];
+  placa?: string;
+  placas?: string[];
+};
+
 export type SigapayCapturaState = {
   status: DetranScCapturaStatus;
   message?: string;
@@ -504,6 +522,7 @@ export type SyncJob = {
     percent: number;
     sucesso: number;
     falhas: number;
+    fase?: string;
     resultados?: Array<{
       placa: string;
       marcaModelo?: string;

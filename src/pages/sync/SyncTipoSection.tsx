@@ -19,6 +19,7 @@ import {
 } from "@/pages/sync/syncShared";
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { SigapaySessaoPanel } from "@/pages/sync/SigapaySessaoPanel";
+import { SigapayPortalPanel, SigapayAvisosFromResult } from "@/pages/sync/SigapayPortalPanel";
 
 type Props = {
   syncId: string;
@@ -29,7 +30,7 @@ export function SyncTipoSection({ syncId }: Props) {
   const metaQuery = useSyncMeta();
   const sync = metaQuery.data?.syncs.find((s) => s.id === syncId);
   const opcoes = useSyncOpcoes();
-  const { runningId, error, lastResult, disparar } = useSyncDisparo();
+  const { runningId, activeJobId, error, lastResult, disparar, releaseRunning } = useSyncDisparo();
   const [searchParams] = useSearchParams();
 
   const isFipe = syncId === "fipe";
@@ -105,8 +106,13 @@ export function SyncTipoSection({ syncId }: Props) {
               </button>
             </div>
           </section>
-          <SyncStatusBanner syncId={syncId} />
-          {syncId === "estacionamento" ? <SigapaySessaoPanel /> : null}
+          <SyncStatusBanner syncId={syncId} activeJobId={activeJobId} onJobFinished={releaseRunning} />
+          {syncId === "estacionamento" ? (
+            <>
+              <SigapaySessaoPanel />
+              <SigapayPortalPanel />
+            </>
+          ) : null}
         </>
       ) : (
         <FipeSyncPanel
@@ -119,7 +125,12 @@ export function SyncTipoSection({ syncId }: Props) {
       <FlashError message={error} />
       {!isFipe ? (
         <>
-          {opcoes.dryRun ? <ResultPanel title="Resultado (dry-run)" data={lastResult} /> : null}
+          {opcoes.dryRun ? (
+            <>
+              {syncId === "estacionamento" ? <SigapayAvisosFromResult data={lastResult} /> : null}
+              <ResultPanel title="Resultado (dry-run)" data={lastResult} />
+            </>
+          ) : null}
           <SyncJobsTable syncId={syncId} />
         </>
       ) : null}

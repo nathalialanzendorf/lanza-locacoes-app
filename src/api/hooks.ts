@@ -202,11 +202,12 @@ export function useSyncMeta() {
   });
 }
 
-export function useSyncJobs(limit = 25) {
+export function useSyncJobs(limit = 25, activeJobId?: string | null) {
   return useQuery({
-    queryKey: ["sync-jobs", limit],
+    queryKey: ["sync-jobs", limit, activeJobId ?? ""],
     queryFn: () => lanzaApi.listarSyncJobs(limit),
     refetchInterval: (query) => {
+      if (activeJobId) return 2000;
       const jobs = query.state.data?.jobs ?? [];
       const active = jobs.some((j) => j.status === "pending" || j.status === "running");
       if (!active) return false;

@@ -7,6 +7,7 @@ import type {
   Infracao,
   ListEnvelope,
   Locacao,
+  SigapayAvisosResposta,
   Venda,
   PagBankLote,
 } from "./types";
@@ -182,11 +183,13 @@ export const lanzaApiExtra = {
       method: registrar ? "POST" : "GET",
       body: registrar ? { registrar: true } : undefined,
     }),
-  estacionamentoAvisos: (placa: string, status: "aberto" | "pago" | "todos" = "aberto") =>
-    apiRequest<{ total: number; items: unknown[]; placa: string; status: string }>(
-      "/api/estacionamento/avisos",
-      { params: { placa, status } },
-    ),
+  estacionamentoAvisos: (
+    placa?: string,
+    status: "aberto" | "pago" | "todos" = "aberto",
+  ) =>
+    apiRequest<SigapayAvisosResposta>("/api/estacionamento/avisos", {
+      params: { ...(placa?.trim() ? { placa: placa.trim() } : {}), status },
+    }),
   confirmarParceiroInfracao: (numeroAuto: string, parceiroId?: string | null) =>
     apiRequest<{ data: Infracao }>(`/api/infracoes/${encodeURIComponent(numeroAuto)}/confirmar-parceiro`, {
       method: "POST",
