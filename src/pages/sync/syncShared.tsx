@@ -168,6 +168,7 @@ export function SyncStatusBanner({
     if (!activeJobId) return;
     const jobId = activeJobId;
     let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
 
     async function poll() {
       try {
@@ -177,6 +178,10 @@ export function SyncStatusBanner({
         setTrackedJob(job);
         void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
         if (job.status === "completed" || job.status === "failed") {
+          if (timer) {
+            clearInterval(timer);
+            timer = null;
+          }
           onJobFinished?.();
         }
       } catch (err) {
@@ -190,12 +195,12 @@ export function SyncStatusBanner({
     }
 
     void poll();
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       void poll();
     }, 2000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     };
   }, [activeJobId, onJobFinished, qc]);
 

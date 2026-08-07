@@ -207,7 +207,11 @@ export function useSyncJobs(limit = 25, activeJobId?: string | null) {
     queryKey: ["sync-jobs", limit, activeJobId ?? ""],
     queryFn: () => lanzaApi.listarSyncJobs(limit),
     refetchInterval: (query) => {
-      if (activeJobId) return 2000;
+      if (activeJobId) {
+        const tracked = query.state.data?.jobs?.find((j) => j.id === activeJobId);
+        if (tracked?.status === "completed" || tracked?.status === "failed") return false;
+        return 2000;
+      }
       const jobs = query.state.data?.jobs ?? [];
       const active = jobs.some((j) => j.status === "pending" || j.status === "running");
       if (!active) return false;
