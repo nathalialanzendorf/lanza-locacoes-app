@@ -10,7 +10,11 @@ import { LanzaApiError } from "@/api/client";
 import { bodySyncGlobal, direcaoEfetiva, syncAtivo, type SyncGlobalOpts } from "@/lib/syncUi";
 import { LABEL } from "@/lib/labels";
 import type { SyncCatalogEntry, SyncJob } from "@/api/types";
-import { SigapayAvisosFromResult } from "@/pages/sync/SigapayPortalPanel";
+import {
+  SyncAlteracoesFromResult,
+  hasSyncAlteracoes,
+  normalizeSyncResultPayload,
+} from "@/pages/sync/SyncAlteracoesPanel";
 
 export function useSyncDisparo() {
   const qc = useQueryClient();
@@ -25,15 +29,16 @@ export function useSyncDisparo() {
     setLastResult(null);
     setActiveJobId(null);
     try {
-      const r = (await fn()) as { jobId?: string; status?: string; data?: unknown } | null;
-      setLastResult(r);
-      if (r?.jobId) {
-        setActiveJobId(r.jobId);
+      const raw = (await fn()) as { jobId?: string; status?: string; data?: unknown } | null;
+      if (raw?.jobId) {
+        setLastResult(raw);
+        setActiveJobId(raw.jobId);
       } else {
+        setLastResult(normalizeSyncResultPayload(raw));
         setRunningId(null);
       }
       void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-      return r;
+      return raw;
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao executar sync.");
       setRunningId(null);
@@ -226,8 +231,10 @@ export function SyncStatusBanner({
       ) : null}
       {job.status === "completed" && job.result != null ? (
         <>
-          <SigapayAvisosFromResult data={job.result} />
-          <ResultPanel title="Resultado" data={job.result} />
+          <SyncAlteracoesFromResult data={job.result} />
+          {!hasSyncAlteracoes(job.result) ? (
+            <ResultPanel title="Resultado" data={job.result} />
+          ) : null}
         </>
       ) : null}
     </section>

@@ -412,6 +412,33 @@ export type SigapayAvisosResposta = {
   placas?: string[];
 };
 
+export type SyncAlteracaoStatus =
+  | "cadastrado"
+  | "alterado"
+  | "excluido"
+  | "nao_alterado"
+  | "ignorado";
+
+export type SyncAlteracaoEntidade =
+  | "infracao"
+  | "cobranca"
+  | "despesa_parceiro"
+  | "pedagio"
+  | "estacionamento"
+  | "fipe"
+  | "detran_rs";
+
+export type SyncAlteracaoLinha = {
+  placa: string;
+  entidade: SyncAlteracaoEntidade;
+  referencia: string;
+  descricao: string;
+  valor?: number | null;
+  data?: string | null;
+  status: SyncAlteracaoStatus;
+  aviso?: string | null;
+};
+
 export type SigapayCapturaState = {
   status: DetranScCapturaStatus;
   message?: string;

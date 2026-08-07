@@ -19,7 +19,8 @@ import {
 } from "@/pages/sync/syncShared";
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { SigapaySessaoPanel } from "@/pages/sync/SigapaySessaoPanel";
-import { SigapayPortalPanel, SigapayAvisosFromResult } from "@/pages/sync/SigapayPortalPanel";
+import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
+import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
 type Props = {
   syncId: string;
@@ -91,7 +92,8 @@ export function SyncTipoSection({ syncId }: Props) {
             </div>
             {opcoes.dryRun ? (
               <p className="field__hint sync-dryrun-hint">
-                Dry-run executa em modo síncrono e exibe o resultado JSON abaixo — nada é gravado.
+                Dry-run simula o sync sem gravar — a tabela abaixo mostra o que seria cadastrado, alterado ou
+                excluído.
               </p>
             ) : null}
 
@@ -127,8 +129,13 @@ export function SyncTipoSection({ syncId }: Props) {
         <>
           {opcoes.dryRun ? (
             <>
-              {syncId === "estacionamento" ? <SigapayAvisosFromResult data={lastResult} /> : null}
-              <ResultPanel title="Resultado (dry-run)" data={lastResult} />
+              <SyncAlteracoesFromResult
+                data={lastResult}
+                title="Alterações do sync (dry-run)"
+              />
+              {!hasSyncAlteracoes(lastResult) ? (
+                <ResultPanel title="Resultado (dry-run)" data={lastResult} />
+              ) : null}
             </>
           ) : null}
           <SyncJobsTable syncId={syncId} />
