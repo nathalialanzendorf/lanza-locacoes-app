@@ -328,11 +328,12 @@ export type CobrancasMeta = {
   outDirPadrao: string;
 };
 
-export type VeiculoConsultaFonte = "detran-sc" | "detran-rs" | "pedagio" | "sigapay";
+export type VeiculoConsultaFonte = "detran-sc" | "detran-rs" | "pedagio" | "sigapay" | "todos";
 
 export type VeiculoConsultaPortalItem = {
   id: string;
   ref?: string;
+  placa?: string;
   descricao: string;
   local?: string | null;
   data?: string | null;
@@ -351,10 +352,12 @@ export type VeiculoConsultaPortalSecao = {
 };
 
 export type VeiculoConsultaPortaisResultado = {
+  modo: "veiculo" | "frota";
   placa: string;
   renavam?: string | null;
   ufRegistro?: string | null;
   veiculoCadastrado: boolean;
+  veiculosConsultados?: number;
   fonte: VeiculoConsultaFonte;
   detranSc: VeiculoConsultaPortalSecao;
   detranRs: VeiculoConsultaPortalSecao;

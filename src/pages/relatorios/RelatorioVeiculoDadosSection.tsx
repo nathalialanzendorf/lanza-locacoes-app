@@ -1,13 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { DataTable } from "@/components/DataTable";
+import { VeiculoSelect } from "@/components/EntitySelects";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError, getApiBaseUrl, getStoredApiKey } from "@/api/client";
 import { getStoredToken } from "@/api/authClient";
 import type {
   DetranScCapturaState,
   DetranScSessaoStatus,
-  VeiculoConsultaFonte,
   VeiculoConsultaPortaisResultado,
 } from "@/api/types";
 import {
@@ -17,10 +17,12 @@ import {
   bridgeStartHint,
 } from "@/lib/detranScCaptureBridge";
 import { formatBrl, formatPlaca } from "@/lib/format";
+import { SyncJobsTable } from "@/pages/sync/syncShared";
 
 type PortalItem = {
   id: string;
   ref?: string;
+  placa?: string;
   descricao: string;
   local?: string | null;
   data?: string | null;
@@ -63,46 +65,44 @@ const PORTAIS_EXTERNOS = {
   },
 } as const;
 
-const FONTES_CONSULTA: {
-  id: VeiculoConsultaFonte;
+const SECOES_PORTAL: {
+  key: keyof Pick<
+    VeiculoConsultaPortaisResultado,
+    "detranSc" | "detranRs" | "pedagio" | "estacionamento"
+  >;
   label: string;
-  hint: string;
   portalKey: keyof typeof PORTAIS_EXTERNOS;
   titulo: string;
   origem: string;
   colData: string;
 }[] = [
   {
-    id: "detran-sc",
+    key: "detranSc",
     label: "DETRAN SC",
-    hint: "Gov.br · débitos em aberto",
     portalKey: "detranSc",
     titulo: "DETRAN SC — infrações",
     origem: "Portal DETRAN SC (consulta live)",
     colData: "Autuação",
   },
   {
-    id: "detran-rs",
+    key: "detranRs",
     label: "DETRAN RS",
-    hint: "Gov.br · débitos em aberto",
     portalKey: "detranRs",
     titulo: "DETRAN RS — infrações",
     origem: "Portal DETRAN RS (consulta live)",
     colData: "Autuação",
   },
   {
-    id: "pedagio",
+    key: "pedagio",
     label: "Pedágio Digital",
-    hint: "CPF e senha · passagens em aberto",
     portalKey: "pedagio",
     titulo: "Pedágio Digital",
     origem: "Portal Pedágio Digital",
     colData: "Passagem",
   },
   {
-    id: "sigapay",
+    key: "estacionamento",
     label: "SigaPay",
-    hint: "Conta SigaPay · avisos em aberto",
     portalKey: "sigapay",
     titulo: "SigaPay — estacionamento rotativo",
     origem: "Portal SigaPay",
@@ -118,28 +118,16 @@ function compactRenavam(renavam: string): string {
   return renavam.replace(/\D/g, "");
 }
 
+function buscaFrota(placaInput: string, renavamInput: string): boolean {
+  return !compactPlaca(placaInput) && !compactRenavam(renavamInput);
+}
+
 function buscaValida(placaInput: string, renavamInput: string): boolean {
-  return compactPlaca(placaInput).length >= 7 || compactRenavam(renavamInput).length >= 9;
+  return buscaFrota(placaInput, renavamInput) || compactPlaca(placaInput).length >= 7 || compactRenavam(renavamInput).length >= 9;
 }
 
 function abrirPortal(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
-}
-
-function secaoPorFonte(
-  resultado: VeiculoConsultaPortaisResultado,
-  fonte: VeiculoConsultaFonte,
-): PortalSecao | undefined {
-  switch (fonte) {
-    case "detran-sc":
-      return resultado.detranSc;
-    case "detran-rs":
-      return resultado.detranRs;
-    case "pedagio":
-      return resultado.pedagio;
-    case "sigapay":
-      return resultado.estacionamento;
-  }
 }
 
 function situacaoBadge(text: string, emAberto?: boolean): { text: string; className: string } {
@@ -160,6 +148,7 @@ function SecaoPortal({
   loading,
   colData,
   portaisManual,
+  mostrarPlaca = false,
 }: {
   titulo: string;
   origem: string;
@@ -167,8 +156,65 @@ function SecaoPortal({
   loading?: boolean;
   colData: string;
   portaisManual?: readonly { label: string; url: string }[];
+  mostrarPlaca?: boolean;
 }) {
   const items = secao?.items ?? [];
+  const columns = [
+    ...(mostrarPlaca
+      ? [
+          {
+            key: "placa",
+            header: "Placa",
+            sortValue: (r: PortalItem) => r.placa ?? "",
+            render: (r: PortalItem) => (r.placa ? formatPlaca(r.placa) : "—"),
+          },
+        ]
+      : []),
+    {
+      key: "ref",
+      header: "Ref.",
+      sortValue: (r: PortalItem) => r.ref ?? r.id,
+      render: (r: PortalItem) => <strong>{r.ref ?? r.id}</strong>,
+    },
+    {
+      key: "desc",
+      header: "Descrição",
+      sortValue: (r: PortalItem) => r.descricao,
+      render: (r: PortalItem) => (
+        <span className="infracao-desc" title={r.descricao}>
+          {r.descricao}
+        </span>
+      ),
+    },
+    {
+      key: "local",
+      header: "Local",
+      sortValue: (r: PortalItem) => r.local ?? "",
+      render: (r: PortalItem) => r.local ?? "—",
+    },
+    {
+      key: "data",
+      header: colData,
+      sortValue: (r: PortalItem) => r.data ?? "",
+      render: (r: PortalItem) => r.data ?? "—",
+    },
+    {
+      key: "valor",
+      header: "Valor",
+      className: "num",
+      sortValue: (r: PortalItem) => r.valor,
+      render: (r: PortalItem) => (r.valor > 0 ? formatBrl(r.valor) : "—"),
+    },
+    {
+      key: "situacao",
+      header: "Situação",
+      sortValue: (r: PortalItem) => r.situacao,
+      render: (r: PortalItem) => {
+        const s = situacaoBadge(r.situacao, r.emAberto);
+        return <span className={s.className}>{s.text}</span>;
+      },
+    },
+  ];
   return (
     <section className="form-section veiculo-dados-secao">
       <div className="veiculo-dados-secao__head">
@@ -214,52 +260,7 @@ function SecaoPortal({
         emptyMessage={
           secao?.error ? "Consulta indisponível." : `Nenhum registo no portal (${titulo}).`
         }
-        columns={[
-          {
-            key: "ref",
-            header: "Ref.",
-            sortValue: (r) => r.ref ?? r.id,
-            render: (r) => <strong>{r.ref ?? r.id}</strong>,
-          },
-          {
-            key: "desc",
-            header: "Descrição",
-            sortValue: (r) => r.descricao,
-            render: (r) => (
-              <span className="infracao-desc" title={r.descricao}>
-                {r.descricao}
-              </span>
-            ),
-          },
-          {
-            key: "local",
-            header: "Local",
-            sortValue: (r) => r.local ?? "",
-            render: (r) => r.local ?? "—",
-          },
-          {
-            key: "data",
-            header: colData,
-            sortValue: (r) => r.data ?? "",
-            render: (r) => r.data ?? "—",
-          },
-          {
-            key: "valor",
-            header: "Valor",
-            className: "num",
-            sortValue: (r) => r.valor,
-            render: (r) => (r.valor > 0 ? formatBrl(r.valor) : "—"),
-          },
-          {
-            key: "situacao",
-            header: "Situação",
-            sortValue: (r) => r.situacao,
-            render: (r) => {
-              const s = situacaoBadge(r.situacao, r.emAberto);
-              return <span className={s.className}>{s.text}</span>;
-            },
-          },
-        ]}
+        columns={columns}
       />
     </section>
   );
@@ -268,8 +269,8 @@ function SecaoPortal({
 export function RelatorioVeiculoDadosSection() {
   const [placaInput, setPlacaInput] = useState("");
   const [renavamInput, setRenavamInput] = useState("");
-  const [fonte, setFonte] = useState<VeiculoConsultaFonte>("detran-sc");
   const [loading, setLoading] = useState(false);
+  const [loadingHint, setLoadingHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<VeiculoConsultaPortaisResultado | null>(null);
   const [detranScSessao, setDetranScSessao] = useState<DetranScSessaoStatus | null>(null);
@@ -282,9 +283,7 @@ export function RelatorioVeiculoDadosSection() {
   const [sessaoMsg, setSessaoMsg] = useState<string | null>(null);
   const [sessaoError, setSessaoError] = useState<string | null>(null);
 
-  const fonteConfig = FONTES_CONSULTA.find((f) => f.id === fonte) ?? FONTES_CONSULTA[0];
-  const portalSelecionado = PORTAIS_EXTERNOS[fonteConfig.portalKey];
-  const detranSelecionado = fonte === "detran-sc" || fonte === "detran-rs";
+  const consultaFrota = buscaFrota(placaInput, renavamInput);
   const capturaEmCurso = captura?.status === "starting" || captura?.status === "waiting";
 
   async function recarregarSessaoDetranSc() {
@@ -296,7 +295,6 @@ export function RelatorioVeiculoDadosSection() {
   }
 
   useEffect(() => {
-    if (fonte !== "detran-sc") return;
     let cancelled = false;
     void (async () => {
       setSessaoLoading(true);
@@ -318,10 +316,10 @@ export function RelatorioVeiculoDadosSection() {
     return () => {
       cancelled = true;
     };
-  }, [fonte]);
+  }, []);
 
   useEffect(() => {
-    if (fonte !== "detran-sc" || !capturaEmCurso) return;
+    if (!capturaEmCurso) return;
     const timer = window.setInterval(() => {
       void (async () => {
         try {
@@ -346,7 +344,7 @@ export function RelatorioVeiculoDadosSection() {
       })();
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [fonte, capturaEmCurso, bridgeAtivo]);
+  }, [capturaEmCurso, bridgeAtivo]);
 
   async function iniciarCapturaAutomatica() {
     setSessaoLoading(true);
@@ -435,23 +433,28 @@ export function RelatorioVeiculoDadosSection() {
 
   async function buscar() {
     if (!buscaValida(placaInput, renavamInput)) {
-      setError("Informe a placa (7 caracteres) ou o renavam (9+ dígitos).");
+      setError("Informe a placa (7 caracteres), o renavam (9+ dígitos) ou deixe vazio para consultar a frota.");
       return;
     }
     setLoading(true);
+    setLoadingHint(
+      consultaFrota
+        ? "Consultando frota nos 4 portais — pode demorar alguns minutos (DETRAN consulta veículo a veículo)…"
+        : "Consultando DETRAN SC, DETRAN RS, Pedágio Digital e SigaPay…",
+    );
     setError(null);
     setResultado(null);
     try {
       const r = await lanzaApi.consultarVeiculoPortais({
         placa: placaInput.trim() || undefined,
         renavam: renavamInput.trim() || undefined,
-        fonte,
       });
       setResultado(r.data);
     } catch (err) {
-      setError(err instanceof LanzaApiError ? err.message : "Falha ao consultar portal.");
+      setError(err instanceof LanzaApiError ? err.message : "Falha ao consultar portais.");
     } finally {
       setLoading(false);
+      setLoadingHint(null);
     }
   }
 
@@ -460,31 +463,27 @@ export function RelatorioVeiculoDadosSection() {
       <section className="form-card">
         <h2 className="form-card__title">Consulta por veículo</h2>
         <p className="field__hint">
-          Consulta live em um portal por vez — não usa dados do banco local. Informe placa e/ou
-          renavam (DETRAN exige renavam quando o veículo não está cadastrado na frota).
+          Consulta live em todos os portais — não usa dados do banco local. Deixe placa e renavam
+          vazios para buscar <strong>toda a frota activa</strong>, ou informe um veículo específico
+          (DETRAN exige renavam quando não está cadastrado na frota).
         </p>
         <div className="form-grid">
-          <FieldLike label="Placa" hint="Ex.: ABC1D23 ou ABC-1234">
-            <input
-              className="input"
-              type="text"
+          <FieldLike label="Placa" hint="Vazio = frota activa inteira">
+            <VeiculoSelect
               value={placaInput}
-              onChange={(e) => setPlacaInput(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void buscar();
-              }}
-              placeholder="Digite a placa"
-              autoComplete="off"
-              spellCheck={false}
+              onChange={setPlacaInput}
+              allowEmpty
+              ativo
+              emptyLabel="Toda a frota activa"
               disabled={loading}
             />
           </FieldLike>
           <FieldLike
             label="Renavam"
             hint={
-              detranSelecionado
-                ? "Obrigatório para DETRAN se placa não estiver na frota"
-                : "Opcional — usado para identificar veículo na frota"
+              consultaFrota
+                ? "Opcional na consulta da frota"
+                : "Obrigatório para DETRAN se placa não estiver na frota"
             }
           >
             <input
@@ -504,31 +503,7 @@ export function RelatorioVeiculoDadosSection() {
           </FieldLike>
         </div>
 
-        <fieldset className="field veiculo-dados-fontes">
-          <legend className="field__label">Órgão / portal</legend>
-          <p className="field__hint">Escolha onde consultar débitos em aberto.</p>
-          <div className="radio-group">
-            {FONTES_CONSULTA.map((opt) => (
-              <label key={opt.id} className="radio-option">
-                <input
-                  type="radio"
-                  name="fonte-consulta-veiculo"
-                  value={opt.id}
-                  checked={fonte === opt.id}
-                  onChange={() => setFonte(opt.id)}
-                  disabled={loading}
-                />
-                <span className="radio-option__text">
-                  <strong>{opt.label}</strong>
-                  <span className="radio-option__hint">{opt.hint}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {fonte === "detran-sc" ? (
-          <section className="form-section veiculo-dados-sessao">
+        <section className="form-section veiculo-dados-sessao">
             <h3 className="form-section-title">Sessão DETRAN SC</h3>
             <p className="field__hint">
               Login Gov.br do DETRAN SC (certificado A1):{" "}
@@ -664,8 +639,7 @@ export function RelatorioVeiculoDadosSection() {
             ) : null}
             {sessaoMsg ? <p className="field__hint">{sessaoMsg}</p> : null}
             {sessaoError ? <p className="form-card__error">{sessaoError}</p> : null}
-          </section>
-        ) : null}
+        </section>
 
         <div className="form-card__action-row">
           <button
@@ -674,27 +648,25 @@ export function RelatorioVeiculoDadosSection() {
             onClick={() => void buscar()}
             disabled={loading || !buscaValida(placaInput, renavamInput)}
           >
-            {loading ? "Consultando portal…" : `Buscar em ${fonteConfig.label}`}
-          </button>
-          <button
-            type="button"
-            className="btn btn--secondary"
-            onClick={() => abrirPortal(portalSelecionado.url)}
-            disabled={loading}
-          >
-            Abrir {fonteConfig.label}
+            {loading
+              ? "Consultando portais…"
+              : consultaFrota
+                ? "Buscar frota nos portais"
+                : "Buscar nos portais"}
           </button>
         </div>
         <p className="field__hint">
-          O botão &quot;Abrir&quot; lança uma nova aba para login e consulta manual. A busca
-          automática usa credenciais configuradas no servidor — não compartilha a sessão do seu
-          navegador.
+          A busca consulta DETRAN SC, DETRAN RS, Pedágio Digital e SigaPay em paralelo, usando
+          credenciais configuradas no servidor.
         </p>
+        {loadingHint ? <p className="field__hint">{loadingHint}</p> : null}
         {error ? <p className="form-card__error">{error}</p> : null}
       </section>
 
       {!resultado && !loading ? (
-        <p className="muted">Digite placa e/ou renavam, escolha o portal e clique em Buscar.</p>
+        <p className="muted">
+          Clique em Buscar — vazio consulta toda a frota activa em todos os portais.
+        </p>
       ) : null}
 
       {resultado ? (
@@ -703,48 +675,62 @@ export function RelatorioVeiculoDadosSection() {
             <h2 className="form-card__title">Identificação</h2>
             <dl className="veiculo-dados-resumo">
               <div>
-                <dt>Placa</dt>
+                <dt>Alcance</dt>
                 <dd>
-                  <strong>{formatPlaca(resultado.placa)}</strong>
+                  <strong>
+                    {resultado.modo === "frota"
+                      ? `Frota activa (${resultado.veiculosConsultados ?? "—"} veículo(s))`
+                      : formatPlaca(resultado.placa)}
+                  </strong>
                 </dd>
               </div>
+              {resultado.modo === "veiculo" ? (
+                <>
+                  <div>
+                    <dt>Renavam</dt>
+                    <dd>{resultado.renavam ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>UF registro</dt>
+                    <dd>{resultado.ufRegistro ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Frota Lanza</dt>
+                    <dd>
+                      <span
+                        className={
+                          resultado.veiculoCadastrado ? "badge badge--ok" : "badge badge--muted"
+                        }
+                      >
+                        {resultado.veiculoCadastrado ? "Cadastrado" : "Não cadastrado"}
+                      </span>
+                    </dd>
+                  </div>
+                </>
+              ) : null}
               <div>
-                <dt>Renavam</dt>
-                <dd>{resultado.renavam ?? "—"}</dd>
-              </div>
-              <div>
-                <dt>UF registro</dt>
-                <dd>{resultado.ufRegistro ?? "—"}</dd>
-              </div>
-              <div>
-                <dt>Frota Lanza</dt>
-                <dd>
-                  <span
-                    className={
-                      resultado.veiculoCadastrado ? "badge badge--ok" : "badge badge--muted"
-                    }
-                  >
-                    {resultado.veiculoCadastrado ? "Cadastrado" : "Não cadastrado"}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Portal consultado</dt>
-                <dd>{fonteConfig.label}</dd>
+                <dt>Portais</dt>
+                <dd>Todos (DETRAN SC, DETRAN RS, Pedágio, SigaPay)</dd>
               </div>
             </dl>
           </section>
 
-          <SecaoPortal
-            titulo={fonteConfig.titulo}
-            origem={fonteConfig.origem}
-            secao={secaoPorFonte(resultado, resultado.fonte)}
-            loading={loading}
-            colData={fonteConfig.colData}
-            portaisManual={[portalSelecionado]}
-          />
+          {SECOES_PORTAL.map((sec) => (
+            <SecaoPortal
+              key={sec.key}
+              titulo={sec.titulo}
+              origem={sec.origem}
+              secao={resultado[sec.key]}
+              loading={loading}
+              colData={sec.colData}
+              portaisManual={[PORTAIS_EXTERNOS[sec.portalKey]]}
+              mostrarPlaca={resultado.modo === "frota"}
+            />
+          ))}
         </>
       ) : null}
+
+      <SyncJobsTable title="Jobs recentes (todas as integrações)" />
     </>
   );
 }

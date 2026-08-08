@@ -111,7 +111,7 @@ export const lanzaApi = {
   }) =>
     apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
       "/api/relatorios/veiculo/consulta",
-      { params },
+      { params, timeoutMs: 300_000 },
     ),
   statusDetranScSessao: () =>
     apiRequest<{ data: import("./types").DetranScSessaoStatus }>("/api/portais/detran-sc/sessao"),
