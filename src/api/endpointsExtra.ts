@@ -190,6 +190,16 @@ export const lanzaApiExtra = {
     apiRequest<SigapayAvisosResposta>("/api/estacionamento/avisos", {
       params: { ...(placa?.trim() ? { placa: placa.trim() } : {}), status },
     }),
+  estacionamentoPixSolicitar: (phone: string, plate: string) =>
+    apiRequest<{ data: Record<string, unknown> }>("/api/estacionamento/pix/solicitar", {
+      method: "POST",
+      body: { phone, plate },
+    }),
+  estacionamentoPixVerificar: (id: string, code: string) =>
+    apiRequest<{ data: Record<string, unknown> }>("/api/estacionamento/pix/verificar", {
+      method: "POST",
+      body: { id, code },
+    }),
   confirmarParceiroInfracao: (numeroAuto: string, parceiroId?: string | null) =>
     apiRequest<{ data: Infracao }>(`/api/infracoes/${encodeURIComponent(numeroAuto)}/confirmar-parceiro`, {
       method: "POST",

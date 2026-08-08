@@ -20,6 +20,7 @@ import {
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { PedagioPortalPanel } from "@/pages/sync/PedagioPortalPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
+import { SigapayPixPanel } from "@/pages/sync/SigapayPixPanel";
 import {
   DetranRsSessaoPanel,
   DetranScSessaoPanel,
@@ -164,6 +165,7 @@ export function SyncTipoSection({ syncId }: Props) {
             <>
               <SigapaySessaoPanel disabled={runningId !== null} />
               <SigapayPortalPanel />
+              <SigapayPixPanel />
             </>
           ) : null}
         </>
