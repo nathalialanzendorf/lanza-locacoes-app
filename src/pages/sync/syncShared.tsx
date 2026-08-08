@@ -124,7 +124,12 @@ const SYNC_STATUS_LABEL: Record<SyncJob["status"], string> = {
   running: "Executando",
   completed: "Concluído",
   failed: "Falhou",
+  cancelled: "Cancelado",
 };
+
+function jobTerminal(status: SyncJob["status"]): boolean {
+  return status === "completed" || status === "failed" || status === "cancelled";
+}
 
 export function statusSyncLabel(status: SyncJob["status"]): string {
   return SYNC_STATUS_LABEL[status] ?? status;
@@ -136,6 +141,8 @@ function statusBadge(status: SyncJob["status"]) {
       return "badge badge--ok";
     case "failed":
       return "badge badge--danger";
+    case "cancelled":
+      return "badge badge--muted";
     case "running":
       return "badge badge--warn";
     default:
@@ -160,12 +167,28 @@ export function SyncStatusBanner({
   const jobsQuery = useSyncJobs(25, activeJobId);
   const [trackedJob, setTrackedJob] = useState<SyncJob | null>(null);
   const [pollErro, setPollErro] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState(false);
 
   useEffect(() => {
     if (!activeJobId) return;
     setTrackedJob(null);
     setPollErro(null);
   }, [activeJobId]);
+
+  async function cancelarJob() {
+    if (!activeJobId || cancelando) return;
+    setCancelando(true);
+    try {
+      const r = await lanzaApi.cancelarSyncJob(activeJobId);
+      setTrackedJob(r.job);
+      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+      onJobFinished?.();
+    } catch (err) {
+      setPollErro(err instanceof LanzaApiError ? err.message : "Falha ao cancelar job.");
+    } finally {
+      setCancelando(false);
+    }
+  }
 
   useEffect(() => {
     if (!activeJobId) return;
@@ -180,7 +203,7 @@ export function SyncStatusBanner({
         setPollErro(null);
         setTrackedJob(job);
         void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
-        if (job.status === "completed" || job.status === "failed") {
+        if (jobTerminal(job.status)) {
           if (timer) {
             clearInterval(timer);
             timer = null;
@@ -223,7 +246,7 @@ export function SyncStatusBanner({
 
   return (
     <section
-      className={`form-card sync-status${job.status === "failed" ? " sync-status--erro" : ""}`}
+      className={`form-card sync-status${job.status === "failed" || job.status === "cancelled" ? " sync-status--erro" : ""}`}
     >
       <p className="sync-status__linha">
         <span className={statusBadge(job.status)}>{statusSyncLabel(job.status)}</span>
@@ -237,7 +260,21 @@ export function SyncStatusBanner({
       {job.error ? <p className="sync-status__erro">{job.error}</p> : null}
       {pollErro && emCurso ? <p className="sync-status__erro">{pollErro}</p> : null}
       {emCurso ? (
-        <p className="field__hint">A execução continua em background — o status atualiza sozinho.</p>
+        <>
+          <p className="field__hint">
+            A execução continua em background (máx. 5 min) — o status actualiza sozinho.
+          </p>
+          <div className="form-card__action-row">
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => void cancelarJob()}
+              disabled={cancelando}
+            >
+              {cancelando ? "A cancelar…" : "Cancelar job"}
+            </button>
+          </div>
+        </>
       ) : null}
       {job.status === "completed" && job.result != null ? (
         <>
@@ -259,6 +296,7 @@ type SyncJobsProps = {
 export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps) {
   const qc = useQueryClient();
   const jobsQuery = useSyncJobs();
+  const [cancelandoId, setCancelandoId] = useState<string | null>(null);
   const seenFipeDone = useRef(new Set<string>());
   const jobs = useMemo(() => {
     const list = jobsQuery.data?.jobs ?? [];
@@ -275,6 +313,16 @@ export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps
       void qc.invalidateQueries({ queryKey: ["veiculos"] });
     }
   }, [jobsQuery.data, qc]);
+
+  async function cancelarJob(id: string) {
+    setCancelandoId(id);
+    try {
+      await lanzaApi.cancelarSyncJob(id);
+      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
+    } finally {
+      setCancelandoId(null);
+    }
+  }
 
   return (
     <section className="form-card">
@@ -345,6 +393,23 @@ export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps
               header: "Erro",
               sortValue: (j) => j.error ?? "",
               render: (j) => <span className="sync-job-error">{j.error ?? "—"}</span>,
+            },
+            {
+              key: "acoes",
+              header: "",
+              render: (j) =>
+                j.status === "pending" || j.status === "running" ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    disabled={cancelandoId === j.id}
+                    onClick={() => void cancelarJob(j.id)}
+                  >
+                    {cancelandoId === j.id ? "…" : "Cancelar"}
+                  </button>
+                ) : (
+                  "—"
+                ),
             },
           ]}
         />

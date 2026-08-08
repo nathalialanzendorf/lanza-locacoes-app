@@ -18,7 +18,7 @@ function jobFipeAtivo(jobs: SyncJob[]): SyncJob | undefined {
   const fipe = jobs.filter((j) => j.sync === "fipe");
   return (
     fipe.find((j) => j.status === "running" || j.status === "pending") ??
-    fipe.find((j) => j.status === "completed" || j.status === "failed")
+    fipe.find((j) => j.status === "completed" || j.status === "failed" || j.status === "cancelled")
   );
 }
 

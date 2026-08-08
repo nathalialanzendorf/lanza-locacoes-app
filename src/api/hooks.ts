@@ -209,7 +209,7 @@ export function useSyncJobs(limit = 25, activeJobId?: string | null) {
     refetchInterval: (query) => {
       if (activeJobId) {
         const tracked = query.state.data?.jobs?.find((j) => j.id === activeJobId);
-        if (tracked?.status === "completed" || tracked?.status === "failed") return false;
+        if (tracked?.status === "completed" || tracked?.status === "failed" || tracked?.status === "cancelled") return false;
         return 2000;
       }
       const jobs = query.state.data?.jobs ?? [];

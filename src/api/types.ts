@@ -577,7 +577,7 @@ export type SyncMeta = {
 export type SyncJob = {
   id: string;
   sync: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   createdAt: string;
   startedAt?: string;
   finishedAt?: string;

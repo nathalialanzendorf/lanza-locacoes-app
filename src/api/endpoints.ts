@@ -348,6 +348,10 @@ export const lanzaApi = {
   listarSyncJobs: (limit = 20) =>
     apiRequest<{ total: number; jobs: SyncJob[] }>("/api/sync/jobs", { params: { limit } }),
   obterSyncJob: (id: string) => apiRequest<SyncJob>(`/api/sync/jobs/${encodeURIComponent(id)}`),
+  cancelarSyncJob: (id: string) =>
+    apiRequest<{ ok: boolean; job: SyncJob }>(`/api/sync/jobs/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
   executarSync: (
     nome: string,
     body: Record<string, unknown> = {},
