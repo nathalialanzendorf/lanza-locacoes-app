@@ -72,7 +72,14 @@ function timeoutSignal(ms: number): AbortSignal {
 
 function timeoutErrorMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : "Falha na ligação à API";
-  return /timeout|connection terminated/i.test(raw)
+  if (/failed to fetch|networkerror|load failed|fetch failed|econnrefused/i.test(raw)) {
+    const base = getApiBaseUrl();
+    if (!base) {
+      return "Sem ligação à API local — inicie o servidor na pasta lanza-locacoes-services (`npm run api:dev`, porta 3100) e recarregue a página.";
+    }
+    return `Sem ligação à API (${base}) — verifique se o servidor está online e acessível.`;
+  }
+  return /timeout|connection terminated|signal timed out/i.test(raw)
     ? "A API demorou demais ou perdeu ligação ao banco. Aguarde alguns segundos e tente novamente."
     : raw || "Sem ligação à API";
 }

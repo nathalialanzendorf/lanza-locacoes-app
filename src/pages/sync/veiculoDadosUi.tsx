@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 
 import { DataTable } from "@/components/DataTable";
-import type { VeiculoConsultaPortaisResultado } from "@/api/types";
+import { lanzaApi } from "@/api/endpoints";
+import { LanzaApiError } from "@/api/client";
+import type { VeiculoConsultaFonte, VeiculoConsultaPortaisResultado } from "@/api/types";
 import { formatBrl, formatPlaca } from "@/lib/format";
 
 export type PortalItem = {
@@ -284,4 +286,47 @@ export function FieldLike({
       {children}
     </label>
   );
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Consulta live nos portais; frota corre em job async (evita timeout HTTP). */
+export async function consultarVeiculoPortaisLive(opts: {
+  placa?: string;
+  renavam?: string;
+  fonte?: VeiculoConsultaFonte;
+  frota?: boolean;
+  onProgress?: (msg: string) => void;
+}): Promise<VeiculoConsultaPortaisResultado> {
+  const frota = opts.frota ?? (!opts.placa?.trim() && !opts.renavam?.trim());
+  const r = await lanzaApi.consultarVeiculoPortaisSync({
+    placa: opts.placa,
+    renavam: opts.renavam,
+    fonte: opts.fonte,
+    async: frota,
+  });
+
+  if (r.jobId) {
+    opts.onProgress?.("Consulta da frota em background — pode demorar vários minutos…");
+    const deadline = Date.now() + 5 * 60 * 1000 + 15_000;
+    while (Date.now() < deadline) {
+      await sleep(2000);
+      const job = await lanzaApi.obterSyncJob(r.jobId);
+      if (job.status === "completed" && job.result != null) {
+        return job.result as VeiculoConsultaPortaisResultado;
+      }
+      if (job.status === "failed") {
+        throw new LanzaApiError(500, job.error ?? "Consulta falhou.");
+      }
+      if (job.status === "cancelled") {
+        throw new LanzaApiError(499, job.error ?? "Consulta cancelada.");
+      }
+      const fase = job.progress?.fase;
+      if (fase) opts.onProgress?.(fase);
+    }
+    throw new LanzaApiError(0, "Timeout aguardando resultado da consulta (5 min).");
+  }
+
+  if (!r.data) throw new LanzaApiError(500, "Resposta da API sem dados.");
+  return r.data;
 }

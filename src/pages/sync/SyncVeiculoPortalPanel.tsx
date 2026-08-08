@@ -1,12 +1,12 @@
 import { useState } from "react";
 
 import { VeiculoSelect } from "@/components/EntitySelects";
-import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import type { VeiculoConsultaFonte, VeiculoConsultaPortaisResultado } from "@/api/types";
 import {
   SECOES_PORTAL,
   SecaoDados,
+  consultarVeiculoPortaisLive,
   type SecaoConfig,
 } from "@/pages/sync/veiculoDadosUi";
 
@@ -34,6 +34,7 @@ export function SyncVeiculoPortalPanel({
 }) {
   const [placaInput, setPlacaInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<VeiculoConsultaPortaisResultado | null>(null);
 
@@ -41,18 +42,22 @@ export function SyncVeiculoPortalPanel({
 
   async function consultar() {
     setLoading(true);
+    setProgress(null);
     setError(null);
     setResultado(null);
     try {
-      const r = await lanzaApi.consultarVeiculoPortaisSync({
+      const data = await consultarVeiculoPortaisLive({
         placa: placaInput.trim() || undefined,
         fonte,
+        frota: !placaInput.trim(),
+        onProgress: setProgress,
       });
-      setResultado(r.data);
+      setResultado(data);
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha na consulta ao portal.");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -89,6 +94,7 @@ export function SyncVeiculoPortalPanel({
         </button>
       </div>
       {error ? <p className="form-card__error">{error}</p> : null}
+      {progress ? <p className="field__hint">{progress}</p> : null}
       {resultado ? (
         <SecaoDados
           titulo={secaoConfig.titulo}

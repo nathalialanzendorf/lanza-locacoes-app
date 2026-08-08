@@ -113,11 +113,16 @@ export const lanzaApi = {
     placa?: string;
     renavam?: string;
     fonte?: import("./types").VeiculoConsultaFonte;
+    async?: boolean;
   }) =>
-    apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
-      "/api/sync/veiculo/consulta",
-      { params, timeoutMs: 300_000 },
-    ),
+    apiRequest<{
+      data?: import("./types").VeiculoConsultaPortaisResultado;
+      jobId?: string;
+      status?: string;
+    }>("/api/sync/veiculo/consulta", {
+      params,
+      timeoutMs: params?.async ? 30_000 : 300_000,
+    }),
   statusDetranScSessao: () =>
     apiRequest<{ data: import("./types").DetranScSessaoStatus }>("/api/portais/detran-sc/sessao"),
   gravarDetranScSessao: (body: { auth: string; empresa: string; appVersion?: string | null }) =>

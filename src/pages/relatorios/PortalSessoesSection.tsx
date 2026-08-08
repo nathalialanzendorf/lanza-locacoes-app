@@ -437,7 +437,7 @@ export function DetranRsSessaoPanel({ disabled }: { disabled?: boolean }) {
         portalUrl="https://pcsdetran.rs.gov.br/"
         portalLabel="portal DETRAN RS"
         disabled={disabled}
-        waitingMessage="Chrome aberto — faça login Gov.br e consulte um veículo RS."
+        waitingMessage="Chrome aberto — faça login Gov.br e consulte um veículo RS (a captura ocorre ao carregar a frota)."
         descricao="Captura Bearer + X-User-Id a partir do portal pcsdetran.rs.gov.br (login Gov.br)."
         api={{
           statusSessao: () => lanzaApi.statusDetranRsSessao(),
@@ -508,7 +508,7 @@ export function PedagioSessaoPanel({ disabled }: { disabled?: boolean }) {
         portalUrl="https://pedagiodigital.com/"
         portalLabel="Pedágio Digital"
         disabled={disabled}
-        waitingMessage="Chrome aberto — faça login (CPF/senha + reCAPTCHA); cookie e CSRF serão capturados."
+        waitingMessage="Chrome aberto — faça login (CPF/senha + reCAPTCHA) e carregue a lista de placas (F5); cookie e CSRF serão capturados."
         descricao="Login em pedagiodigital.com com CPF/senha. Resolve o reCAPTCHA na janela do Chrome."
         api={{
           statusSessao: () => lanzaApi.statusPedagioSessao(),

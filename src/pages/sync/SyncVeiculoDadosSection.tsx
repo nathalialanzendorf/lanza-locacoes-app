@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { VeiculoSelect } from "@/components/EntitySelects";
-import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import type { VeiculoConsultaPortaisResultado } from "@/api/types";
 import { PortalSessoesSection } from "@/pages/relatorios/PortalSessoesSection";
@@ -12,12 +11,14 @@ import {
   IdentificacaoVeiculo,
   FieldLike,
   buscaFrota,
+  consultarVeiculoPortaisLive,
 } from "@/pages/sync/veiculoDadosUi";
 
 /** Sync › Dados do veículo — consulta live em todos os portais. */
 export function SyncVeiculoDadosSection() {
   const [placaInput, setPlacaInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<VeiculoConsultaPortaisResultado | null>(null);
 
@@ -25,20 +26,24 @@ export function SyncVeiculoDadosSection() {
 
   async function buscar() {
     setLoading(true);
+    setProgress(null);
     setError(null);
     setResultado(null);
     try {
-      const r = await lanzaApi.consultarVeiculoPortaisSync({
+      const data = await consultarVeiculoPortaisLive({
         placa: placaInput.trim() || undefined,
         fonte: "todos",
+        frota: consultaFrota,
+        onProgress: setProgress,
       });
-      setResultado(r.data);
+      setResultado(data);
     } catch (err) {
       setError(
         err instanceof LanzaApiError ? err.message : "Falha ao consultar portais do veículo.",
       );
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -79,6 +84,7 @@ export function SyncVeiculoDadosSection() {
           </button>
         </div>
         {error ? <p className="form-card__error">{error}</p> : null}
+        {progress ? <p className="field__hint">{progress}</p> : null}
       </section>
 
       <PortalSessoesSection disabled={loading} />
