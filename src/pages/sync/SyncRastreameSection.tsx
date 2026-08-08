@@ -16,6 +16,7 @@ import {
   useSyncDisparo,
   useSyncOpcoes,
 } from "@/pages/sync/syncShared";
+import { RastreameAuthPanel } from "@/pages/sync/RastreameAuthPanel";
 
 export function SyncRastreameSection() {
   const metaQuery = useSyncMeta();
@@ -60,6 +61,8 @@ export function SyncRastreameSection() {
         </header>
         <RastreameEspelhoToggle variant="panel" />
       </section>
+
+      <RastreameAuthPanel disabled={runningId !== null} />
 
       <SyncOpcoesGlobais
         asyncMode={opcoes.asyncMode}

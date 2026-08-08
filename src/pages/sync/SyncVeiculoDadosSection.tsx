@@ -4,16 +4,18 @@ import { VeiculoSelect } from "@/components/EntitySelects";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import type { VeiculoConsultaPortaisResultado } from "@/api/types";
+import { PortalSessoesSection } from "@/pages/relatorios/PortalSessoesSection";
+import { SyncJobsTable } from "@/pages/sync/syncShared";
 import {
-  SECOES_POSTGRES,
+  SECOES_PORTAL,
   SecaoDados,
   IdentificacaoVeiculo,
   FieldLike,
   buscaFrota,
 } from "@/pages/sync/veiculoDadosUi";
 
-/** Relatórios — consulta apenas PostgreSQL (dados já sincronizados). */
-export function RelatorioVeiculoDadosSection() {
+/** Sync › Dados do veículo — consulta live em todos os portais. */
+export function SyncVeiculoDadosSection() {
   const [placaInput, setPlacaInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,12 +28,15 @@ export function RelatorioVeiculoDadosSection() {
     setError(null);
     setResultado(null);
     try {
-      const r = await lanzaApi.consultarVeiculoDadosLocal({
+      const r = await lanzaApi.consultarVeiculoPortaisSync({
         placa: placaInput.trim() || undefined,
+        fonte: "todos",
       });
       setResultado(r.data);
     } catch (err) {
-      setError(err instanceof LanzaApiError ? err.message : "Falha ao carregar dados do veículo.");
+      setError(
+        err instanceof LanzaApiError ? err.message : "Falha ao consultar portais do veículo.",
+      );
     } finally {
       setLoading(false);
     }
@@ -40,13 +45,14 @@ export function RelatorioVeiculoDadosSection() {
   return (
     <>
       <section className="form-card">
-        <h2 className="form-card__title">Dados do veículo (base Lanza)</h2>
+        <h2 className="form-card__title">Dados do veículo (portais)</h2>
         <p className="field__hint">
-          Consulta apenas o que já foi sincronizado para o PostgreSQL. Para buscar dados novos nos
-          portais externos, use o menu <strong>Syncs</strong>.
+          Consulta em tempo real todos os portais externos — DETRAN SC, DETRAN RS, Pedágio Digital e
+          SigaPay. Configure a sessão de cada portal abaixo antes de consultar. Para ver o que já está
+          gravado na base, use o menu <strong>Relatórios</strong>.
         </p>
         <div className="form-grid">
-          <FieldLike label="Placa" hint="Vazio = frota activa inteira">
+          <FieldLike label="Placa" hint="Vazio = frota activa inteira (pode demorar vários minutos)">
             <VeiculoSelect
               value={placaInput}
               onChange={setPlacaInput}
@@ -65,22 +71,28 @@ export function RelatorioVeiculoDadosSection() {
             onClick={() => void buscar()}
             disabled={loading}
           >
-            {loading ? "A carregar…" : consultaFrota ? "Ver frota na base" : "Ver veículo na base"}
+            {loading
+              ? "A consultar portais…"
+              : consultaFrota
+                ? "Consultar frota nos portais"
+                : "Consultar veículo nos portais"}
           </button>
         </div>
         {error ? <p className="form-card__error">{error}</p> : null}
       </section>
 
+      <PortalSessoesSection disabled={loading} />
+
       {!resultado && !loading ? (
         <p className="muted">
-          Selecione um veículo ou deixe vazio para ver toda a frota activa — dados já sincronizados.
+          Selecione um veículo ou deixe vazio para consultar toda a frota activa nos portais.
         </p>
       ) : null}
 
       {resultado ? (
         <>
-          <IdentificacaoVeiculo resultado={resultado} origemLabel="PostgreSQL (resultado de syncs)" />
-          {SECOES_POSTGRES.map((sec) => (
+          <IdentificacaoVeiculo resultado={resultado} origemLabel="Portais externos (consulta live)" />
+          {SECOES_PORTAL.map((sec) => (
             <SecaoDados
               key={sec.key}
               titulo={sec.titulo}
@@ -89,11 +101,13 @@ export function RelatorioVeiculoDadosSection() {
               loading={loading}
               colData={sec.colData}
               mostrarPlaca={resultado.modo === "frota"}
-              emptyMessage={`Nenhum registo sincronizado (${sec.titulo}). Execute o sync correspondente.`}
+              emptyMessage={`Nenhum registo no portal (${sec.titulo}).`}
             />
           ))}
         </>
       ) : null}
+
+      <SyncJobsTable title="Jobs recentes (syncs)" />
     </>
   );
 }

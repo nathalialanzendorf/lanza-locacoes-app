@@ -104,13 +104,18 @@ export const lanzaApi = {
         contentType: file.type || "application/pdf",
       },
     ),
-  consultarVeiculoPortais: (params: {
+  consultarVeiculoDadosLocal: (params?: { placa?: string }) =>
+    apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
+      "/api/relatorios/veiculo/consulta",
+      { params, timeoutMs: 60_000 },
+    ),
+  consultarVeiculoPortaisSync: (params?: {
     placa?: string;
     renavam?: string;
     fonte?: import("./types").VeiculoConsultaFonte;
   }) =>
     apiRequest<{ data: import("./types").VeiculoConsultaPortaisResultado }>(
-      "/api/relatorios/veiculo/consulta",
+      "/api/sync/veiculo/consulta",
       { params, timeoutMs: 300_000 },
     ),
   statusDetranScSessao: () =>
@@ -158,6 +163,40 @@ export const lanzaApi = {
   pararCapturaSigapay: () =>
     apiRequest<{ data: import("./types").SigapayCapturaState }>("/api/portais/sigapay/captura", {
       method: "DELETE",
+    }),
+  statusPedagioSessao: () =>
+    apiRequest<{ data: import("./types").PedagioSessaoStatus }>("/api/portais/pedagio/sessao"),
+  gravarPedagioSessao: (body: { cookie: string; csrf: string }) =>
+    apiRequest<{ data: import("./types").PedagioSessaoStatus & { ok?: boolean } }>(
+      "/api/portais/pedagio/sessao",
+      { method: "PUT", body },
+    ),
+  removerPedagioSessao: () =>
+    apiRequest<{ data: { ok: boolean; configured: boolean } }>("/api/portais/pedagio/sessao", {
+      method: "DELETE",
+    }),
+  statusCapturaPedagio: () =>
+    apiRequest<{ data: import("./types").PortalCapturaState }>("/api/portais/pedagio/captura"),
+  iniciarCapturaPedagio: () =>
+    apiRequest<{ data: import("./types").PortalCapturaState }>("/api/portais/pedagio/captura", {
+      method: "POST",
+    }),
+  statusDetranRsSessao: () =>
+    apiRequest<{ data: import("./types").DetranRsSessaoStatus }>("/api/portais/detran-rs/sessao"),
+  gravarDetranRsSessao: (body: { auth: string; userId: string }) =>
+    apiRequest<{ data: import("./types").DetranRsSessaoStatus & { ok?: boolean } }>(
+      "/api/portais/detran-rs/sessao",
+      { method: "PUT", body },
+    ),
+  removerDetranRsSessao: () =>
+    apiRequest<{ data: { ok: boolean; configured: boolean } }>("/api/portais/detran-rs/sessao", {
+      method: "DELETE",
+    }),
+  statusCapturaDetranRs: () =>
+    apiRequest<{ data: import("./types").PortalCapturaState }>("/api/portais/detran-rs/captura"),
+  iniciarCapturaDetranRs: () =>
+    apiRequest<{ data: import("./types").PortalCapturaState }>("/api/portais/detran-rs/captura", {
+      method: "POST",
     }),
   downloadDocumento: (pathname: string, filename?: string) =>
     apiDownload("/api/documentos/download", { params: { pathname }, filename }),

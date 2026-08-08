@@ -20,6 +20,13 @@ import {
 import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { PedagioPortalPanel } from "@/pages/sync/PedagioPortalPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
+import {
+  DetranRsSessaoPanel,
+  DetranScSessaoPanel,
+  PedagioSessaoPanel,
+  SigapaySessaoPanel,
+} from "@/pages/relatorios/PortalSessoesSection";
+import { SyncVeiculoPortalPanel } from "@/pages/sync/SyncVeiculoPortalPanel";
 import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
 type Props = {
@@ -114,8 +121,51 @@ export function SyncTipoSection({ syncId }: Props) {
             onJobFinished={releaseRunning}
             hideWhileRunning={syncId === "infracoes" || syncId === "pedagios"}
           />
-          {syncId === "pedagios" ? <PedagioPortalPanel /> : null}
-          {syncId === "estacionamento" ? <SigapayPortalPanel /> : null}
+          {syncId === "infracoes" ? (
+            <>
+              <DetranScSessaoPanel disabled={runningId !== null} />
+              <SyncVeiculoPortalPanel
+                fonte="detran-sc"
+                titulo="Consulta DETRAN SC"
+                hint="Infrações em tempo real no portal DETRAN SC."
+                disabled={runningId !== null}
+              />
+            </>
+          ) : null}
+          {syncId === "ipva-licenciamento" ? (
+            <>
+              <DetranScSessaoPanel disabled={runningId !== null} />
+              <SyncVeiculoPortalPanel
+                fonte="detran-sc"
+                titulo="Consulta DETRAN SC"
+                hint="Débitos SC no portal (IPVA/licenciamento via sync gravam em parceiro-despesas)."
+                disabled={runningId !== null}
+              />
+            </>
+          ) : null}
+          {syncId === "detran-rs" ? (
+            <>
+              <DetranRsSessaoPanel disabled={runningId !== null} />
+              <SyncVeiculoPortalPanel
+                fonte="detran-rs"
+                titulo="Consulta DETRAN RS"
+                hint="Infrações, IPVA e licenciamento RS em tempo real."
+                disabled={runningId !== null}
+              />
+            </>
+          ) : null}
+          {syncId === "pedagios" ? (
+            <>
+              <PedagioSessaoPanel disabled={runningId !== null} />
+              <PedagioPortalPanel />
+            </>
+          ) : null}
+          {syncId === "estacionamento" ? (
+            <>
+              <SigapaySessaoPanel disabled={runningId !== null} />
+              <SigapayPortalPanel />
+            </>
+          ) : null}
         </>
       ) : (
         <FipeSyncPanel

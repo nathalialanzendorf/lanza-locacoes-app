@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageTabs } from "@/components/PageTabs";
 import { useSyncMeta } from "@/api/hooks";
 import { syncNavItems, isSyncRastreame } from "@/lib/syncUi";
-import { RelatorioVeiculoDadosSection } from "@/pages/relatorios/RelatorioVeiculoDadosSection";
+import { SyncVeiculoDadosSection } from "@/pages/sync/SyncVeiculoDadosSection";
 import { SyncRastreameSection } from "@/pages/sync/SyncRastreameSection";
 import { SyncLegadoSection, SyncTipoSection } from "@/pages/sync/SyncTipoSection";
 
@@ -31,7 +31,7 @@ export function SyncPage() {
       <PageTabs ariaLabel="Sincronizações" tabs={tabs} />
       <Routes>
         <Route index element={<Navigate to="veiculo" replace />} />
-        <Route path="veiculo" element={<RelatorioVeiculoDadosSection />} />
+        <Route path="veiculo" element={<SyncVeiculoDadosSection />} />
         <Route path="registros" element={<Navigate to="/sync/veiculo" replace />} />
         <Route path="executar" element={<Navigate to="/sync/veiculo" replace />} />
         <Route path="rastreame" element={<SyncRastreameSection />} />

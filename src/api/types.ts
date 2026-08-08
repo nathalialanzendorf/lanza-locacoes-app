@@ -389,6 +389,25 @@ export type DetranScCapturaState = {
   available: boolean;
 };
 
+/** Estado genérico de captura CDP (todos os portais). */
+export type PortalCapturaState = DetranScCapturaState;
+
+export type PedagioSessaoStatus = {
+  configured: boolean;
+  updatedAt?: string;
+  cookiePreview?: string;
+  csrfPreview?: string;
+  origem?: "env" | "store";
+};
+
+export type DetranRsSessaoStatus = {
+  configured: boolean;
+  updatedAt?: string;
+  authPreview?: string;
+  userIdPreview?: string;
+  origem?: "env" | "store";
+};
+
 export type SigapaySessaoStatus = {
   configured: boolean;
   updatedAt?: string;
