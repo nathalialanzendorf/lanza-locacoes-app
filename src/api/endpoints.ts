@@ -118,6 +118,14 @@ export const lanzaApi = {
     apiRequest<{
       data?: import("./types").VeiculoConsultaPortaisResultado;
       jobId?: string;
+      sync?: string;
+      fonte?: import("./types").VeiculoConsultaFonte;
+      jobs?: Array<{
+        jobId: string;
+        sync: string;
+        fonte: import("./types").VeiculoConsultaFonte;
+        status?: string;
+      }>;
       status?: string;
     }>("/api/sync/veiculo/consulta", {
       params,

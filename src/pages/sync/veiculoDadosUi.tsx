@@ -290,7 +290,95 @@ export function FieldLike({
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Consulta live nos portais; frota corre em job async (evita timeout HTTP). */
+const PORTAL_JOB_LABEL: Record<string, string> = {
+  "detran-sc": "DETRAN SC",
+  "detran-rs": "DETRAN RS",
+  pedagio: "Pedágio Digital",
+  sigapay: "SigaPay",
+};
+
+function emptyPortalSecao(): PortalSecao {
+  return { total: 0, valorTotal: 0, items: [] };
+}
+
+function mergePortalSecao(sections: PortalSecao[]): PortalSecao {
+  const withItems = sections.find((s) => s.items.length > 0);
+  const withError = sections.find((s) => s.error);
+  const withAvisos = sections.find((s) => s.avisos?.length);
+  const pick = withItems ?? withError ?? withAvisos ?? sections[0];
+  return pick ?? emptyPortalSecao();
+}
+
+function mergeConsultaPortais(
+  results: VeiculoConsultaPortaisResultado[],
+): VeiculoConsultaPortaisResultado {
+  const base = results.find((r) => r) ?? results[0];
+  if (!base) {
+    throw new LanzaApiError(500, "Nenhum portal devolveu resultado.");
+  }
+  return {
+    modo: base.modo,
+    placa: base.placa,
+    renavam: base.renavam,
+    ufRegistro: base.ufRegistro,
+    veiculoCadastrado: base.veiculoCadastrado,
+    veiculosConsultados: Math.max(...results.map((r) => r.veiculosConsultados ?? 0)),
+    fonte: "todos",
+    detranSc: mergePortalSecao(results.map((r) => r.detranSc)),
+    detranRs: mergePortalSecao(results.map((r) => r.detranRs)),
+    pedagio: mergePortalSecao(results.map((r) => r.pedagio)),
+    estacionamento: mergePortalSecao(results.map((r) => r.estacionamento)),
+  };
+}
+
+function erroConsultaParcial(
+  fonte: VeiculoConsultaFonte,
+  error: string,
+  placa?: string,
+  frota?: boolean,
+): VeiculoConsultaPortaisResultado {
+  const sec: PortalSecao = { total: 0, valorTotal: 0, items: [], error };
+  const empty = emptyPortalSecao();
+  return {
+    modo: frota ? "frota" : "veiculo",
+    placa: frota ? "Frota activa" : placa ?? "—",
+    renavam: null,
+    ufRegistro: null,
+    veiculoCadastrado: true,
+    veiculosConsultados: frota ? 0 : 1,
+    fonte,
+    detranSc: fonte === "detran-sc" ? sec : empty,
+    detranRs: fonte === "detran-rs" ? sec : empty,
+    pedagio: fonte === "pedagio" ? sec : empty,
+    estacionamento: fonte === "sigapay" ? sec : empty,
+  };
+}
+
+async function aguardarSyncJob(
+  jobId: string,
+  opts?: { onProgress?: (msg: string) => void; label?: string },
+): Promise<VeiculoConsultaPortaisResultado> {
+  const deadline = Date.now() + 5 * 60 * 1000 + 15_000;
+  const prefix = opts?.label ? `${opts.label}: ` : "";
+  while (Date.now() < deadline) {
+    await sleep(2000);
+    const job = await lanzaApi.obterSyncJob(jobId);
+    if (job.status === "completed" && job.result != null) {
+      return job.result as VeiculoConsultaPortaisResultado;
+    }
+    if (job.status === "failed") {
+      throw new LanzaApiError(500, job.error ?? `${prefix}consulta falhou.`);
+    }
+    if (job.status === "cancelled") {
+      throw new LanzaApiError(499, job.error ?? `${prefix}consulta cancelada.`);
+    }
+    const fase = job.progress?.fase;
+    if (fase) opts?.onProgress?.(`${prefix}${fase}`);
+  }
+  throw new LanzaApiError(0, `${prefix}timeout aguardando job (5 min).`);
+}
+
+/** Consulta live nos portais; frota / todos disparam jobs async (1 por portal). */
 export async function consultarVeiculoPortaisLive(opts: {
   placa?: string;
   renavam?: string;
@@ -298,33 +386,60 @@ export async function consultarVeiculoPortaisLive(opts: {
   frota?: boolean;
   onProgress?: (msg: string) => void;
 }): Promise<VeiculoConsultaPortaisResultado> {
+  const fonte = opts.fonte ?? "todos";
   const frota = opts.frota ?? (!opts.placa?.trim() && !opts.renavam?.trim());
+  const asyncMode = frota || fonte === "todos";
+
   const r = await lanzaApi.consultarVeiculoPortaisSync({
     placa: opts.placa,
     renavam: opts.renavam,
-    fonte: opts.fonte,
-    async: frota,
+    fonte,
+    async: asyncMode,
   });
 
-  if (r.jobId) {
-    opts.onProgress?.("Consulta da frota em background — pode demorar vários minutos…");
-    const deadline = Date.now() + 5 * 60 * 1000 + 15_000;
-    while (Date.now() < deadline) {
-      await sleep(2000);
-      const job = await lanzaApi.obterSyncJob(r.jobId);
-      if (job.status === "completed" && job.result != null) {
-        return job.result as VeiculoConsultaPortaisResultado;
+  if (r.jobs?.length) {
+    opts.onProgress?.(
+      `${r.jobs.length} job(s) em background (1 por portal) — acompanhe na tabela abaixo.`,
+    );
+    const settled = await Promise.allSettled(
+      r.jobs.map((j) =>
+        aguardarSyncJob(j.jobId, {
+          label: PORTAL_JOB_LABEL[j.fonte] ?? j.fonte,
+          onProgress: opts.onProgress,
+        }),
+      ),
+    );
+
+    const results: VeiculoConsultaPortaisResultado[] = [];
+    let hardFail = 0;
+    for (let i = 0; i < settled.length; i++) {
+      const entry = settled[i]!;
+      const jobMeta = r.jobs[i]!;
+      if (entry.status === "fulfilled") {
+        results.push(entry.value);
+        continue;
       }
-      if (job.status === "failed") {
-        throw new LanzaApiError(500, job.error ?? "Consulta falhou.");
-      }
-      if (job.status === "cancelled") {
-        throw new LanzaApiError(499, job.error ?? "Consulta cancelada.");
-      }
-      const fase = job.progress?.fase;
-      if (fase) opts.onProgress?.(fase);
+      hardFail++;
+      const msg =
+        entry.reason instanceof LanzaApiError
+          ? entry.reason.message
+          : entry.reason instanceof Error
+            ? entry.reason.message
+            : String(entry.reason);
+      results.push(erroConsultaParcial(jobMeta.fonte, msg, opts.placa, opts.frota));
     }
-    throw new LanzaApiError(0, "Timeout aguardando resultado da consulta (5 min).");
+
+    const merged = mergeConsultaPortais(results);
+    if (hardFail === r.jobs.length) {
+      throw new LanzaApiError(500, "Todos os portais falharam na consulta.");
+    }
+    return merged;
+  }
+
+  if (r.jobId) {
+    const label = PORTAL_JOB_LABEL[fonte] ?? fonte;
+    opts.onProgress?.(`${label} em background…`);
+    return aguardarSyncJob(r.jobId, { label, onProgress: opts.onProgress });
   }
 
   if (!r.data) throw new LanzaApiError(500, "Resposta da API sem dados.");

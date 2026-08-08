@@ -290,19 +290,26 @@ export function SyncStatusBanner({
 
 type SyncJobsProps = {
   syncId?: string;
+  /** Ex.: `veiculo-portais` inclui veiculo-portais-detran-sc, etc. */
+  syncIdPrefix?: string;
   title?: string;
 };
 
-export function SyncJobsTable({ syncId, title = "Jobs recentes" }: SyncJobsProps) {
+export function SyncJobsTable({
+  syncId,
+  syncIdPrefix,
+  title = "Jobs recentes",
+}: SyncJobsProps) {
   const qc = useQueryClient();
   const jobsQuery = useSyncJobs();
   const [cancelandoId, setCancelandoId] = useState<string | null>(null);
   const seenFipeDone = useRef(new Set<string>());
   const jobs = useMemo(() => {
     const list = jobsQuery.data?.jobs ?? [];
+    if (syncIdPrefix) return list.filter((j) => j.sync.startsWith(syncIdPrefix));
     if (!syncId) return list;
     return list.filter((j) => j.sync === syncId);
-  }, [jobsQuery.data, syncId]);
+  }, [jobsQuery.data, syncId, syncIdPrefix]);
 
   useEffect(() => {
     for (const j of jobsQuery.data?.jobs ?? []) {

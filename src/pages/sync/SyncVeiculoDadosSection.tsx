@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { VeiculoSelect } from "@/components/EntitySelects";
 import { LanzaApiError } from "@/api/client";
@@ -16,6 +17,7 @@ import {
 
 /** Sync › Dados do veículo — consulta live em todos os portais. */
 export function SyncVeiculoDadosSection() {
+  const qc = useQueryClient();
   const [placaInput, setPlacaInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export function SyncVeiculoDadosSection() {
     setProgress(null);
     setError(null);
     setResultado(null);
+    void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
     try {
       const data = await consultarVeiculoPortaisLive({
         placa: placaInput.trim() || undefined,
@@ -44,6 +47,7 @@ export function SyncVeiculoDadosSection() {
     } finally {
       setLoading(false);
       setProgress(null);
+      void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
     }
   }
 
@@ -53,8 +57,9 @@ export function SyncVeiculoDadosSection() {
         <h2 className="form-card__title">Dados do veículo (portais)</h2>
         <p className="field__hint">
           Consulta em tempo real todos os portais externos — DETRAN SC, DETRAN RS, Pedágio Digital e
-          SigaPay. Configure a sessão de cada portal abaixo antes de consultar. Para ver o que já está
-          gravado na base, use o menu <strong>Relatórios</strong>.
+          SigaPay. Cada portal corre num job separado (tabela abaixo). Configure a sessão de cada
+          portal antes de consultar. Para ver o que já está gravado na base, use o menu{" "}
+          <strong>Relatórios</strong>.
         </p>
         <div className="form-grid">
           <FieldLike label="Placa" hint="Vazio = frota activa inteira (pode demorar vários minutos)">
@@ -113,7 +118,7 @@ export function SyncVeiculoDadosSection() {
         </>
       ) : null}
 
-      <SyncJobsTable title="Jobs recentes (syncs)" />
+      <SyncJobsTable syncIdPrefix="veiculo-portais" title="Jobs recentes (consulta portais)" />
     </>
   );
 }
