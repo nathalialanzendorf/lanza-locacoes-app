@@ -44,7 +44,8 @@ function formatPlacaFromCompact(pk: string): string {
   return pk;
 }
 
-export function RecebimentosManualSection() {
+export function RecebimentosManualSection({ variant = "locacao" }: { variant?: "locacao" | "venda" }) {
+  const isVenda = variant === "venda";
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const clienteIdUrl = searchParams.get("clienteId")?.trim() || "";
@@ -69,6 +70,7 @@ export function RecebimentosManualSection() {
     {
       emAberto: true,
       clienteId: clienteSelecionado || undefined,
+      moduloVenda: isVenda ? true : false,
     },
     { enabled: Boolean(clienteSelecionado) },
   );

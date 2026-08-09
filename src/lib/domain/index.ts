@@ -109,6 +109,13 @@ export {
 } from "@/lib/domain/tipoVeiculoFrota";
 
 export {
+  CategoriaDespesaVenda,
+  CATEGORIAS_DESPESA_VENDA,
+  isCategoriaVenda,
+  type CategoriaDespesaVendaValor,
+} from "@/lib/domain/categoriaDespesaVenda";
+
+export {
   SituacaoLocacao,
   SITUACAO_LOCACAO_OPCOES,
   isSituacaoLocacaoValor,

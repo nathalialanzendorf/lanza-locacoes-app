@@ -108,6 +108,16 @@ const moduleNavSections: NavSection[] = [
           /^\/venda\/[^/]+\/editar$/.test(pathname),
       },
       {
+        to: "/venda/parcelas",
+        label: "Parcelas",
+        isActive: (pathname) => pathname.startsWith("/venda/parcelas"),
+      },
+      {
+        to: "/venda/recebimentos",
+        label: "Recebimentos",
+        isActive: (pathname) => pathname.startsWith("/venda/recebimentos"),
+      },
+      {
         to: "/venda/veiculos",
         label: "Veículos",
         isActive: (pathname) => veiculosModuloAtivo(pathname, TipoVeiculoFrota.Venda),

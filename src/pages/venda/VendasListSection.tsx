@@ -12,6 +12,7 @@ import { LanzaApiError } from "@/api/client";
 import { formatBrl, formatPlaca } from "@/lib/format";
 import { ordenarAtivoDepoisAlfabetico, registroAtivo } from "@/lib/listagemCadastro";
 import { TipoVeiculoFrota } from "@/lib/domain";
+import { classeStatusVeiculoVenda, rotuloStatusVeiculoVenda } from "@/lib/statusVeiculoVenda";
 import type { Venda } from "@/api/types";
 
 export function VendasListSection() {
@@ -188,6 +189,22 @@ export function VendasListSection() {
             header: "1ª parcela",
             sortValue: (v) => v.dataPagamentoParcelas ?? "",
             render: (v) => v.dataPagamentoParcelas ?? "—",
+          },
+          {
+            key: "statusVeiculo",
+            header: "Status veículo",
+            sortValue: (v) => {
+              const veiculo = v.veiculoId ? veiculoPorId.get(v.veiculoId) : undefined;
+              return rotuloStatusVeiculoVenda(veiculo?.ativo);
+            },
+            render: (v) => {
+              const veiculo = v.veiculoId ? veiculoPorId.get(v.veiculoId) : undefined;
+              return (
+                <span className={classeStatusVeiculoVenda(veiculo?.ativo)}>
+                  {rotuloStatusVeiculoVenda(veiculo?.ativo)}
+                </span>
+              );
+            },
           },
           {
             key: "acoes",

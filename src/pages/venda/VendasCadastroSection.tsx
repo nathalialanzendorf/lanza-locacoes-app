@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
-import { ClienteSelect, VeiculoSelect } from "@/components/EntitySelects";
+import { ClienteSelect, NativeSelect, VeiculoSelect } from "@/components/EntitySelects";
 import { DateInput } from "@/components/DateInput";
 import { Field, FormCard, FormSection } from "@/components/FormCard";
 import { Toggle } from "@/components/Toggle";
@@ -13,6 +13,13 @@ import { LanzaApiError } from "@/api/client";
 import { formatValorInput, parseValorInput } from "@/lib/format";
 import { TipoVeiculoFrota } from "@/lib/domain";
 import { sincronizarVendaParcelamento } from "@/lib/vendaParcelamento";
+import {
+  STATUS_VEICULO_VENDA_OPCOES,
+  StatusVeiculoVenda,
+  statusVeiculoVendaDeAtivo,
+  veiculoVendidoDeStatus,
+  type StatusVeiculoVendaValor,
+} from "@/lib/statusVeiculoVenda";
 
 type Props = {
   vendaId?: string;
@@ -33,6 +40,9 @@ export function VendasCadastroSection({ vendaId }: Props) {
   const [valorVenda, setValorVenda] = useState("");
   const [observacao, setObservacao] = useState("");
   const [ativo, setAtivo] = useState(true);
+  const [statusVeiculo, setStatusVeiculo] = useState<StatusVeiculoVendaValor>(
+    StatusVeiculoVenda.Vendido,
+  );
   const [carregando, setCarregando] = useState(editando);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +74,12 @@ export function VendasCadastroSection({ vendaId }: Props) {
         if (v.valorVenda != null) setValorVenda(formatValorInput(v.valorVenda));
         if (v.observacao) setObservacao(v.observacao);
         if (typeof v.ativo === "boolean") setAtivo(v.ativo);
+        if (v.veiculoId) {
+          void lanzaApi
+            .obterVeiculo(v.veiculoId)
+            .then((r) => setStatusVeiculo(statusVeiculoVendaDeAtivo(r.data.ativo)))
+            .catch(() => undefined);
+        }
       })
       .catch((err) => {
         if (cancelado) return;
@@ -92,8 +108,24 @@ export function VendasCadastroSection({ vendaId }: Props) {
       return;
     }
 
+    const entrada = parseValorInput(valorEntrada, { allowZero: true }) ?? 0;
+    const parcela = parseValorInput(valorParcela, { allowZero: true });
     const qtdRaw = quantidadeParcelas.trim();
     const qtd = qtdRaw ? Number.parseInt(qtdRaw, 10) : null;
+    const temParcelamento =
+      (qtd != null && Number.isFinite(qtd) && qtd > 0) ||
+      (parcela != null && parcela > 0);
+
+    if ((entrada > 0 || temParcelamento) && !clienteId.trim()) {
+      setError("Selecione o cliente comprador para gerar entrada e parcelas.");
+      return;
+    }
+    if (temParcelamento && !dataPagamentoParcelas.trim()) {
+      setError("Informe a data da primeira parcela.");
+      return;
+    }
+
+    const qtdFinal = qtd;
 
     setLoading(true);
     setError(null);
@@ -103,12 +135,14 @@ export function VendasCadastroSection({ vendaId }: Props) {
         clienteId: clienteId.trim() || undefined,
         dataVenda: dataVenda.trim(),
         valorVenda: valor,
-        valorEntrada: parseValorInput(valorEntrada, { allowZero: true }) ?? undefined,
+        valorEntrada: entrada > 0 ? entrada : undefined,
         dataPagamentoParcelas: dataPagamentoParcelas.trim() || undefined,
-        valorParcela: parseValorInput(valorParcela, { allowZero: true }) ?? undefined,
-        quantidadeParcelas: qtd != null && Number.isFinite(qtd) && qtd > 0 ? qtd : undefined,
+        valorParcela: parcela != null && parcela > 0 ? parcela : undefined,
+        quantidadeParcelas:
+          qtdFinal != null && Number.isFinite(qtdFinal) && qtdFinal > 0 ? qtdFinal : undefined,
         observacao: observacao.trim() || undefined,
         ativo,
+        veiculoVendido: veiculoVendidoDeStatus(statusVeiculo),
       };
 
       if (editando) {
@@ -118,7 +152,9 @@ export function VendasCadastroSection({ vendaId }: Props) {
       }
 
       void qc.invalidateQueries({ queryKey: ["vendas"] });
-      navigate("/venda");
+      void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
+      void qc.invalidateQueries({ queryKey: ["veiculos"] });
+      navigate("/venda/parcelas");
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao gravar venda.");
     } finally {
@@ -152,10 +188,30 @@ export function VendasCadastroSection({ vendaId }: Props) {
             variant="cadastro"
             required
             tipoFrota={TipoVeiculoFrota.Venda}
+            ativo={editando ? undefined : true}
             disabled={loading}
           />
         </Field>
-        <Field label="Cliente">
+        <Field
+          label="Status do veículo"
+          hint="Vendido remove o veículo do estoque disponível; Não vendido mantém no estoque"
+        >
+          <NativeSelect
+            value={statusVeiculo}
+            onChange={(v) => setStatusVeiculo(v as StatusVeiculoVendaValor)}
+            variant="cadastro"
+            allowEmpty={false}
+            aria-label="Status do veículo"
+            disabled={loading}
+          >
+            {STATUS_VEICULO_VENDA_OPCOES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field label="Cliente" hint="Obrigatório para gerar entrada e parcelas em cobrança">
           <ClienteSelect value={clienteId} onChange={setClienteId} variant="cadastro" disabled={loading} />
         </Field>
         <Field label="Data da venda">
@@ -168,10 +224,10 @@ export function VendasCadastroSection({ vendaId }: Props) {
         <div className="field--full">
           <FormSection
             title="Parcelamento"
-            hint="Preencha dois campos entre valor total, valor da parcela e quantidade — o terceiro é calculado automaticamente."
+            hint="Ao gravar a venda, todas as parcelas (e a entrada, se houver) são criadas em Venda → Parcelas. As baixas são feitas em Venda → Recebimentos."
           >
             <div className="form-grid">
-              <Field label="Data pagamento das parcelas">
+              <Field label="Data pagamento das parcelas" hint="Vencimento da 1.ª parcela; as seguintes são mensais">
                 <DateInput
                   value={dataPagamentoParcelas}
                   onChange={setDataPagamentoParcelas}

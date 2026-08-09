@@ -32,6 +32,7 @@ import {
 import { useSessionJsonState } from "@/lib/useSessionJsonState";
 import {
   CATEGORIAS_DESPESA_CLIENTE_CADASTRO,
+  CATEGORIAS_DESPESA_VENDA,
   STATUS_DESPESA_FILTRO_OPCOES,
   StatusCobrancaDespesa,
   StatusDespesaFiltro,
@@ -77,10 +78,17 @@ function veiculoDespesa(d: ClienteDespesa, veiculos: Veiculo[] | undefined): str
   return formatVeiculoLabel({ placa: d.placa ?? d.veiculoId });
 }
 
-export function DespesasClienteListSection() {
+type DespesasClienteListSectionProps = {
+  /** locacao = despesas operacionais; venda = parcelas/entrada geradas pela venda */
+  variant?: "locacao" | "venda";
+};
+
+export function DespesasClienteListSection({ variant = "locacao" }: DespesasClienteListSectionProps) {
+  const isVenda = variant === "venda";
+  const recebimentosPath = isVenda ? "/venda/recebimentos" : "/recebimentos";
   const qc = useQueryClient();
   const [filtros, setFiltros] = useSessionJsonState(
-    "despesas-cliente-filtros",
+    isVenda ? "venda-parcelas-filtros" : "despesas-cliente-filtros",
     filtrosPadraoDespesasCliente,
   );
   const { pagamento, clienteId, veiculoId, categoria, periodo } = filtros;
@@ -93,6 +101,7 @@ export function DespesasClienteListSection() {
     categoria: categoria || undefined,
     dataInicial: periodo.dataInicial.trim() || undefined,
     dataFinal: periodo.dataFinal.trim() || undefined,
+    moduloVenda: isVenda ? true : false,
   });
   const clientesQuery = useClientes();
   const clientes = clientesQuery.data?.items;
@@ -139,7 +148,7 @@ export function DespesasClienteListSection() {
 
   return (
     <>
-      <ListToolbar addTo="/despesas/cliente/novo" />
+      {!isVenda ? <ListToolbar addTo="/despesas/cliente/novo" /> : null}
 
       <section className="form-card">
         <h2 className="form-card__title">Filtros</h2>
@@ -170,7 +179,7 @@ export function DespesasClienteListSection() {
               variant="filtro"
               aria-label="Categoria"
             >
-              {CATEGORIAS_DESPESA_CLIENTE_CADASTRO.map((c) => (
+              {(isVenda ? CATEGORIAS_DESPESA_VENDA : CATEGORIAS_DESPESA_CLIENTE_CADASTRO).map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -222,7 +231,13 @@ export function DespesasClienteListSection() {
 
       {query.isError ? (
         <QueryError
-          message={query.error instanceof LanzaApiError ? query.error.message : "Falha ao listar débitos do cliente."}
+          message={
+            query.error instanceof LanzaApiError
+              ? query.error.message
+              : isVenda
+                ? "Falha ao listar parcelas da venda."
+                : "Falha ao listar débitos do cliente."
+          }
         />
       ) : null}
 
@@ -232,7 +247,15 @@ export function DespesasClienteListSection() {
         keyFn={(d) => d.id}
         defaultSort={{ key: "vencimento", direction: "desc" }}
         rowClassName={(d) => (despesaCobravelCliente(d) ? "row--em-aberto" : undefined)}
-        emptyMessage={temFiltro ? "Nenhuma despesa corresponde aos filtros." : "Nenhuma despesa registada."}
+        emptyMessage={
+          temFiltro
+            ? isVenda
+              ? "Nenhuma parcela corresponde aos filtros."
+              : "Nenhuma despesa corresponde aos filtros."
+            : isVenda
+              ? "Nenhuma parcela registada. Grave ou edite uma venda com entrada/parcelas."
+              : "Nenhuma despesa registada."
+        }
         columns={[
           {
             key: "veiculo",
@@ -286,11 +309,15 @@ export function DespesasClienteListSection() {
             render: (d) => (
               <RowActions
                 recebimentoTo={
-                  despesaElegivelBaixaCliente(d) ? urlLancarRecebimentoDespesa(d) : null
+                  despesaElegivelBaixaCliente(d)
+                    ? urlLancarRecebimentoDespesa(d, undefined, recebimentosPath)
+                    : null
                 }
-                editTo={`/despesas/cliente/${d.id}/editar`}
+                editTo={isVenda ? undefined : `/despesas/cliente/${d.id}/editar`}
+                showEdit={!isVenda}
+                showDelete={!isVenda}
+                onDelete={isVenda ? undefined : () => void excluir(d)}
                 deleting={excluindoId === d.id}
-                onDelete={() => void excluir(d)}
               />
             ),
           },

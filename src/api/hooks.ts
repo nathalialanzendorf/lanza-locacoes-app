@@ -78,6 +78,8 @@ export function useDespesasCliente(
     semCliente?: boolean;
     dataInicial?: string;
     dataFinal?: string;
+    moduloVenda?: boolean;
+    vendaId?: string;
   },
   options?: { enabled?: boolean },
 ) {

@@ -226,6 +226,8 @@ export const lanzaApi = {
     semCliente?: boolean;
     dataInicial?: string;
     dataFinal?: string;
+    moduloVenda?: boolean;
+    vendaId?: string;
   }) => apiRequest<ListEnvelope<ClienteDespesa>>("/api/despesas", { params }),
 
   listarDespesasParceiro: (params?: {

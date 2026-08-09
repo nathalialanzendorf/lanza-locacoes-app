@@ -5,7 +5,7 @@ import { Toggle } from "@/components/Toggle";
 import { LABEL } from "@/lib/labels";
 
 type Props = {
-  editTo: string;
+  editTo?: string;
   /** Baixa manual — mesma ação do dashboard (Recebimentos). */
   recebimentoTo?: string | null;
   renovarTo?: string;
@@ -13,7 +13,7 @@ type Props = {
   ativo?: boolean;
   onAtivoChange?: (ativo: boolean) => void;
   togglingAtivo?: boolean;
-  onDelete: () => void;
+  onDelete?: () => void;
   deleting?: boolean;
   deleteLabel?: string;
   onDownloadAssinado?: () => void;
@@ -22,6 +22,8 @@ type Props = {
   variant?: "default" | "contrato";
   /** Veículos: rótulo «Inativar» em vez de «Desabilitar». */
   toggleAtivoMode?: "desabilitar" | "inativar";
+  showEdit?: boolean;
+  showDelete?: boolean;
 };
 
 export function RowActions({
@@ -39,6 +41,8 @@ export function RowActions({
   downloadingAssinado,
   variant = "default",
   toggleAtivoMode = "desabilitar",
+  showEdit = true,
+  showDelete = true,
 }: Props) {
   const busy = deleting || togglingAtivo || downloadingAssinado;
 
@@ -53,11 +57,11 @@ export function RowActions({
     </Link>
   ) : null;
 
-  const editar = (
+  const editar = editTo && showEdit ? (
     <Link to={editTo} className="btn btn--icon" aria-label={LABEL.editar} title={LABEL.editar}>
       <IconEdit className="row-actions__icon" />
     </Link>
-  );
+  ) : null;
 
   const toggleAtivoLabel =
     toggleAtivoMode === "inativar"
@@ -103,7 +107,7 @@ export function RowActions({
     </button>
   ) : null;
 
-  const excluir = (
+  const excluir = showDelete && onDelete ? (
     <button
       type="button"
       className="btn btn--icon btn--icon-danger"
@@ -114,7 +118,7 @@ export function RowActions({
     >
       <IconTrash className="row-actions__icon" />
     </button>
-  );
+  ) : null;
 
   const actions =
     variant === "contrato"

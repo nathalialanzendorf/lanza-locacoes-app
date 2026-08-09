@@ -28,6 +28,7 @@ export function urlLancarRecebimento(
 export function urlLancarRecebimentoDespesa(
   d: ClienteDespesa,
   dataReferenciaBr?: string | null,
+  recebimentosPath = "/recebimentos",
 ): string | null {
   const clienteId = (d.clienteId ?? d.condutorId)?.trim();
   if (!clienteId) return null;
@@ -46,5 +47,5 @@ export function urlLancarRecebimentoDespesa(
   const data = (dataReferenciaBr ?? d.vencimentoBr)?.trim();
   if (data && data !== "—") params.set("dataBr", data);
 
-  return `/recebimentos?${params.toString()}`;
+  return `${recebimentosPath}?${params.toString()}`;
 }
