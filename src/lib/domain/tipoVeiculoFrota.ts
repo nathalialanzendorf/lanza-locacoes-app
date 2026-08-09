@@ -36,6 +36,13 @@ export function parseTipoVeiculoFrota(raw: string | null | undefined): TipoVeicu
   return TipoVeiculoFrota.Locacao;
 }
 
+/** Ordem fixa para `<select>` de cadastro. */
+export const TIPOS_VEICULO_FROTA_CADASTRO: TipoVeiculoFrotaValor[] = [
+  TipoVeiculoFrota.Locacao,
+  TipoVeiculoFrota.Particular,
+  TipoVeiculoFrota.Venda,
+];
+
 type VeiculoTipoInput = { tipoFrota?: string | null; particular?: boolean | null };
 
 /** Resolve tipo a partir de `tipoFrota` ou legado `particular`. */

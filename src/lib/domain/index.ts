@@ -101,6 +101,7 @@ export {
   parseTipoVeiculoFrota,
   tipoFrotaDeVeiculo,
   rotuloTipoVeiculoFrota,
+  TIPOS_VEICULO_FROTA_CADASTRO,
   veiculosBasePath,
   veiculosModuloAtivo,
   abaVeiculoPath,

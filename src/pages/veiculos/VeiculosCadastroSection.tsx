@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { Toggle } from "@/components/Toggle";
-import { ParceiroSelect } from "@/components/EntitySelects";
+import { ParceiroSelect, TipoVeiculoFrotaSelect } from "@/components/EntitySelects";
 import { Field, FormCard } from "@/components/FormCard";
 import { useContratos, useVinculosParceiro } from "@/api/hooks";
 import { lanzaApi } from "@/api/endpoints";
@@ -19,7 +19,6 @@ import { statusLabel } from "@/lib/format";
 import {
   StatusContrato,
   TipoVeiculoFrota,
-  abaVeiculoPath,
   rotuloTipoVeiculoFrota,
   tipoFrotaDeVeiculo,
   veiculosBasePath,
@@ -47,13 +46,15 @@ function origemCadastroWeb(tipo: TipoVeiculoFrotaValor): string {
   }
 }
 
-export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
-  const basePath = veiculosBasePath(tipoFrota);
-  const frotaLocacao = tipoFrota === TipoVeiculoFrota.Locacao;
-  const mostrarParceiro = tipoFrota !== TipoVeiculoFrota.Venda;
+export function VeiculosCadastroSection({ veiculoId, tipoFrota: tipoFrotaRota }: Props) {
+  const basePathRota = veiculosBasePath(tipoFrotaRota);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const editando = Boolean(veiculoId);
+
+  const [tipoFrota, setTipoFrota] = useState<TipoVeiculoFrotaValor>(tipoFrotaRota);
+  const frotaLocacao = tipoFrota === TipoVeiculoFrota.Locacao;
+  const mostrarParceiro = tipoFrota !== TipoVeiculoFrota.Venda;
 
   const vinculosQuery = useVinculosParceiro(
     veiculoId ? { veiculoId } : undefined,
@@ -137,11 +138,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
       .obterVeiculo(veiculoId)
       .then((r) => {
         if (cancelado) return;
-        const tipoVeiculo = tipoFrotaDeVeiculo(r.data);
-        if (tipoVeiculo !== tipoFrota) {
-          navigate(`${abaVeiculoPath(r.data)}/${veiculoId}/editar`, { replace: true });
-          return;
-        }
+        setTipoFrota(tipoFrotaDeVeiculo(r.data));
         popularFormulario(r.data as unknown as Record<string, unknown>);
       })
       .catch((err) => {
@@ -154,7 +151,11 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
     return () => {
       cancelado = true;
     };
-  }, [veiculoId, tipoFrota, navigate]);
+  }, [veiculoId]);
+
+  useEffect(() => {
+    if (!editando) setTipoFrota(tipoFrotaRota);
+  }, [editando, tipoFrotaRota]);
 
   async function submit() {
     setLoading(true);
@@ -190,7 +191,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
 
       void qc.invalidateQueries({ queryKey: ["veiculos"] });
       if (mostrarParceiro) void qc.invalidateQueries({ queryKey: ["parceiros"] });
-      navigate(basePath);
+      navigate(veiculosBasePath(tipoFrota));
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao gravar veículo.");
     } finally {
@@ -207,7 +208,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
   if (carregando) {
     return (
       <>
-        <CadastroBackLink to={basePath} />
+        <CadastroBackLink to={basePathRota} />
         <p className="muted">A carregar veículo…</p>
       </>
     );
@@ -215,7 +216,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
 
   return (
     <>
-      <CadastroBackLink to={basePath} />
+      <CadastroBackLink to={basePathRota} />
       {editando || consultaFipeTo ? (
         <VeiculoFipePanel
           fipe={editando ? fipeDados : {}}
@@ -224,6 +225,12 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
         />
       ) : null}
       <FormCard title={titulo} onSubmit={submit} loading={loading} error={error}>
+        <Field
+          label="Tipo"
+          hint="Locação = frota operacional; Particular = uso do proprietário; Venda = estoque para revenda"
+        >
+          <TipoVeiculoFrotaSelect value={tipoFrota} onChange={setTipoFrota} disabled={loading} />
+        </Field>
         <Field label="Placa">
           <input className="input" value={placa} onChange={(e) => setPlaca(e.target.value)} required />
         </Field>
@@ -301,11 +308,7 @@ export function VeiculosCadastroSection({ veiculoId, tipoFrota }: Props) {
               {situacaoVeiculoLabel(situacaoLocacao)}
             </span>
           </Field>
-        ) : (
-          <Field label="Tipo" hint={`Veículo ${rotuloTipo} — não entra na frota de locação`}>
-            <span className="badge">{rotuloTipoVeiculoFrota(tipoFrota)}</span>
-          </Field>
-        )}
+        ) : null}
       </FormCard>
     </>
   );

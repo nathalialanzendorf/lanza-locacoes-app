@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 
 import { useClientes, useContratos, useParceiros, useVeiculos, useVinculosParceiro } from "@/api/hooks";
-import { StatusContrato } from "@/lib/domain";
+import { StatusContrato, TIPOS_VEICULO_FROTA_CADASTRO, parseTipoVeiculoFrota, rotuloTipoVeiculoFrota, type TipoVeiculoFrotaValor } from "@/lib/domain";
 import { formatClienteSelectOption, formatVeiculoLabel } from "@/lib/format";
 import { ordenarAtivoDepoisAlfabetico } from "@/lib/listagemCadastro";
 import { selectEmptyLabel, type SelectEmptyVariant } from "@/lib/selectLabels";
@@ -111,6 +111,33 @@ export function NativeSelect({
       ) : null}
       {children}
     </select>
+  );
+}
+
+type TipoVeiculoFrotaSelectProps = {
+  value: TipoVeiculoFrotaValor;
+  onChange: (value: TipoVeiculoFrotaValor) => void;
+  disabled?: boolean;
+  id?: string;
+};
+
+/** Classificação operacional: locação, particular ou venda. */
+export function TipoVeiculoFrotaSelect({ value, onChange, disabled, id }: TipoVeiculoFrotaSelectProps) {
+  return (
+    <NativeSelect
+      id={id}
+      value={value}
+      onChange={(raw) => onChange(parseTipoVeiculoFrota(raw))}
+      allowEmpty={false}
+      disabled={disabled}
+      aria-label="Tipo de veículo"
+    >
+      {TIPOS_VEICULO_FROTA_CADASTRO.map((tipo) => (
+        <option key={tipo} value={tipo}>
+          {rotuloTipoVeiculoFrota(tipo)}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }
 
