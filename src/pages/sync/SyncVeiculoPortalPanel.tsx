@@ -9,6 +9,8 @@ import {
   consultarVeiculoPortaisLive,
   type SecaoConfig,
 } from "@/pages/sync/veiculoDadosUi";
+import { SyncJobFalhasPanel } from "@/pages/sync/SyncJobFalhasPanel";
+import { SyncJobsTable } from "@/pages/sync/syncShared";
 
 const FONTE_SECAO: Record<
   Exclude<VeiculoConsultaFonte, "todos">,
@@ -106,6 +108,11 @@ export function SyncVeiculoPortalPanel({
           emptyMessage={`Nenhum registo no portal (${secaoConfig.titulo}).`}
         />
       ) : null}
+      <SyncJobFalhasPanel
+        syncId={`veiculo-portais-${fonte}`}
+        title={`Falhas — ${titulo}`}
+      />
+      <SyncJobsTable syncId={`veiculo-portais-${fonte}`} title="Jobs recentes (consulta portal)" />
     </section>
   );
 }

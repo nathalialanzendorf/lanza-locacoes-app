@@ -10,6 +10,7 @@ import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { LABEL } from "@/lib/labels";
 import { abasSync, rotuloAbaSync } from "@/lib/syncUi";
+import { SyncJobFalhasPanel } from "@/pages/sync/SyncJobFalhasPanel";
 import {
   SyncJobsTable,
   SyncStatusBanner,
@@ -21,13 +22,6 @@ import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { PedagioPortalPanel } from "@/pages/sync/PedagioPortalPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
 import { SigapayPixPanel } from "@/pages/sync/SigapayPixPanel";
-import {
-  DetranRsSessaoPanel,
-  DetranScSessaoPanel,
-  PedagioSessaoPanel,
-  SigapaySessaoPanel,
-} from "@/pages/relatorios/PortalSessoesSection";
-import { SyncVeiculoPortalPanel } from "@/pages/sync/SyncVeiculoPortalPanel";
 import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
 type Props = {
@@ -121,49 +115,11 @@ export function SyncTipoSection({ syncId }: Props) {
             activeJobId={activeJobId}
             onJobFinished={releaseRunning}
             hideWhileRunning={syncId === "infracoes" || syncId === "pedagios"}
+            hideResultPanel={syncId === "infracoes"}
           />
-          {syncId === "infracoes" ? (
-            <>
-              <DetranScSessaoPanel disabled={runningId !== null} />
-              <SyncVeiculoPortalPanel
-                fonte="detran-sc"
-                titulo="Consulta DETRAN SC"
-                hint="Infrações em tempo real no portal DETRAN SC."
-                disabled={runningId !== null}
-              />
-            </>
-          ) : null}
-          {syncId === "ipva-licenciamento" ? (
-            <>
-              <DetranScSessaoPanel disabled={runningId !== null} />
-              <SyncVeiculoPortalPanel
-                fonte="detran-sc"
-                titulo="Consulta DETRAN SC"
-                hint="Débitos SC no portal (IPVA/licenciamento via sync gravam em parceiro-despesas)."
-                disabled={runningId !== null}
-              />
-            </>
-          ) : null}
-          {syncId === "detran-rs" ? (
-            <>
-              <DetranRsSessaoPanel disabled={runningId !== null} />
-              <SyncVeiculoPortalPanel
-                fonte="detran-rs"
-                titulo="Consulta DETRAN RS"
-                hint="Infrações, IPVA e licenciamento RS em tempo real."
-                disabled={runningId !== null}
-              />
-            </>
-          ) : null}
-          {syncId === "pedagios" ? (
-            <>
-              <PedagioSessaoPanel disabled={runningId !== null} />
-              <PedagioPortalPanel />
-            </>
-          ) : null}
+          {syncId === "pedagios" ? <PedagioPortalPanel /> : null}
           {syncId === "estacionamento" ? (
             <>
-              <SigapaySessaoPanel disabled={runningId !== null} />
               <SigapayPortalPanel />
               <SigapayPixPanel />
             </>
@@ -184,11 +140,12 @@ export function SyncTipoSection({ syncId }: Props) {
             data={lastResult}
             title="Alterações do sync (dry-run)"
           />
-          {!hasSyncAlteracoes(lastResult) ? (
+          {syncId !== "infracoes" && !hasSyncAlteracoes(lastResult) ? (
             <ResultPanel title="Resultado (dry-run)" data={lastResult} />
           ) : null}
         </>
       ) : null}
+      <SyncJobFalhasPanel syncId={syncId} title={`Falhas — ${sync.rotulo}`} />
       <SyncJobsTable syncId={syncId} />
     </>
   );

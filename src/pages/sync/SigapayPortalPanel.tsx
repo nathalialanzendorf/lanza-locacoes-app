@@ -64,8 +64,8 @@ export function SigapayPortalPanel() {
     <section className="form-card">
       <h2 className="form-card__title">Dados do portal {ROTULO_SIGAPAY}</h2>
       <p className="field__hint">
-        Consulta ACT/avisos em tempo real no site (requer sessão activa acima). Use antes do sync
-        para ver o que o portal devolve.
+        Consulta ACT/avisos em tempo real no site (requer sessão em{" "}
+        <strong>Sync → Dados do veículo</strong>). Use antes do sync para ver o que o portal devolve.
       </p>
 
       <div className="form-grid">

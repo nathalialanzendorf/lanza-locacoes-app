@@ -201,7 +201,7 @@ export function SecaoDados({
       </div>
       {secao?.error ? <p className="form-card__error">{secao.error}</p> : null}
       {secao?.avisos?.map((a) => (
-        <p key={a} className="field__hint">
+        <p key={a} className="form-card__error form-card__error--soft">
           {a}
         </p>
       ))}

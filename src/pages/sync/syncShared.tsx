@@ -5,6 +5,7 @@ import { DataTable } from "@/components/DataTable";
 import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
 import { useSyncJobs } from "@/api/hooks";
+import { extractJobFailureLines, jobFailureSummary, jobHasPartialFailures } from "@/pages/sync/syncJobErrors";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { bodySyncGlobal, direcaoEfetiva, syncAtivo, type SyncGlobalOpts } from "@/lib/syncUi";
@@ -156,12 +157,15 @@ export function SyncStatusBanner({
   activeJobId,
   onJobFinished,
   hideWhileRunning = false,
+  hideResultPanel = false,
 }: {
   syncId?: string;
   activeJobId?: string | null;
   onJobFinished?: () => void;
   /** Oculta o banner enquanto pending/running (progresso fica só em Jobs recentes). */
   hideWhileRunning?: boolean;
+  /** Oculta o JSON bruto (Resultado / Dados) após concluir. */
+  hideResultPanel?: boolean;
 }) {
   const qc = useQueryClient();
   const jobsQuery = useSyncJobs(25, activeJobId);
@@ -246,7 +250,7 @@ export function SyncStatusBanner({
 
   return (
     <section
-      className={`form-card sync-status${job.status === "failed" || job.status === "cancelled" ? " sync-status--erro" : ""}`}
+      className={`form-card sync-status${job.status === "failed" || job.status === "cancelled" || (job.status === "completed" && jobHasPartialFailures(job)) ? " sync-status--erro" : ""}`}
     >
       <p className="sync-status__linha">
         <span className={statusBadge(job.status)}>{statusSyncLabel(job.status)}</span>
@@ -258,6 +262,15 @@ export function SyncStatusBanner({
         </span>
       </p>
       {job.error ? <p className="sync-status__erro">{job.error}</p> : null}
+      {!job.error && job.status === "completed" && jobHasPartialFailures(job) ? (
+        <ul className="sync-status__falhas">
+          {extractJobFailureLines(job).map((line) => (
+            <li key={line} className="sync-status__erro">
+              {line}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {pollErro && emCurso ? <p className="sync-status__erro">{pollErro}</p> : null}
       {emCurso ? (
         <>
@@ -279,7 +292,7 @@ export function SyncStatusBanner({
       {job.status === "completed" && job.result != null ? (
         <>
           <SyncAlteracoesFromResult data={job.result} />
-          {!hasSyncAlteracoes(job.result) ? (
+          {!hideResultPanel && !hasSyncAlteracoes(job.result) ? (
             <ResultPanel title="Resultado" data={job.result} />
           ) : null}
         </>
@@ -380,7 +393,7 @@ export function SyncJobsTable({
                     {p.falhas > 0 ? (
                       <>
                         <br />
-                        <span className="field__hint">
+                        <span className="sync-job-error">
                           ok {p.sucesso} · falhas {p.falhas}
                         </span>
                       </>
@@ -397,9 +410,17 @@ export function SyncJobsTable({
             },
             {
               key: "error",
-              header: "Erro",
-              sortValue: (j) => j.error ?? "",
-              render: (j) => <span className="sync-job-error">{j.error ?? "—"}</span>,
+              header: "Erro / avisos",
+              sortValue: (j) => jobFailureSummary(j) ?? "",
+              render: (j) => {
+                const msg = jobFailureSummary(j);
+                if (!msg) return <span className="field__hint">—</span>;
+                return (
+                  <span className="sync-job-error" title={extractJobFailureLines(j).join("\n")}>
+                    {msg}
+                  </span>
+                );
+              },
             },
             {
               key: "acoes",

@@ -67,8 +67,8 @@ export function PedagioPortalPanel() {
       <h2 className="form-card__title">Dados do portal {ROTULO_PEDAGIO_DIGITAL}</h2>
       <p className="field__hint">
         Consulta passagens em tempo real no pedagiodigital.com (CCR Via Costeira e demais
-        concessionárias). Requer sessão activa no servidor. Use antes do sync para ver o que o portal
-        devolve.
+        concessionárias). Requer sessão activa — configure em <strong>Sync → Dados do veículo</strong>.
+        Use antes do sync para ver o que o portal devolve.
       </p>
 
       <div className="form-grid">

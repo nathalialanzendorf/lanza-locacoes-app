@@ -6,6 +6,7 @@ import { LanzaApiError } from "@/api/client";
 import type { VeiculoConsultaPortaisResultado } from "@/api/types";
 import { PortalSessoesSection } from "@/pages/relatorios/PortalSessoesSection";
 import { SyncJobsTable } from "@/pages/sync/syncShared";
+import { SyncJobFalhasPanel } from "@/pages/sync/SyncJobFalhasPanel";
 import {
   SECOES_PORTAL,
   SecaoDados,
@@ -57,9 +58,9 @@ export function SyncVeiculoDadosSection() {
         <h2 className="form-card__title">Dados do veículo (portais)</h2>
         <p className="field__hint">
           Consulta em tempo real todos os portais externos — DETRAN SC, DETRAN RS, Pedágio Digital e
-          SigaPay. Cada portal corre num job separado (tabela abaixo). Configure a sessão de cada
-          portal antes de consultar. Para ver o que já está gravado na base, use o menu{" "}
-          <strong>Relatórios</strong>.
+          SigaPay. Cada portal corre num job separado (tabela abaixo).{" "}
+          <strong>Login e sessões dos portais:</strong> configure abaixo (único sítio no Sync). Para
+          ver o que já está gravado na base, use o menu <strong>Relatórios</strong>.
         </p>
         <div className="form-grid">
           <FieldLike label="Placa" hint="Vazio = frota activa inteira (pode demorar vários minutos)">
@@ -118,6 +119,7 @@ export function SyncVeiculoDadosSection() {
         </>
       ) : null}
 
+      <SyncJobFalhasPanel syncIdPrefix="veiculo-portais" title="Falhas — consulta portais" />
       <SyncJobsTable syncIdPrefix="veiculo-portais" title="Jobs recentes (consulta portais)" />
     </>
   );

@@ -46,10 +46,7 @@ import {
 } from "@/pages/relatorios/RelatoriosShell";
 
 import { VeiculosModulePage } from "@/pages/veiculos/VeiculosModulePage";
-import {
-  RedirectVeiculosLegado,
-  VeiculosEditarRedirect,
-} from "@/pages/veiculos/VeiculosLegacyRoutes";
+import { RedirectVeiculosLegado } from "@/pages/veiculos/VeiculosLegacyRoutes";
 import { TipoVeiculoFrota } from "@/lib/domain";
 import { VendaPage } from "@/pages/VendaPage";
 import { SyncPage } from "@/pages/SyncPage";
@@ -104,7 +101,6 @@ export default function App() {
 
                 <Route path="clientes/*" element={<ClientesPage />} />
 
-                <Route path="veiculos/:id/editar" element={<VeiculosEditarRedirect />} />
                 <Route
                   path="veiculos/locacao/*"
                   element={<RedirectVeiculosLegado destinoBase="/veiculos" />}
