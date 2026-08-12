@@ -21,6 +21,7 @@ import type {
   Resumo,
   SyncJob,
   SyncMeta,
+  SyncAlteracaoLinha,
   Veiculo,
   VinculoParceiro,
 } from "./types";
@@ -401,7 +402,9 @@ export const lanzaApi = {
         semAlteracao?: number;
         boletos?: number;
         pdfs?: number;
+        semVeiculo?: string[];
         despesas?: Array<{ placa: string; acao: string; id?: string }>;
+        alteracoes?: SyncAlteracaoLinha[];
         erros?: string[];
       };
     }>("/api/sync/seguro/upload", { method: "POST", body, timeoutMs: 120_000 }),

@@ -116,7 +116,7 @@ export function SyncTipoSection({ syncId }: Props) {
             activeJobId={activeJobId}
             onJobFinished={releaseRunning}
             hideWhileRunning={syncId === "infracoes" || syncId === "pedagios"}
-            hideResultPanel={syncId === "infracoes"}
+            hideResultPanel={syncId === "infracoes" || syncId === "seguro"}
           />
           {syncId === "pedagios" ? <PedagioPortalPanel /> : null}
           {syncId === "seguro" ? (
@@ -144,7 +144,7 @@ export function SyncTipoSection({ syncId }: Props) {
             data={lastResult}
             title="Alterações do sync (dry-run)"
           />
-          {syncId !== "infracoes" && !hasSyncAlteracoes(lastResult) ? (
+          {syncId !== "infracoes" && syncId !== "seguro" && !hasSyncAlteracoes(lastResult) ? (
             <ResultPanel title="Resultado (dry-run)" data={lastResult} />
           ) : null}
         </>

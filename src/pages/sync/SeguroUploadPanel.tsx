@@ -1,11 +1,14 @@
 import { useRef, useState } from "react";
 
-import { ResultPanel } from "@/components/ResultPanel";
 import { Toggle } from "@/components/Toggle";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
 import { FlashError } from "@/context/ScreenFlashContext";
 import { LABEL } from "@/lib/labels";
+import {
+  SyncAlteracoesFromResult,
+  hasSyncAlteracoes,
+} from "@/pages/sync/SyncAlteracoesPanel";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -21,14 +24,15 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 type UploadResultado = {
-  upload?: { uploaded?: unknown[]; erros?: string[] };
+  upload?: { uploaded?: Array<{ nome: string; pathname?: string }>; erros?: string[] };
   sync?: {
     novos?: number;
     atualizados?: number;
     semAlteracao?: number;
     boletos?: number;
-    despesas?: Array<{ placa: string; acao: string }>;
+    pdfs?: number;
     erros?: string[];
+    semVeiculo?: string[];
   };
 };
 
@@ -100,82 +104,113 @@ export function SeguroUploadPanel({ dryRun, onSynced }: Props) {
     }
   }
 
+  const uploadOk = resultado?.upload?.uploaded?.length ?? 0;
+  const uploadErros = resultado?.upload?.erros ?? [];
+  const syncErros = resultado?.sync?.erros ?? [];
+  const semVeiculo = resultado?.sync?.semVeiculo ?? [];
+
   return (
-    <section className="form-card">
-      <h2 className="form-card__title">Enviar comprovantes de seguro</h2>
-      <p className="field__hint">
-        Os PDFs são armazenados na Vercel Blob. Com &quot;Sincronizar após upload&quot; ativo, as
-        despesas parceiro são gravadas automaticamente.
-      </p>
+    <>
+      <section className="form-card">
+        <h2 className="form-card__title">Enviar comprovantes de seguro</h2>
+        <p className="field__hint">
+          Os PDFs são armazenados na Vercel Blob. Com &quot;Sincronizar após upload&quot; ativo, as
+          despesas parceiro são gravadas automaticamente.
+        </p>
 
-      <div className="form-grid">
-        <label className="field">
-          <span className="field__label">Ano</span>
-          <input
-            className="field__input"
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            value={ano}
-            onChange={(e) => setAno(e.target.value.replace(/\D/g, "").slice(0, 4))}
-          />
-        </label>
-        <label className="field">
-          <span className="field__label">Mês</span>
-          <input
-            className="field__input"
-            type="text"
-            inputMode="numeric"
-            placeholder="08"
-            maxLength={2}
-            value={mes}
-            onChange={(e) => setMes(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          />
-        </label>
-      </div>
+        <div className="form-grid">
+          <label className="field">
+            <span className="field__label">Ano</span>
+            <input
+              className="field__input"
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={ano}
+              onChange={(e) => setAno(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">Mês</span>
+            <input
+              className="field__input"
+              type="text"
+              inputMode="numeric"
+              placeholder="08"
+              maxLength={2}
+              value={mes}
+              onChange={(e) => setMes(e.target.value.replace(/\D/g, "").slice(0, 2))}
+            />
+          </label>
+        </div>
 
-      <label className="field">
-        <span className="field__label">PDFs</span>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf,.pdf"
-          multiple
-          onChange={(e) => onFilesChange(e.target.files)}
+        <label className="field">
+          <span className="field__label">PDFs</span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            multiple
+            onChange={(e) => onFilesChange(e.target.files)}
+          />
+          {selecionados.length ? (
+            <p className="field__hint">
+              {selecionados.length} arquivo(s): {selecionados.map((f) => f.name).join(", ")}
+            </p>
+          ) : null}
+        </label>
+
+        <Toggle
+          className="field"
+          checked={sincronizar}
+          onChange={setSincronizar}
+          label="Sincronizar após upload (gravar despesas parceiro)"
         />
-        {selecionados.length ? (
-          <p className="field__hint">
-            {selecionados.length} arquivo(s): {selecionados.map((f) => f.name).join(", ")}
+
+        <div className="despesas-toolbar">
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={loading || !selecionados.length}
+            onClick={() => void enviar()}
+          >
+            {loading ? LABEL.processando : "Enviar PDFs"}
+          </button>
+        </div>
+
+        <FlashError message={error} />
+        {resultado?.sync && resumoSync(resultado.sync) ? (
+          <p className="field__hint sync-dryrun-hint">
+            Despesas parceiro: {resumoSync(resultado.sync)}
+            {dryRun ? " (dry-run — nada gravado)" : ""}
           </p>
         ) : null}
-      </label>
+        {resultado && uploadOk > 0 ? (
+          <p className="field__hint">
+            {uploadOk} PDF(s) enviado(s) para o Blob
+            {resultado.upload?.uploaded?.length
+              ? `: ${resultado.upload.uploaded.map((u) => u.nome).join(", ")}`
+              : ""}
+          </p>
+        ) : null}
+        {[...uploadErros, ...syncErros].map((msg) => (
+          <p key={msg} className="sync-job-error">
+            {msg}
+          </p>
+        ))}
+        {semVeiculo.length ? (
+          <p className="sync-job-error">
+            Placa(s) não encontrada(s) na frota: {semVeiculo.join(", ")}
+          </p>
+        ) : null}
+      </section>
 
-      <Toggle
-        className="field"
-        checked={sincronizar}
-        onChange={setSincronizar}
-        label="Sincronizar após upload (gravar despesas parceiro)"
-      />
-
-      <div className="despesas-toolbar">
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={loading || !selecionados.length}
-          onClick={() => void enviar()}
-        >
-          {loading ? LABEL.processando : "Enviar PDFs"}
-        </button>
-      </div>
-
-      <FlashError message={error} />
-      {resultado?.sync && resumoSync(resultado.sync) ? (
-        <p className="field__hint sync-dryrun-hint">
-          Despesas parceiro: {resumoSync(resultado.sync)}
-          {dryRun ? " (dry-run — nada gravado)" : ""}
-        </p>
+      {resultado?.sync && hasSyncAlteracoes(resultado.sync) ? (
+        <SyncAlteracoesFromResult
+          data={resultado.sync}
+          title={dryRun ? "Despesas de seguro (dry-run)" : "Despesas de seguro"}
+        />
       ) : null}
-      {resultado ? <ResultPanel title="Resultado do upload" data={resultado} /> : null}
-    </section>
+    </>
   );
 }
