@@ -206,10 +206,7 @@ export function SeguroUploadPanel({ dryRun, onSynced }: Props) {
       </section>
 
       {resultado?.sync && hasSyncAlteracoes(resultado.sync) ? (
-        <SyncAlteracoesFromResult
-          data={resultado.sync}
-          title={dryRun ? "Despesas de seguro (dry-run)" : "Despesas de seguro"}
-        />
+        <SyncAlteracoesFromResult data={resultado.sync} />
       ) : null}
     </>
   );

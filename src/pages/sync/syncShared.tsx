@@ -245,8 +245,46 @@ export function SyncStatusBanner({
 
   const p = job.progress;
   const emCurso = job.status === "pending" || job.status === "running";
+  const terminal = jobTerminal(job.status);
 
   if (hideWhileRunning && emCurso) return null;
+
+  // Só acompanha o job activo — evita "Concluído" de execuções passadas ao reabrir a aba.
+  if (activeJobId && job.id !== activeJobId) return null;
+  if (!activeJobId && terminal) return null;
+
+  function renderResultadoConcluido() {
+    if (job!.status !== "completed" || job!.result == null) return null;
+    return (
+      <>
+        <SyncAlteracoesFromResult data={job!.result} />
+        {!hideResultPanel && !hasSyncAlteracoes(job!.result) ? (
+          <ResultPanel title="Resultado" data={job!.result} />
+        ) : null}
+      </>
+    );
+  }
+
+  if (job.status === "completed" && !job.error) {
+    const resultado = renderResultadoConcluido();
+    if (jobHasPartialFailures(job)) {
+      return (
+        <>
+          {resultado}
+          <section className="form-card sync-status sync-status--erro">
+            <ul className="sync-status__falhas">
+              {extractJobFailureLines(job).map((line) => (
+                <li key={line} className="sync-status__erro">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      );
+    }
+    return resultado;
+  }
 
   return (
     <section
@@ -287,14 +325,6 @@ export function SyncStatusBanner({
               {cancelando ? "A cancelar…" : "Cancelar job"}
             </button>
           </div>
-        </>
-      ) : null}
-      {job.status === "completed" && job.result != null ? (
-        <>
-          <SyncAlteracoesFromResult data={job.result} />
-          {!hideResultPanel && !hasSyncAlteracoes(job.result) ? (
-            <ResultPanel title="Resultado" data={job.result} />
-          ) : null}
         </>
       ) : null}
     </section>

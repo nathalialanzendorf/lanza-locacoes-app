@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { DataTable } from "@/components/DataTable";
-import { Toggle } from "@/components/Toggle";
 import { formatBrl } from "@/lib/format";
 import type { SyncAlteracaoLinha, SyncAlteracaoStatus } from "@/api/types";
 
@@ -104,15 +103,8 @@ type Props = {
   title?: string;
 };
 
-export function SyncAlteracoesFromResult({ data, title = "Alterações do sync" }: Props) {
-  const [mostrarNaoAlterados, setMostrarNaoAlterados] = useState(false);
-
-  const todas = useMemo(() => extractAlteracoesFromSyncResult(data), [data]);
-
-  const linhas = useMemo(() => {
-    if (mostrarNaoAlterados) return todas;
-    return todas.filter((l) => l.status !== "nao_alterado");
-  }, [todas, mostrarNaoAlterados]);
+export function SyncAlteracoesFromResult({ data, title = "Resultados" }: Props) {
+  const linhas = useMemo(() => extractAlteracoesFromSyncResult(data), [data]);
 
   const resumo = useMemo(() => {
     const c: Record<SyncAlteracaoStatus, number> = {
@@ -122,11 +114,11 @@ export function SyncAlteracoesFromResult({ data, title = "Alterações do sync" 
       nao_alterado: 0,
       ignorado: 0,
     };
-    for (const l of todas) c[l.status]++;
+    for (const l of linhas) c[l.status]++;
     return c;
-  }, [todas]);
+  }, [linhas]);
 
-  if (todas.length === 0) return null;
+  if (linhas.length === 0) return null;
 
   return (
     <section className="form-card">
@@ -138,23 +130,16 @@ export function SyncAlteracoesFromResult({ data, title = "Alterações do sync" 
           {resumo.alterado} alterado{resumo.alterado === 1 ? "" : "s"}
           {" · "}
           {resumo.excluido} excluído{resumo.excluido === 1 ? "" : "s"}
-          {mostrarNaoAlterados || resumo.nao_alterado === 0
-            ? ""
-            : ` · ${resumo.nao_alterado} não alterado${resumo.nao_alterado === 1 ? "" : "s"} (ocultos)`}
+          {resumo.nao_alterado > 0
+            ? ` · ${resumo.nao_alterado} não alterado${resumo.nao_alterado === 1 ? "" : "s"}`
+            : ""}
+          {resumo.ignorado > 0
+            ? ` · ${resumo.ignorado} ignorado${resumo.ignorado === 1 ? "" : "s"}`
+            : ""}
         </p>
       </header>
 
-      <Toggle
-        className="field"
-        checked={mostrarNaoAlterados}
-        onChange={setMostrarNaoAlterados}
-        label="Mostrar registros não alterados"
-      />
-
-      {linhas.length === 0 ? (
-        <p className="field__hint">Nenhuma alteração neste sync — todos os registros já estavam iguais.</p>
-      ) : (
-        <DataTable
+      <DataTable
           rows={linhas}
           keyFn={(l) => `${l.placa}-${l.entidade}-${l.referencia}-${l.status}`}
           columns={[
@@ -211,7 +196,6 @@ export function SyncAlteracoesFromResult({ data, title = "Alterações do sync" 
             },
           ]}
         />
-      )}
     </section>
   );
 }

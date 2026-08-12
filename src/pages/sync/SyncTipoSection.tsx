@@ -140,10 +140,7 @@ export function SyncTipoSection({ syncId }: Props) {
       <FlashError message={error} />
       {!isFipe && opcoes.dryRun ? (
         <>
-          <SyncAlteracoesFromResult
-            data={lastResult}
-            title="Alterações do sync (dry-run)"
-          />
+          <SyncAlteracoesFromResult data={lastResult} />
           {syncId !== "infracoes" && syncId !== "seguro" && !hasSyncAlteracoes(lastResult) ? (
             <ResultPanel title="Resultado (dry-run)" data={lastResult} />
           ) : null}
