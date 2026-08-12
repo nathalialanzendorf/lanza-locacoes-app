@@ -22,6 +22,7 @@ import { FipeSyncPanel } from "@/pages/sync/FipeSyncPanel";
 import { PedagioPortalPanel } from "@/pages/sync/PedagioPortalPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
 import { SigapayPixPanel } from "@/pages/sync/SigapayPixPanel";
+import { SeguroUploadPanel } from "@/pages/sync/SeguroUploadPanel";
 import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
 type Props = {
@@ -118,6 +119,9 @@ export function SyncTipoSection({ syncId }: Props) {
             hideResultPanel={syncId === "infracoes"}
           />
           {syncId === "pedagios" ? <PedagioPortalPanel /> : null}
+          {syncId === "seguro" ? (
+            <SeguroUploadPanel dryRun={opcoes.dryRun} onSynced={invalidarListagem} />
+          ) : null}
           {syncId === "estacionamento" ? (
             <>
               <SigapayPortalPanel />

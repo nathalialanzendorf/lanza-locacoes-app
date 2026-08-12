@@ -382,6 +382,29 @@ export const lanzaApi = {
       body: { ...body, async: opts?.async ?? body.async },
       params: opts?.async ? { async: true } : undefined,
     }),
+  uploadSeguroComprovantes: (body: {
+    ano: string;
+    mes: string;
+    arquivos: Array<{ nome: string; conteudo: string }>;
+    sincronizar?: boolean;
+    dryRun?: boolean;
+  }) =>
+    apiRequest<{
+      upload: {
+        uploaded: Array<{ pathname: string; nome: string; size: number }>;
+        erros: string[];
+      };
+      sync?: {
+        modo: string;
+        novos?: number;
+        atualizados?: number;
+        semAlteracao?: number;
+        boletos?: number;
+        pdfs?: number;
+        despesas?: Array<{ placa: string; acao: string; id?: string }>;
+        erros?: string[];
+      };
+    }>("/api/sync/seguro/upload", { method: "POST", body, timeoutMs: 120_000 }),
 
   resumoRenegociacao: (params: {
     clienteId?: string;
