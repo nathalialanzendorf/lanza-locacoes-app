@@ -21,27 +21,37 @@ export function useSyncDisparo() {
   const qc = useQueryClient();
   const [runningId, setRunningId] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeJobSync, setActiveJobSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorSync, setErrorSync] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<unknown>(null);
+  const [lastResultSync, setLastResultSync] = useState<string | null>(null);
 
   async function disparar(label: string, fn: () => Promise<unknown>) {
     setRunningId(label);
     setError(null);
+    setErrorSync(null);
     setLastResult(null);
+    setLastResultSync(null);
     setActiveJobId(null);
+    setActiveJobSync(null);
     try {
       const raw = (await fn()) as { jobId?: string; status?: string; data?: unknown } | null;
       if (raw?.jobId) {
         setLastResult(raw);
+        setLastResultSync(label);
         setActiveJobId(raw.jobId);
+        setActiveJobSync(label);
       } else {
         setLastResult(normalizeSyncResultPayload(raw));
+        setLastResultSync(label);
         setRunningId(null);
       }
       void qc.invalidateQueries({ queryKey: ["sync-jobs"] });
       return raw;
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao executar sync.");
+      setErrorSync(label);
       setRunningId(null);
       throw err;
     }
@@ -53,10 +63,33 @@ export function useSyncDisparo() {
 
   function clearActiveJob() {
     setActiveJobId(null);
+    setActiveJobSync(null);
     setRunningId(null);
   }
 
-  return { runningId, activeJobId, error, lastResult, disparar, setError, releaseRunning, clearActiveJob };
+  /** Estado scoped à aba activa — evita mostrar resultados de outro sync. */
+  function forSync(syncId: string) {
+    return {
+      runningId: runningId === syncId ? runningId : null,
+      activeJobId: activeJobSync === syncId ? activeJobId : null,
+      error: errorSync === syncId ? error : null,
+      lastResult: lastResultSync === syncId ? lastResult : null,
+    };
+  }
+
+  return {
+    runningId,
+    activeJobId,
+    activeJobSync,
+    error,
+    lastResult,
+    lastResultSync,
+    disparar,
+    setError,
+    releaseRunning,
+    clearActiveJob,
+    forSync,
+  };
 }
 
 export function useSyncOpcoes() {

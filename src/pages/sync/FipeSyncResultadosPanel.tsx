@@ -32,7 +32,7 @@ export function FipeSyncResultadosPanel() {
 
   return (
     <section className="form-card">
-      <h2 className="form-card__title">Resultados FIPE por veículo</h2>
+      <h2 className="form-card__title">Resultado</h2>
       <p className="field__hint">
         {job.status === "running" || job.status === "pending"
           ? "Atualizando em tempo real…"

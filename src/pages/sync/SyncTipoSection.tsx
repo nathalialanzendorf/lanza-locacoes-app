@@ -34,7 +34,8 @@ export function SyncTipoSection({ syncId }: Props) {
   const metaQuery = useSyncMeta();
   const sync = metaQuery.data?.syncs.find((s) => s.id === syncId);
   const opcoes = useSyncOpcoes();
-  const { runningId, activeJobId, error, lastResult, disparar, releaseRunning } = useSyncDisparo();
+  const { runningId, disparar, releaseRunning, forSync } = useSyncDisparo();
+  const syncState = forSync(syncId);
   const [searchParams] = useSearchParams();
 
   const isFipe = syncId === "fipe";
@@ -104,16 +105,16 @@ export function SyncTipoSection({ syncId }: Props) {
               <button
                 type="button"
                 className="btn btn--primary"
-                disabled={runningId !== null}
+                disabled={syncState.runningId !== null}
                 onClick={executar}
               >
-                {runningId === syncId ? LABEL.processando : "Executar sync"}
+                {syncState.runningId ? LABEL.processando : "Executar sync"}
               </button>
             </div>
           </section>
           <SyncStatusBanner
             syncId={syncId}
-            activeJobId={activeJobId}
+            activeJobId={syncState.activeJobId}
             onJobFinished={releaseRunning}
             hideWhileRunning={syncId === "infracoes" || syncId === "pedagios"}
             hideResultPanel={syncId === "infracoes" || syncId === "seguro"}
@@ -137,12 +138,12 @@ export function SyncTipoSection({ syncId }: Props) {
         />
       )}
 
-      <FlashError message={error} />
+      <FlashError message={syncState.error} />
       {!isFipe && opcoes.dryRun ? (
         <>
-          <SyncAlteracoesFromResult data={lastResult} />
-          {syncId !== "infracoes" && syncId !== "seguro" && !hasSyncAlteracoes(lastResult) ? (
-            <ResultPanel title="Resultado (dry-run)" data={lastResult} />
+          <SyncAlteracoesFromResult data={syncState.lastResult} />
+          {syncId !== "infracoes" && syncId !== "seguro" && !hasSyncAlteracoes(syncState.lastResult) ? (
+            <ResultPanel title="Resultado (dry-run)" data={syncState.lastResult} />
           ) : null}
         </>
       ) : null}
