@@ -1,8 +1,10 @@
 import { API_TIMEOUT_MS } from "@/api/client";
 import type { PortalCapturaState } from "@/api/types";
 
-const BRIDGE_BASE =
+export const PEDAGIO_BRIDGE_BASE =
   import.meta.env.VITE_PEDAGIO_CAPTURE_BRIDGE?.trim() || "http://127.0.0.1:9236";
+
+const BRIDGE_BASE = PEDAGIO_BRIDGE_BASE;
 
 export type BridgeCapturaStartOpts = {
   apiUrl: string;

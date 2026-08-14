@@ -1,8 +1,10 @@
 import { API_TIMEOUT_MS } from "@/api/client";
 import type { DetranScCapturaState } from "@/api/types";
 
-const BRIDGE_BASE =
+export const DETRAN_SC_BRIDGE_BASE =
   import.meta.env.VITE_DETRAN_CAPTURE_BRIDGE?.trim() || "http://127.0.0.1:9234";
+
+const BRIDGE_BASE = DETRAN_SC_BRIDGE_BASE;
 
 export type BridgeCapturaStartOpts = {
   apiUrl: string;

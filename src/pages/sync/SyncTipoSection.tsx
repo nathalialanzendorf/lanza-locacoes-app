@@ -23,6 +23,7 @@ import { PedagioPortalPanel } from "@/pages/sync/PedagioPortalPanel";
 import { SigapayPortalPanel } from "@/pages/sync/SigapayPortalPanel";
 import { SigapayPixPanel } from "@/pages/sync/SigapayPixPanel";
 import { SeguroUploadPanel } from "@/pages/sync/SeguroUploadPanel";
+import { SyncPortalSessaoPanel } from "@/pages/sync/SyncPortalSessaoPanel";
 import { SyncAlteracoesFromResult, hasSyncAlteracoes } from "@/pages/sync/SyncAlteracoesPanel";
 
 type Props = {
@@ -112,6 +113,7 @@ export function SyncTipoSection({ syncId }: Props) {
               </button>
             </div>
           </section>
+          <SyncPortalSessaoPanel syncId={syncId} disabled={syncState.runningId !== null} />
           <SyncStatusBanner
             syncId={syncId}
             activeJobId={syncState.activeJobId}

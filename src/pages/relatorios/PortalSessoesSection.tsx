@@ -11,33 +11,44 @@ import type {
   SigapaySessaoStatus,
 } from "@/api/types";
 import {
+  abrirBridgeCapturaJanela,
+  bridgeFetchBlockedByHttps,
+  buildBridgeCaptureStartUrl,
+  deveUsarBridgeLocal,
+} from "@/lib/captureBridgeClient";
+import {
   bridgeCapturaIniciar as detranScBridgeIniciar,
   bridgeCapturaStatus as detranScBridgeStatus,
   bridgeHealth as detranScBridgeHealth,
   bridgeStartHint as detranScBridgeHint,
+  DETRAN_SC_BRIDGE_BASE,
 } from "@/lib/detranScCaptureBridge";
 import {
   detranRsBridgeCapturaIniciar,
   detranRsBridgeCapturaStatus,
   detranRsBridgeHealth,
   detranRsBridgeStartHint,
+  DETRAN_RS_BRIDGE_BASE,
 } from "@/lib/detranRsCaptureBridge";
 import {
   pedagioBridgeCapturaIniciar,
   pedagioBridgeCapturaStatus,
   pedagioBridgeHealth,
   pedagioBridgeStartHint,
+  PEDAGIO_BRIDGE_BASE,
 } from "@/lib/pedagioCaptureBridge";
 import {
   sigapayBridgeCapturaIniciar,
   sigapayBridgeCapturaStatus,
   sigapayBridgeHealth,
   sigapayBridgeStartHint,
+  SIGAPAY_BRIDGE_BASE,
 } from "@/lib/sigapayCaptureBridge";
 import {
   DETRAN_SC_GOV_CERT_LOGIN_URL,
   DETRAN_SC_PORTAL_URL,
 } from "@/lib/detranScPortais";
+import { CaptureBridgesStatus } from "@/pages/sync/CaptureBridgesStatus";
 
 type SessaoStatus =
   | DetranScSessaoStatus
@@ -54,6 +65,7 @@ type PortalApi = {
 };
 
 type BridgeApi = {
+  baseUrl: string;
   health: () => Promise<boolean>;
   capturaStatus: () => Promise<PortalCapturaState | null>;
   capturaIniciar: (opts: {
@@ -122,6 +134,8 @@ function PortalSessaoPanel({
   const [sessao, setSessao] = useState<SessaoStatus | null>(null);
   const [captura, setCaptura] = useState<PortalCapturaState | null>(null);
   const [bridgeAtivo, setBridgeAtivo] = useState<boolean | null>(null);
+  const [capturaViaJanela, setCapturaViaJanela] = useState(false);
+  const [bridgeCapturaUrl, setBridgeCapturaUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +155,7 @@ function PortalSessaoPanel({
       setLoading(true);
       setError(null);
       try {
-        const ok = await bridge.health();
+        const ok = bridgeFetchBlockedByHttps() ? false : await bridge.health();
         if (!cancelled) setBridgeAtivo(ok);
         await recarregarSessao();
       } catch (err) {
@@ -162,14 +176,34 @@ function PortalSessaoPanel({
     const timer = window.setInterval(() => {
       void (async () => {
         try {
-          let estado: PortalCapturaState | null = null;
           if (bridgeAtivo) {
-            estado = await bridge.capturaStatus();
-          } else {
-            const r = await api.statusCaptura();
-            estado = r.data;
+            const estado = await bridge.capturaStatus();
+            if (!estado) return;
+            setCaptura(estado);
+            if (estado.status === "captured") {
+              setMsg(estado.message ?? "Sessão capturada.");
+              await recarregarSessao();
+              setCapturaViaJanela(false);
+            } else if (estado.status === "error") {
+              setError(estado.message ?? "Falha na captura.");
+              setCapturaViaJanela(false);
+            }
+            return;
           }
-          if (!estado) return;
+
+          if (capturaViaJanela || deveUsarBridgeLocal(getApiBaseUrl().trim() || "https://api.lanzalocacoes.vercel.app")) {
+            const r = await api.statusSessao();
+            setSessao(r.data);
+            if (r.data.configured && r.data.origem !== "env") {
+              setCaptura({ status: "captured", message: "Sessão capturada." });
+              setMsg("Sessão capturada e guardada na API.");
+              setCapturaViaJanela(false);
+            }
+            return;
+          }
+
+          const r = await api.statusCaptura();
+          const estado = r.data;
           setCaptura(estado);
           if (estado.status === "captured") {
             setMsg(estado.message ?? "Sessão capturada.");
@@ -183,7 +217,7 @@ function PortalSessaoPanel({
       })();
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [capturaEmCurso, bridgeAtivo]);
+  }, [capturaEmCurso, bridgeAtivo, capturaViaJanela]);
 
   async function iniciarCaptura() {
     setLoading(true);
@@ -196,29 +230,52 @@ function PortalSessaoPanel({
         bearer: getStoredToken().trim() || undefined,
         apiKey: getStoredApiKey().trim() || undefined,
       };
-      const ok = bridgeAtivo ?? (await bridge.health());
+      const httpsApp = bridgeFetchBlockedByHttps();
+      const remoteApi = deveUsarBridgeLocal(apiUrl);
+      const ok = !httpsApp && (bridgeAtivo ?? (await bridge.health()));
       setBridgeAtivo(ok);
 
       let data: PortalCapturaState | null = null;
+      let viaJanela = false;
+
       if (ok) {
         data = await bridge.capturaIniciar(opts);
         if (!data) throw new Error("Bridge local respondeu mas não iniciou a captura.");
+        setBridgeCapturaUrl(null);
+      } else if (remoteApi) {
+        const captureUrl = buildBridgeCaptureStartUrl(bridge.baseUrl, opts);
+        setBridgeCapturaUrl(captureUrl);
+        abrirBridgeCapturaJanela(bridge.baseUrl, opts);
+        data = { status: "waiting", message: waitingMessage };
+        viaJanela = true;
+        setCapturaViaJanela(true);
+        setMsg(
+          "Abriu uma aba em 127.0.0.1 — faça login no Chrome (rode npm run capture-bridges-all se der erro de ligação). Esta página actualiza quando a sessão for guardada.",
+        );
       } else {
         try {
           const r = await api.iniciarCaptura();
           data = r.data;
+          setBridgeCapturaUrl(null);
         } catch (err) {
           if (err instanceof LanzaApiError && err.status === 501) {
-            throw new Error(
-              `Bridge local não detectado. ${bridge.startHint} — depois clique em Capturar sessão.`,
+            const captureUrl = buildBridgeCaptureStartUrl(bridge.baseUrl, opts);
+            setBridgeCapturaUrl(captureUrl);
+            abrirBridgeCapturaJanela(bridge.baseUrl, opts);
+            data = { status: "waiting", message: waitingMessage };
+            viaJanela = true;
+            setCapturaViaJanela(true);
+            setMsg(
+              `${bridge.startHint} — abriu janela local; se não apareceu, use o link abaixo.`,
             );
+          } else {
+            throw err;
           }
-          throw err;
         }
       }
 
       setCaptura(data);
-      setMsg(data.message ?? waitingMessage);
+      if (!viaJanela) setMsg(data.message ?? waitingMessage);
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : err instanceof Error ? err.message : "Falha.");
     } finally {
@@ -261,6 +318,9 @@ function PortalSessaoPanel({
 
   const bloqueado = Boolean(disabled || loading || capturaEmCurso);
   const origemEnv = sessao?.origem === "env";
+  const usaBridgeLocal = deveUsarBridgeLocal(
+    getApiBaseUrl().trim() || "https://api.lanzalocacoes.vercel.app",
+  );
 
   return (
     <section className="form-section veiculo-dados-sessao">
@@ -269,6 +329,22 @@ function PortalSessaoPanel({
       {bridgeAtivo ? (
         <p className="field__hint">
           <span className="badge badge--ok">Bridge local ativo</span>
+        </p>
+      ) : usaBridgeLocal || bridgeFetchBlockedByHttps() ? (
+        <p className="field__hint">
+          <span className="badge badge--muted">Bridge via janela local</span>
+          {" "}
+          — a API remota não captura sessões; rode{" "}
+          <code>npm run capture-bridges-all</code> e use Capturar sessão (abre{" "}
+          <code>127.0.0.1</code> no seu PC).
+        </p>
+      ) : null}
+      {bridgeCapturaUrl ? (
+        <p className="field__hint">
+          Janela não abriu?{" "}
+          <a href={bridgeCapturaUrl} target="_blank" rel="noopener noreferrer">
+            Abrir captura local
+          </a>
         </p>
       ) : null}
       {renderStatus(sessao)}
@@ -374,6 +450,7 @@ export function DetranScSessaoPanel({ disabled }: { disabled?: boolean }) {
           statusCaptura: () => lanzaApi.statusCapturaDetranSc(),
         }}
         bridge={{
+          baseUrl: DETRAN_SC_BRIDGE_BASE,
           health: detranScBridgeHealth,
           capturaStatus: detranScBridgeStatus,
           capturaIniciar: detranScBridgeIniciar,
@@ -448,6 +525,7 @@ export function DetranRsSessaoPanel({ disabled }: { disabled?: boolean }) {
           statusCaptura: () => lanzaApi.statusCapturaDetranRs(),
         }}
         bridge={{
+          baseUrl: DETRAN_RS_BRIDGE_BASE,
           health: detranRsBridgeHealth,
           capturaStatus: detranRsBridgeCapturaStatus,
           capturaIniciar: detranRsBridgeCapturaIniciar,
@@ -519,6 +597,7 @@ export function PedagioSessaoPanel({ disabled }: { disabled?: boolean }) {
           statusCaptura: () => lanzaApi.statusCapturaPedagio(),
         }}
         bridge={{
+          baseUrl: PEDAGIO_BRIDGE_BASE,
           health: pedagioBridgeHealth,
           capturaStatus: pedagioBridgeCapturaStatus,
           capturaIniciar: pedagioBridgeCapturaIniciar,
@@ -593,6 +672,7 @@ export function SigapaySessaoPanel({ disabled }: { disabled?: boolean }) {
           statusCaptura: () => lanzaApi.statusCapturaSigapay(),
         }}
         bridge={{
+          baseUrl: SIGAPAY_BRIDGE_BASE,
           health: sigapayBridgeHealth,
           capturaStatus: sigapayBridgeCapturaStatus,
           capturaIniciar: sigapayBridgeCapturaIniciar,
@@ -654,9 +734,12 @@ export function PortalSessoesSection({ disabled }: { disabled?: boolean }) {
     <>
       <p className="field__hint">
         Configure a sessão de cada portal antes de consultar. Localmente (Windows):{" "}
-        <code>npm run detran-capture-bridge</code>, <code>npm run detran-rs-capture-bridge</code>,{" "}
-        <code>npm run pedagio-capture-bridge</code>, <code>npm run sigapay-capture-bridge</code>.
+        <code>npm run capture-bridges-all</code> (todos) ou individualmente{" "}
+        <code>npm run detran-capture-bridge</code>, <code>npm run sigapay-capture-bridge</code>,{" "}
+        <code>npm run pedagio-capture-bridge</code>, <code>npm run detran-rs-capture-bridge</code>.
+        Cada aba de sync também tem o painel de sessão do portal respectivo.
       </p>
+      <CaptureBridgesStatus />
       <DetranScSessaoPanel disabled={disabled} />
       <DetranRsSessaoPanel disabled={disabled} />
       <PedagioSessaoPanel disabled={disabled} />

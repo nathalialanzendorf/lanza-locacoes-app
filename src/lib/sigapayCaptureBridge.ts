@@ -1,8 +1,10 @@
 import { API_TIMEOUT_MS } from "@/api/client";
 import type { SigapayCapturaState } from "@/api/types";
 
-const BRIDGE_BASE =
+export const SIGAPAY_BRIDGE_BASE =
   import.meta.env.VITE_SIGAPAY_CAPTURE_BRIDGE?.trim() || "http://127.0.0.1:9235";
+
+const BRIDGE_BASE = SIGAPAY_BRIDGE_BASE;
 
 export type SigapayBridgeCapturaStartOpts = {
   apiUrl: string;
