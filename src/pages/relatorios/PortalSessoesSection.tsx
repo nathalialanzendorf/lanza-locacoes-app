@@ -195,7 +195,7 @@ function PortalSessaoPanel({
             const r = await api.statusSessao();
             setSessao(r.data);
             if (r.data.configured && r.data.origem !== "env") {
-              setCaptura({ status: "captured", message: "Sessão capturada." });
+              setCaptura({ status: "captured", message: "Sessão capturada.", available: true });
               setMsg("Sessão capturada e guardada na API.");
               setCapturaViaJanela(false);
             }
@@ -246,7 +246,7 @@ function PortalSessaoPanel({
         const captureUrl = buildBridgeCaptureStartUrl(bridge.baseUrl, opts);
         setBridgeCapturaUrl(captureUrl);
         abrirBridgeCapturaJanela(bridge.baseUrl, opts);
-        data = { status: "waiting", message: waitingMessage };
+        data = { status: "waiting", message: waitingMessage, available: true };
         viaJanela = true;
         setCapturaViaJanela(true);
         setMsg(
@@ -262,7 +262,7 @@ function PortalSessaoPanel({
             const captureUrl = buildBridgeCaptureStartUrl(bridge.baseUrl, opts);
             setBridgeCapturaUrl(captureUrl);
             abrirBridgeCapturaJanela(bridge.baseUrl, opts);
-            data = { status: "waiting", message: waitingMessage };
+            data = { status: "waiting", message: waitingMessage, available: true };
             viaJanela = true;
             setCapturaViaJanela(true);
             setMsg(
@@ -274,8 +274,10 @@ function PortalSessaoPanel({
         }
       }
 
-      setCaptura(data);
-      if (!viaJanela) setMsg(data.message ?? waitingMessage);
+      if (data) {
+        setCaptura(data);
+        if (!viaJanela) setMsg(data.message ?? waitingMessage);
+      }
     } catch (err) {
       setError(err instanceof LanzaApiError ? err.message : err instanceof Error ? err.message : "Falha.");
     } finally {

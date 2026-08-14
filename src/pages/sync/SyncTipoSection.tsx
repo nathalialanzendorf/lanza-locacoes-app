@@ -35,7 +35,7 @@ export function SyncTipoSection({ syncId }: Props) {
   const metaQuery = useSyncMeta();
   const sync = metaQuery.data?.syncs.find((s) => s.id === syncId);
   const opcoes = useSyncOpcoes();
-  const { runningId, disparar, releaseRunning, forSync } = useSyncDisparo();
+  const { disparar, releaseRunning, forSync } = useSyncDisparo();
   const syncState = forSync(syncId);
   const [searchParams] = useSearchParams();
 
