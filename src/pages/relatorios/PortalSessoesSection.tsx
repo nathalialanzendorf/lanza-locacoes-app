@@ -416,7 +416,7 @@ export function DetranScSessaoPanel({ disabled }: { disabled?: boolean }) {
         portalUrl={DETRAN_SC_PORTAL_URL}
         portalLabel="portal DETRAN SC"
         disabled={disabled}
-        waitingMessage="Chrome aberto — faça login Gov.br; o token será enviado à API após a consulta."
+        waitingMessage="Chrome aberto no portal DETRAN SC — clique Entrar com gov.br (não abra o SSO directamente), faça login e consulte um veículo."
         descricao={
           <>
             Login Gov.br do DETRAN SC (certificado A1):{" "}
