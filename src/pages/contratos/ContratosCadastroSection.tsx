@@ -42,6 +42,7 @@ import {
   isTipoContratoValor,
   parseStatusContrato,
   parseTipoContrato,
+  TipoVeiculoFrota,
   type MotivoEncerramentoValor,
   type StatusContratoValor,
   type TipoContratoValor,
@@ -273,7 +274,10 @@ export function ContratosCadastroSection({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const editando = Boolean(contratoId);
-  const veiculosQuery = useVeiculos();
+  const filtrarVeiculosLocacao = modo !== "editar";
+  const veiculosQuery = useVeiculos(
+    filtrarVeiculosLocacao ? { ativo: true, tipoFrota: TipoVeiculoFrota.Locacao } : undefined,
+  );
   const clientesQuery = useClientes();
   const labelSubmit =
     submitLabel ??
@@ -979,6 +983,8 @@ export function ContratosCadastroSection({
             required
             variant="cadastro"
             disabled={loading || modo === "editar"}
+            ativo={filtrarVeiculosLocacao ? true : undefined}
+            tipoFrota={filtrarVeiculosLocacao ? TipoVeiculoFrota.Locacao : undefined}
           />
         </Field>
         <Field label="Cliente" hint={modo === "editar" ? "Cliente não pode ser alterado na edição." : undefined}>
