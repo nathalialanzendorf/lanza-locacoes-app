@@ -76,6 +76,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
   const [categoria, setCategoria] = useState<CategoriaDespesaClienteCadastro>(
     CategoriaDespesaCliente.Manutencao,
   );
+  const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
@@ -109,6 +110,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
         const d = r.data;
         setVeiculoRefCarregado(d.placa ?? d.veiculoId ?? null);
         if (d.categoria) setCategoria(d.categoria as CategoriaDespesaClienteCadastro);
+        if (d.titulo) setTitulo(d.titulo);
         if (d.descricao) setDescricao(d.descricao);
         if (d.valorMulta != null) setValor(formatValorInput(Number(d.valorMulta)));
         if (d.vencimentoBr) setDataVencimento(d.vencimentoBr);
@@ -252,6 +254,7 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
       if (editando) {
         const r = await lanzaApi.atualizarDespesaCliente(despesaId!, {
           categoria,
+          titulo: titulo.trim() || undefined,
           descricao: descricao.trim() || undefined,
           valorMulta: valorNum,
           dataVencimentoOriginal: vencimento,
@@ -315,6 +318,9 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
       setLoading(false);
     }
   }
+
+  const mostrarTituloDetran =
+    editando && (Boolean(titulo.trim()) || categoriaUsaTipoInfracao(categoria));
 
   if (carregando) {
     return (
@@ -436,7 +442,28 @@ export function DespesaClienteCadastroSection({ despesaId }: Props) {
             </Field>
           </>
         ) : null}
-        <Field label="Descrição">
+        {mostrarTituloDetran ? (
+          <Field
+            label="Título (DETRAN)"
+            hint="Nome da multa no portal DETRAN — texto original da infração."
+          >
+            <input
+              className="input"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              disabled={loading}
+              aria-label="Título DETRAN"
+            />
+          </Field>
+        ) : null}
+        <Field
+          label="Descrição"
+          hint={
+            editando && mostrarTituloDetran
+              ? "Resumo para cobrança — tipo da infração, data e hora da ocorrência."
+              : undefined
+          }
+        >
           <input className="input" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         </Field>
         <Field label="Valor (R$)" hint="Use vírgula para centavos — ex.: 120,00 ou 0,00">
