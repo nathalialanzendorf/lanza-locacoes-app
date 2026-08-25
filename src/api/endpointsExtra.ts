@@ -77,6 +77,18 @@ export const lanzaApiExtra = {
       };
     }>("/api/importacoes/documento/parse-texto", { method: "POST", body }),
 
+  consultarCep: (cep: string) =>
+    apiRequest<{
+      data: {
+        cep: string;
+        logradouro: string;
+        complemento: string;
+        bairro: string;
+        localidade: string;
+        uf: string;
+      };
+    }>(`/api/cep/${encodeURIComponent(cep.replace(/\D/g, ""))}`),
+
   criarParceiro: (nome: string) =>
     apiRequest<{ data: import("./types").Parceiro }>("/api/parceiros", {
       method: "POST",

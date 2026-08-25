@@ -46,25 +46,167 @@ function isNomeCnhValido(nome: string): boolean {
   return t.split(/\s+/).filter(Boolean).length >= 2;
 }
 
+function cpfOk(val: unknown): boolean {
+  return typeof val === "string" && val.replace(/\D/g, "").length === 11;
+}
+
+function registroOk(val: unknown): boolean {
+  return typeof val === "string" && val.replace(/\D/g, "").length >= 9;
+}
+
+function pontuarCamposCnh(campos: Record<string, unknown>): number {
+  let score = 0;
+  if (cpfOk(campos.cpf)) score += 3;
+  const cnh = campos.cnh as Record<string, unknown> | undefined;
+  if (registroOk(cnh?.numeroRegistro)) score += 3;
+  const nome = typeof campos.nome === "string" ? campos.nome.trim() : "";
+  if (nome && isNomeCnhValido(nome)) score += 3;
+  if (typeof cnh?.categoria === "string" && cnh.categoria.trim()) score += 1;
+  if (typeof cnh?.validade === "string" && cnh.validade.trim()) score += 1;
+  return score;
+}
+
+function escolherMelhorCampo(
+  a: unknown,
+  b: unknown,
+  validar: (v: unknown) => boolean,
+  preferir?: (va: unknown, vb: unknown) => unknown,
+): unknown {
+  const okA = validar(a);
+  const okB = validar(b);
+  if (okA && okB && preferir) return preferir(a, b);
+  if (okA) return a;
+  if (okB) return b;
+  return undefined;
+}
+
+function cepEnderecoOk(val: unknown): boolean {
+  return typeof val === "string" && val.replace(/\D/g, "").length === 8;
+}
+
+function bairroEnderecoOk(val: unknown): boolean {
+  const s = String(val ?? "").trim();
+  return s.length >= 2 && !/pix|\.com|vencimento|cobran/i.test(s);
+}
+
+function cidadeEnderecoOk(val: unknown): boolean {
+  const s = String(val ?? "").trim();
+  return s.length >= 2 && !/^\d{5}-?\d{3}/.test(s);
+}
+
+function pontuarCamposComprovante(campos: Record<string, unknown>): number {
+  const e = campos.endereco as Record<string, unknown> | undefined;
+  if (!e) return 0;
+  let score = 0;
+  if (cepEnderecoOk(e.cep)) score += 4;
+  if (typeof e.logradouro === "string" && e.logradouro.trim().length >= 3) score += 2;
+  if (bairroEnderecoOk(e.bairro)) score += 2;
+  if (cidadeEnderecoOk(e.cidade)) score += 2;
+  if (typeof e.uf === "string" && /^[A-Z]{2}$/i.test(e.uf.trim())) score += 1;
+  if (typeof e.numero === "string" && e.numero.trim()) score += 1;
+  if (typeof campos.titular === "string" && campos.titular.trim().length >= 4) score += 1;
+  return score;
+}
+
+function mesclarEnderecoComprovante(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...a };
+
+  const pick = (key: string, validar: (v: unknown) => boolean) => {
+    const escolhido = escolherMelhorCampo(merged[key], b[key], validar);
+    if (escolhido != null) merged[key] = escolhido;
+  };
+
+  pick("cep", cepEnderecoOk);
+  pick("logradouro", (v) => typeof v === "string" && v.trim().length >= 3);
+  pick("bairro", bairroEnderecoOk);
+  pick("cidade", cidadeEnderecoOk);
+  pick("uf", (v) => typeof v === "string" && /^[A-Z]{2}$/i.test(v.trim()));
+
+  for (const key of ["numero", "complemento"] as const) {
+    const va = merged[key];
+    const vb = b[key];
+    if (!va && vb) merged[key] = vb;
+    else if (va && vb && String(vb).trim().length > String(va).trim().length) merged[key] = vb;
+  }
+
+  return merged;
+}
+
+function mesclarCamposComprovante(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): Record<string, unknown> {
+  const eA = (a.endereco ?? {}) as Record<string, unknown>;
+  const eB = (b.endereco ?? {}) as Record<string, unknown>;
+
+  return {
+    ...a,
+    ...b,
+    titular: escolherMelhorCampo(a.titular, b.titular, (v) => typeof v === "string" && v.trim().length >= 4),
+    telefone: escolherMelhorCampo(
+      a.telefone,
+      b.telefone,
+      (v) => typeof v === "string" && v.replace(/\D/g, "").length >= 10,
+    ),
+    endereco: mesclarEnderecoComprovante(eA, eB),
+  };
+}
+
+function mesclarCamposCnh(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): Record<string, unknown> {
+  const cnhA = (a.cnh ?? {}) as Record<string, unknown>;
+  const cnhB = (b.cnh ?? {}) as Record<string, unknown>;
+  const mergedCnh: Record<string, unknown> = { ...cnhA };
+
+  for (const [k, vb] of Object.entries(cnhB)) {
+    if (k === "numeroRegistro") {
+      const escolhido = escolherMelhorCampo(mergedCnh[k], vb, registroOk, (va, vb2) => {
+        const da = String(va).replace(/\D/g, "");
+        const db = String(vb2).replace(/\D/g, "");
+        return da.length >= db.length ? va : vb2;
+      });
+      if (escolhido != null) mergedCnh[k] = escolhido;
+      continue;
+    }
+    if (vb != null && vb !== "" && (mergedCnh[k] == null || mergedCnh[k] === "")) {
+      mergedCnh[k] = vb;
+    }
+  }
+
+  return {
+    ...a,
+    ...b,
+    nome: escolherMelhorCampo(a.nome, b.nome, (v) => typeof v === "string" && isNomeCnhValido(v), (va, vb) => {
+      const sa = String(va).trim();
+      const sb = String(vb).trim();
+      return sa.length >= sb.length ? va : vb;
+    }),
+    cpf: escolherMelhorCampo(a.cpf, b.cpf, cpfOk),
+    cnh: mergedCnh,
+  };
+}
+
+function mesclarCamposDocumento(
+  tipo: DocUploadTipo,
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): Record<string, unknown> {
+  if (tipo === "cnh") return mesclarCamposCnh(a, b);
+  if (tipo === "comprovante-residencia") return mesclarCamposComprovante(a, b);
+  return camposDocumentoOk(tipo, a) ? a : camposDocumentoOk(tipo, b) ? b : a;
+}
+
 function camposDocumentoOk(tipo: DocUploadTipo, campos: Record<string, unknown>): boolean {
   if (tipo === "cnh") {
-    const cpfOk = typeof campos.cpf === "string" && campos.cpf.replace(/\D/g, "").length === 11;
-    const cnh = campos.cnh as Record<string, unknown> | undefined;
-    const reg = cnh?.numeroRegistro;
-    const regOk = typeof reg === "string" && reg.replace(/\D/g, "").length >= 9;
-    const nome = typeof campos.nome === "string" ? campos.nome.trim() : "";
-    const nomeOk = nome.length > 0 && isNomeCnhValido(nome);
-    if (!cpfOk || !regOk || !nomeOk) return false;
-    return true;
+    return pontuarCamposCnh(campos) >= 9;
   }
   if (tipo === "comprovante-residencia") {
-    const e = campos.endereco as Record<string, unknown> | undefined;
-    if (!e) return false;
-    const bairro = String(e.bairro ?? "");
-    const cidade = String(e.cidade ?? "");
-    if (/pix|\.com|vencimento|cobran/i.test(bairro)) return false;
-    if (/^\d{5}-?\d{3}/.test(cidade)) return false;
-    return Boolean(e.cep && e.cidade && e.bairro && e.uf);
+    return pontuarCamposComprovante(campos) >= 8;
   }
   return true;
 }
@@ -136,17 +278,16 @@ export function DocUploadField({
     setStatus("Lendo documento…");
     try {
       const conteudoBase64 = await fileToBase64(file);
-      let campos: Record<string, unknown>;
-      let avisosLista: string[];
+      let campos: Record<string, unknown> = {};
+      let avisosLista: string[] = [];
+      let localCampos: Record<string, unknown> | null = null;
+      let localAvisos: string[] = [];
 
       if (deveTentarOcrLocal(tipo)) {
         try {
           const local = await lerComOcrLocal(file.name, conteudoBase64);
-          if (camposDocumentoOk(tipo, local.campos)) {
-            setAvisos(local.avisos);
-            onParsed({ campos: local.campos, avisos: local.avisos });
-            return;
-          }
+          localCampos = local.campos;
+          localAvisos = local.avisos;
         } catch {
           setStatus("OCR local falhou — tentando no servidor…");
         }
@@ -160,25 +301,36 @@ export function DocUploadField({
         });
         campos = (r.data.campos ?? {}) as Record<string, unknown>;
         avisosLista = r.data.avisos ?? [];
-
-        if (deveTentarOcrLocal(tipo) && !camposDocumentoOk(tipo, campos)) {
-          try {
-            const local = await lerComOcrLocal(file.name, conteudoBase64);
-            if (camposDocumentoOk(tipo, local.campos)) {
-              campos = local.campos;
-              avisosLista = local.avisos;
-            }
-          } catch {
-            /* mantém resultado parcial do servidor */
-          }
-        }
       } catch (err) {
-        if (!deveTentarOcrLocal(tipo) || !erroPermiteFallback(err)) {
+        if (localCampos) {
+          campos = localCampos;
+          avisosLista = localAvisos;
+        } else if (!deveTentarOcrLocal(tipo) || !erroPermiteFallback(err)) {
           throw err;
+        } else {
+          const local = await lerComOcrLocal(file.name, conteudoBase64);
+          campos = local.campos;
+          avisosLista = local.avisos;
         }
-        const local = await lerComOcrLocal(file.name, conteudoBase64);
-        campos = local.campos;
-        avisosLista = local.avisos;
+      }
+
+      if (localCampos && deveTentarOcrLocal(tipo)) {
+        campos = mesclarCamposDocumento(tipo, campos, localCampos);
+        avisosLista = [...new Set([...avisosLista, ...localAvisos])];
+        if (
+          tipo === "cnh" &&
+          !camposDocumentoOk(tipo, campos) &&
+          pontuarCamposCnh(campos) >= 3
+        ) {
+          avisosLista.push("Alguns campos não foram lidos — confira manualmente.");
+        }
+        if (
+          tipo === "comprovante-residencia" &&
+          !camposDocumentoOk(tipo, campos) &&
+          pontuarCamposComprovante(campos) >= 3
+        ) {
+          avisosLista.push("Endereço parcialmente lido — confira o CEP, número e complemento.");
+        }
       }
 
       setAvisos(avisosLista);

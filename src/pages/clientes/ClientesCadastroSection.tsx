@@ -5,19 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CadastroBackLink } from "@/components/CadastroBackLink";
 import { DateInput } from "@/components/DateInput";
 import { DocUploadField } from "@/components/DocUploadField";
+import { EnderecoFormFields, type EnderecoForm } from "@/components/EnderecoFormFields";
 import { Field, FormCard, FormSection } from "@/components/FormCard";
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-
-type EnderecoForm = {
-  cep: string;
-  logradouro: string;
-  numero: string;
-  complemento: string;
-  bairro: string;
-  cidade: string;
-  uf: string;
-};
+import { cepValido } from "@/lib/viaCep";
 
 const enderecoVazio: EnderecoForm = {
   cep: "",
@@ -104,14 +96,18 @@ export function ClientesCadastroSection({ clienteId }: Props) {
 
     const end = campos.endereco as Record<string, string | null | undefined> | undefined;
     if (!end) return;
+
+    const cepImportado = typeof end.cep === "string" ? end.cep.trim() : "";
+    const usarConsultaCep = cepValido(cepImportado);
+
     setEndereco((prev) => ({
-      cep: end.cep ?? prev.cep,
-      logradouro: end.logradouro ?? prev.logradouro,
-      numero: end.numero ?? prev.numero,
-      complemento: end.complemento ?? prev.complemento,
-      bairro: end.bairro ?? prev.bairro,
-      cidade: end.cidade ?? prev.cidade,
-      uf: end.uf ?? prev.uf,
+      cep: cepImportado || prev.cep,
+      numero: (typeof end.numero === "string" ? end.numero.trim() : "") || prev.numero,
+      complemento: (typeof end.complemento === "string" ? end.complemento.trim() : "") || prev.complemento,
+      logradouro: usarConsultaCep ? "" : (end.logradouro ?? prev.logradouro),
+      bairro: usarConsultaCep ? "" : (end.bairro ?? prev.bairro),
+      cidade: usarConsultaCep ? "" : (end.cidade ?? prev.cidade),
+      uf: usarConsultaCep ? "" : (end.uf ?? prev.uf),
     }));
   }
 
@@ -234,7 +230,7 @@ export function ClientesCadastroSection({ clienteId }: Props) {
               <DocUploadField
                 label="Comprovante de residência (PDF ou imagem)"
                 tipo="comprovante-residencia"
-                hint="Confira se o titular é o locatário. PDF escaneado: OCR automático."
+                hint="O CEP, número e complemento são lidos do documento; demais campos vêm da consulta de CEP."
                 disabled={loading}
                 onParsed={({ campos }) => aplicarComprovante(campos)}
                 onError={setError}
@@ -286,38 +282,11 @@ export function ClientesCadastroSection({ clienteId }: Props) {
           </div>
         </FormSection>
 
-        <FormSection title="Endereço">
-          <div className="form-grid">
-            <Field label="CEP">
-              <input className="input" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value })} />
-            </Field>
-            <Field label="Número">
-              <input className="input" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
-            </Field>
-            <Field label="UF">
-              <input className="input" value={endereco.uf} onChange={(e) => setEndereco({ ...endereco, uf: e.target.value })} maxLength={2} />
-            </Field>
-            <Field label="Logradouro" span="full">
-              <input
-                className="input"
-                value={endereco.logradouro}
-                onChange={(e) => setEndereco({ ...endereco, logradouro: e.target.value })}
-              />
-            </Field>
-            <Field label="Complemento" span="wide">
-              <input
-                className="input"
-                value={endereco.complemento}
-                onChange={(e) => setEndereco({ ...endereco, complemento: e.target.value })}
-              />
-            </Field>
-            <Field label="Bairro">
-              <input className="input" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
-            </Field>
-            <Field label="Cidade" span="wide">
-              <input className="input" value={endereco.cidade} onChange={(e) => setEndereco({ ...endereco, cidade: e.target.value })} />
-            </Field>
-          </div>
+        <FormSection
+          title="Endereço"
+          hint="Informe o CEP para preencher logradouro, bairro, cidade e UF automaticamente. Complete número e complemento."
+        >
+          <EnderecoFormFields value={endereco} onChange={setEndereco} disabled={loading} />
         </FormSection>
       </FormCard>
     </>
