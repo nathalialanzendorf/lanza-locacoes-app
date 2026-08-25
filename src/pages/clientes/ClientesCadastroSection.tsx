@@ -406,7 +406,7 @@ export function ClientesCadastroSection({ clienteId }: Props) {
 
         <FormSection
           title="Endereço"
-          hint="Informe o CEP para preencher logradouro, bairro, cidade e UF automaticamente. Complete número e complemento."
+          hint="Informe o CEP para preencher logradouro, bairro, cidade e estado automaticamente. Complete número e complemento."
         >
           <EnderecoFormFields value={endereco} onChange={setEndereco} disabled={loading} />
         </FormSection>

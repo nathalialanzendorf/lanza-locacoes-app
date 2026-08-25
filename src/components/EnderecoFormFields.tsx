@@ -66,7 +66,7 @@ export function EnderecoFormFields({ value, onChange, disabled }: Props) {
 
   return (
     <div className="form-grid">
-      <Field label="CEP" hint="ViaCEP: informe o CEP e logradouro, bairro, cidade e UF são preenchidos automaticamente.">
+      <Field label="CEP" hint="ViaCEP: informe o CEP e logradouro, bairro, cidade e estado são preenchidos automaticamente.">
         <input
           className="input"
           inputMode="numeric"
@@ -125,7 +125,7 @@ export function EnderecoFormFields({ value, onChange, disabled }: Props) {
           onChange={(e) => onChange((prev) => ({ ...prev, cidade: e.target.value }))}
         />
       </Field>
-      <Field label="UF">
+      <Field label="Estado">
         <input
           className="input"
           value={value.uf}
