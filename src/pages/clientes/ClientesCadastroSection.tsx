@@ -106,13 +106,15 @@ export function ClientesCadastroSection({ clienteId }: Props) {
     if (cnh?.validade) setCnhValidade(cnh.validade);
   }
 
-  function aplicarComprovante(campos: Record<string, unknown>) {
+  function aplicarComprovante(campos: Record<string, unknown>, sobrescrever = false) {
     marcarDocumentoLido();
-    if (typeof campos.titular === "string" && campos.titular.trim() && !nome.trim()) {
+    if (typeof campos.titular === "string" && campos.titular.trim() && (sobrescrever || !nome.trim())) {
       setNome(campos.titular.trim());
     }
     const tel = campos.telefone;
-    if (typeof tel === "string" && tel.trim()) setTelefone(tel.trim());
+    if (typeof tel === "string" && tel.trim() && (sobrescrever || !telefone.trim())) {
+      setTelefone(tel.trim());
+    }
 
     const end = campos.endereco as Record<string, string | null | undefined> | undefined;
     if (!end) return;
@@ -121,13 +123,41 @@ export function ClientesCadastroSection({ clienteId }: Props) {
     const usarConsultaCep = cepValido(cepImportado);
 
     setEndereco((prev) => ({
-      cep: cepImportado || prev.cep,
-      numero: (typeof end.numero === "string" ? end.numero.trim() : "") || prev.numero,
-      complemento: (typeof end.complemento === "string" ? end.complemento.trim() : "") || prev.complemento,
-      logradouro: usarConsultaCep ? "" : (end.logradouro ?? prev.logradouro),
-      bairro: usarConsultaCep ? "" : (end.bairro ?? prev.bairro),
-      cidade: usarConsultaCep ? "" : (end.cidade ?? prev.cidade),
-      uf: usarConsultaCep ? "" : (end.uf ?? prev.uf),
+      cep: cepImportado || (sobrescrever ? "" : prev.cep),
+      numero:
+        (typeof end.numero === "string" ? end.numero.trim() : "") ||
+        (sobrescrever ? "" : prev.numero),
+      complemento:
+        (typeof end.complemento === "string" ? end.complemento.trim() : "") ||
+        (sobrescrever ? "" : prev.complemento),
+      logradouro: usarConsultaCep
+        ? ""
+        : (typeof end.logradouro === "string" && end.logradouro.trim()
+            ? end.logradouro.trim()
+            : sobrescrever
+              ? ""
+              : prev.logradouro),
+      bairro: usarConsultaCep
+        ? ""
+        : (typeof end.bairro === "string" && end.bairro.trim()
+            ? end.bairro.trim()
+            : sobrescrever
+              ? ""
+              : prev.bairro),
+      cidade: usarConsultaCep
+        ? ""
+        : (typeof end.cidade === "string" && end.cidade.trim()
+            ? end.cidade.trim()
+            : sobrescrever
+              ? ""
+              : prev.cidade),
+      uf: usarConsultaCep
+        ? ""
+        : (typeof end.uf === "string" && end.uf.trim()
+            ? end.uf.trim()
+            : sobrescrever
+              ? ""
+              : prev.uf),
     }));
   }
 
@@ -269,92 +299,72 @@ export function ClientesCadastroSection({ clienteId }: Props) {
         loading={loading}
         error={error}
       >
-        {!editando ? (
-          <FormSection
-            title="Importar"
-            hint="Envie a CNH e o comprovante de residência. Os campos abaixo são preenchidos automaticamente e podem ser editados."
-          >
-            <div className="doc-upload-row">
-              <DocUploadField
-                label="CNH (PDF ou imagem)"
-                tipo="cnh"
-                hint="CNH-e do Gov.br: o PDF é convertido em imagem e lido por OCR."
-                disabled={loading}
-                onParsed={({ campos }) => aplicarCnh(campos)}
-                onError={setError}
-                onFile={setCnhPendente}
-              />
-              <DocUploadField
-                label="Comprovante de residência (PDF ou imagem)"
-                tipo="comprovante-residencia"
-                hint="O CEP, número e complemento são lidos do documento; demais campos vêm da consulta de CEP."
-                disabled={loading}
-                onParsed={({ campos }) => aplicarComprovante(campos)}
-                onError={setError}
-                onFile={setComprovantePendente}
-              />
-            </div>
-          </FormSection>
-        ) : null}
-
-        {editando ? (
-          <FormSection
-            title="Documentos enviados"
-            hint="Baixe os arquivos guardados no servidor ou envie novos abaixo para substituir ao salvar."
-          >
-            <div className="form-card__action-row">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                disabled={loading || docLoading || !cnhDisponivel}
-                onClick={() => void baixarDocumento("cnh")}
-              >
-                {docLoading ? "Baixando…" : "Baixar CNH"}
-              </button>
-              <button
-                type="button"
-                className="btn btn--secondary"
-                disabled={loading || docLoading || !comprovanteDisponivel}
-                onClick={() => void baixarDocumento("comprovante-residencia")}
-              >
-                Baixar comprovante
-              </button>
-            </div>
-            {cnhNomeServidor ? (
-              <p className="field__hint">
-                CNH no servidor: <strong>{cnhNomeServidor}</strong>
-              </p>
-            ) : null}
-            {comprovanteNomeServidor ? (
-              <p className="field__hint">
-                Comprovante no servidor: <strong>{comprovanteNomeServidor}</strong>
-              </p>
-            ) : null}
-            <div className="doc-upload-row">
-              <DocUploadField
-                label="Substituir CNH"
-                tipo="cnh"
-                disabled={loading}
-                onParsed={({ campos }) => aplicarCnh(campos)}
-                onError={setError}
-                onFile={setCnhPendente}
-              />
-              <DocUploadField
-                label="Substituir comprovante"
-                tipo="comprovante-residencia"
-                disabled={loading}
-                onParsed={({ campos }) => aplicarComprovante(campos)}
-                onError={setError}
-                onFile={setComprovantePendente}
-              />
-            </div>
-          </FormSection>
-        ) : null}
+        <FormSection
+          title={editando ? "Documentos" : "Importar"}
+          hint={
+            editando
+              ? "Envie novamente a CNH ou o comprovante para atualizar os campos abaixo. O arquivo é gravado no servidor ao salvar."
+              : "Envie a CNH e o comprovante de residência. Os campos abaixo são preenchidos automaticamente e podem ser editados."
+          }
+        >
+          {editando ? (
+            <>
+              <div className="form-card__action-row">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={loading || docLoading || !cnhDisponivel}
+                  onClick={() => void baixarDocumento("cnh")}
+                >
+                  {docLoading ? "Baixando…" : "Baixar CNH"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={loading || docLoading || !comprovanteDisponivel}
+                  onClick={() => void baixarDocumento("comprovante-residencia")}
+                >
+                  Baixar comprovante
+                </button>
+              </div>
+              {cnhNomeServidor ? (
+                <p className="field__hint">
+                  CNH no servidor: <strong>{cnhNomeServidor}</strong>
+                </p>
+              ) : null}
+              {comprovanteNomeServidor ? (
+                <p className="field__hint">
+                  Comprovante no servidor: <strong>{comprovanteNomeServidor}</strong>
+                </p>
+              ) : null}
+            </>
+          ) : null}
+          <div className="doc-upload-row">
+            <DocUploadField
+              label="CNH (PDF ou imagem)"
+              tipo="cnh"
+              hint="CNH-e do Gov.br: o PDF é convertido em imagem e lido por OCR."
+              disabled={loading}
+              onParsed={({ campos }) => aplicarCnh(campos)}
+              onError={setError}
+              onFile={setCnhPendente}
+            />
+            <DocUploadField
+              label="Comprovante de residência (PDF ou imagem)"
+              tipo="comprovante-residencia"
+              hint="O CEP, número e complemento são lidos do documento; demais campos vêm da consulta de CEP."
+              disabled={loading}
+              onParsed={({ campos }) => aplicarComprovante(campos, editando)}
+              onError={setError}
+              onFile={setComprovantePendente}
+            />
+          </div>
+        </FormSection>
 
         <FormSection
           title="Identificação"
           hint={
-            !editando && documentosLidos
+            documentosLidos
               ? "Dados extraídos dos documentos — confira antes de salvar."
               : undefined
           }
