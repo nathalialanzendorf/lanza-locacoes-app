@@ -14,6 +14,7 @@ type DocUploadFieldProps = {
   disabled?: boolean;
   onParsed: (data: { campos: Record<string, unknown>; avisos: string[] }) => void;
   onError?: (message: string) => void;
+  onFile?: (file: File) => void;
 };
 
 function fileToBase64(file: File): Promise<string> {
@@ -230,6 +231,7 @@ export function DocUploadField({
   disabled,
   onParsed,
   onError,
+  onFile,
 }: DocUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -272,6 +274,7 @@ export function DocUploadField({
 
   async function handleFile(file: File | null) {
     if (!file) return;
+    onFile?.(file);
     setLoading(true);
     setNomeArquivo(file.name);
     setAvisos([]);

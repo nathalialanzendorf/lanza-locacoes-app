@@ -65,6 +65,11 @@ export type Cliente = {
   ativo?: boolean;
   rastreameMotoristaKey?: string | number | null;
   analiseCadastro?: { aprovado?: boolean | null; dataConsulta?: string };
+  cnhStorageKey?: string | null;
+  cnhDocumentoNome?: string | null;
+  comprovanteStorageKey?: string | null;
+  comprovanteDocumentoNome?: string | null;
+  cnhArquivo?: string | null;
 };
 
 export type Veiculo = {
@@ -148,6 +153,10 @@ export type Contrato = {
   diaPagamentoTexto?: string | null;
   contratoAssinadoStorageKey?: string | null;
   contratoAssinadoNome?: string | null;
+  documentoDocxStorageKey?: string | null;
+  documentoPdfStorageKey?: string | null;
+  documentoGeradoEm?: string | null;
+  documentoGeradoNome?: string | null;
 };
 
 /** Resposta completa de GET /api/contratos/:id */

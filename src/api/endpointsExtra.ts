@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiRequest, apiDownload, apiUpload } from "./client";
 import type {
   AnaliseCadastroItem,
   Cliente,
@@ -21,6 +21,23 @@ export const lanzaApiExtra = {
     apiRequest<DataEnvelope<Cliente>>(`/api/clientes/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: patch,
+    }),
+  uploadClienteDocumento: (id: string, tipo: "cnh" | "comprovante-residencia", file: File) =>
+    apiUpload<{ data: { cliente: Cliente; documento: { tipo: string; storageKey: string; nome: string } } }>(
+      `/api/clientes/${encodeURIComponent(id)}/documentos/${encodeURIComponent(tipo)}`,
+      file,
+      {
+        filename: file.name,
+        contentType: file.type || undefined,
+      },
+    ),
+  downloadClienteDocumento: (
+    id: string,
+    tipo: "cnh" | "comprovante-residencia",
+    filename?: string,
+  ) =>
+    apiDownload(`/api/clientes/${encodeURIComponent(id)}/documentos/${encodeURIComponent(tipo)}`, {
+      filename,
     }),
   removerCliente: (id: string) =>
     apiRequest<DataEnvelope<Cliente>>(`/api/clientes/${encodeURIComponent(id)}`, { method: "DELETE" }),

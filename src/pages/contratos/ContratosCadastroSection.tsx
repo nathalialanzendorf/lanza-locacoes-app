@@ -326,7 +326,10 @@ export function ContratosCadastroSection({
   const [success, setSuccess] = useState<string | null>(null);
   const [contratoSalvoId, setContratoSalvoId] = useState<string | null>(null);
   const [docLoading, setDocLoading] = useState(false);
+  const [gerandoVersao, setGerandoVersao] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+  const [documentoGeradoEm, setDocumentoGeradoEm] = useState<string | null>(null);
+  const [temDocumentoGerado, setTemDocumentoGerado] = useState(false);
   const [assinadoStorageKey, setAssinadoStorageKey] = useState<string | null>(null);
   const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
   const [assinadoPendente, setAssinadoPendente] = useState<File | null>(null);
@@ -433,6 +436,10 @@ export function ContratosCadastroSection({
     if (c.contratoAssinadoNome?.trim()) {
       setAssinadoNome(c.contratoAssinadoNome.trim());
     }
+    setDocumentoGeradoEm(c.documentoGeradoEm?.trim() ?? null);
+    setTemDocumentoGerado(
+      Boolean(c.documentoDocxStorageKey?.trim() || c.documentoPdfStorageKey?.trim()),
+    );
     if (c.id?.trim()) setContratoSalvoId(c.id.trim());
     setStatusContrato(parseStatusContrato(c.status));
     setDataEncerramento(c.dataEncerramento?.trim() ?? "");
@@ -892,13 +899,13 @@ export function ContratosCadastroSection({
     }
   }
 
-  async function gerarDocumento(formato: "docx" | "pdf") {
+  async function baixarDocumentoGerado(formato: "docx" | "pdf") {
     const id = contratoSalvoId ?? contratoId;
     if (!id) return;
     setDocLoading(true);
     setDocError(null);
     try {
-      await lanzaApi.gerarDocumentoContrato(
+      await lanzaApi.downloadDocumentoGeradoContrato(
         id,
         formato,
         nomeClienteDocumento ? nomeArquivoContrato(nomeClienteDocumento, formato) : undefined,
@@ -909,10 +916,36 @@ export function ContratosCadastroSection({
           ? err.message
           : err instanceof Error
             ? err.message
-            : "Falha ao gerar documento.",
+            : "Falha ao baixar documento.",
       );
     } finally {
       setDocLoading(false);
+    }
+  }
+
+  async function gerarNovaVersaoDocumento() {
+    const id = contratoSalvoId ?? contratoId;
+    if (!id) return;
+    setGerandoVersao(true);
+    setDocError(null);
+    try {
+      const r = await lanzaApi.gerarDocumentoContrato(id);
+      const gerado = r.data;
+      setDocumentoGeradoEm(gerado.documentoGeradoEm?.trim() ?? new Date().toISOString());
+      setTemDocumentoGerado(
+        Boolean(gerado.documentoDocxStorageKey?.trim() || gerado.documentoPdfStorageKey?.trim()),
+      );
+      setSuccess("Nova versão do contrato gerada e guardada no servidor (Word e PDF).");
+    } catch (err) {
+      setDocError(
+        err instanceof LanzaApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Falha ao gerar nova versão.",
+      );
+    } finally {
+      setGerandoVersao(false);
     }
   }
 
@@ -1318,25 +1351,47 @@ export function ContratosCadastroSection({
           <h2 className="form-card__title">Documento Word/PDF</h2>
           <p className="field__hint">
             {modo === "editar"
-              ? "Gere o Word para impressão ou baixe o contrato assinado acima."
-              : "O contrato já está no banco. Gere o ficheiro Word para impressão ou assinatura."}
+              ? "Após alterar dados, gere uma nova versão. O download usa sempre a última versão guardada no servidor."
+              : "O contrato já está no banco. Gere a primeira versão ou baixe a última guardada."}
           </p>
+          {documentoGeradoEm ? (
+            <p className="field__hint">
+              Última versão:{" "}
+              <strong>{new Date(documentoGeradoEm).toLocaleString("pt-BR")}</strong>
+            </p>
+          ) : null}
+          <h3 className="form-section-title">Download</h3>
+          <p className="form-section__lead">Baixa Word ou PDF da última versão no servidor.</p>
           <div className="form-card__action-row">
             <button
               type="button"
               className="btn btn--secondary"
-              disabled={docLoading}
-              onClick={() => void gerarDocumento("docx")}
+              disabled={docLoading || gerandoVersao || !temDocumentoGerado}
+              onClick={() => void baixarDocumentoGerado("docx")}
             >
-              {docLoading ? "Gerando…" : "Gerar Word (.docx)"}
+              {docLoading ? "Baixando…" : "Baixar Word (.docx)"}
             </button>
             <button
               type="button"
               className="btn btn--ghost"
-              disabled={docLoading}
-              onClick={() => void gerarDocumento("pdf")}
+              disabled={docLoading || gerandoVersao || !temDocumentoGerado}
+              onClick={() => void baixarDocumentoGerado("pdf")}
             >
-              Gerar PDF
+              Baixar PDF
+            </button>
+          </div>
+          <h3 className="form-section-title">Gerar nova versão</h3>
+          <p className="form-section__lead">
+            Regenera Word e PDF com os dados actuais e grava no servidor (substitui a versão anterior).
+          </p>
+          <div className="form-card__action-row">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={docLoading || gerandoVersao}
+              onClick={() => void gerarNovaVersaoDocumento()}
+            >
+              {gerandoVersao ? "Gerando…" : "Gerar nova versão"}
             </button>
             <button type="button" className="btn btn--ghost" onClick={() => navigate("/contratos")}>
               Ir para lista de contratos

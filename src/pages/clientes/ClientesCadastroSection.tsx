@@ -38,6 +38,13 @@ export function ClientesCadastroSection({ clienteId }: Props) {
   const [telefone, setTelefone] = useState("");
   const [endereco, setEndereco] = useState<EnderecoForm>(enderecoVazio);
   const [documentosLidos, setDocumentosLidos] = useState(false);
+  const [cnhPendente, setCnhPendente] = useState<File | null>(null);
+  const [comprovantePendente, setComprovantePendente] = useState<File | null>(null);
+  const [cnhDisponivel, setCnhDisponivel] = useState(false);
+  const [comprovanteDisponivel, setComprovanteDisponivel] = useState(false);
+  const [cnhNomeServidor, setCnhNomeServidor] = useState<string | null>(null);
+  const [comprovanteNomeServidor, setComprovanteNomeServidor] = useState<string | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
   const [carregando, setCarregando] = useState(editando);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +76,19 @@ export function ClientesCadastroSection({ clienteId }: Props) {
         uf: typeof e.uf === "string" ? e.uf : "",
       });
     }
+
+    const cnhKey =
+      (typeof c.cnhStorageKey === "string" && c.cnhStorageKey.trim()) ||
+      (typeof c.cnhArquivo === "string" && c.cnhArquivo.trim()) ||
+      "";
+    setCnhDisponivel(Boolean(cnhKey));
+    setCnhNomeServidor(typeof c.cnhDocumentoNome === "string" ? c.cnhDocumentoNome : null);
+
+    const compKey = typeof c.comprovanteStorageKey === "string" ? c.comprovanteStorageKey.trim() : "";
+    setComprovanteDisponivel(Boolean(compKey));
+    setComprovanteNomeServidor(
+      typeof c.comprovanteDocumentoNome === "string" ? c.comprovanteDocumentoNome : null,
+    );
   }
 
   function marcarDocumentoLido() {
@@ -181,10 +201,29 @@ export function ClientesCadastroSection({ clienteId }: Props) {
             }),
       };
 
+      let idSalvo = clienteId?.trim();
       if (editando) {
         await lanzaApi.atualizarCliente(clienteId!, body);
       } else {
-        await lanzaApi.criarCliente(body);
+        const criado = await lanzaApi.criarCliente(body);
+        const novoId = criado.data?.id?.trim();
+        if (!novoId) throw new Error("Cliente criado sem identificador.");
+        idSalvo = novoId;
+      }
+
+      if (idSalvo) {
+        if (cnhPendente) {
+          await lanzaApi.uploadClienteDocumento(idSalvo, "cnh", cnhPendente);
+          setCnhDisponivel(true);
+          setCnhNomeServidor(cnhPendente.name);
+          setCnhPendente(null);
+        }
+        if (comprovantePendente) {
+          await lanzaApi.uploadClienteDocumento(idSalvo, "comprovante-residencia", comprovantePendente);
+          setComprovanteDisponivel(true);
+          setComprovanteNomeServidor(comprovantePendente.name);
+          setComprovantePendente(null);
+        }
       }
       void qc.invalidateQueries({ queryKey: ["clientes"] });
       navigate("/clientes");
@@ -192,6 +231,23 @@ export function ClientesCadastroSection({ clienteId }: Props) {
       setError(err instanceof LanzaApiError ? err.message : "Falha ao gravar cliente.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function baixarDocumento(tipo: "cnh" | "comprovante-residencia") {
+    if (!clienteId?.trim()) return;
+    setDocLoading(true);
+    setError(null);
+    try {
+      const nome =
+        tipo === "cnh"
+          ? cnhNomeServidor ?? undefined
+          : comprovanteNomeServidor ?? undefined;
+      await lanzaApi.downloadClienteDocumento(clienteId.trim(), tipo, nome);
+    } catch (err) {
+      setError(err instanceof LanzaApiError ? err.message : "Falha ao baixar documento.");
+    } finally {
+      setDocLoading(false);
     }
   }
 
@@ -226,6 +282,7 @@ export function ClientesCadastroSection({ clienteId }: Props) {
                 disabled={loading}
                 onParsed={({ campos }) => aplicarCnh(campos)}
                 onError={setError}
+                onFile={setCnhPendente}
               />
               <DocUploadField
                 label="Comprovante de residência (PDF ou imagem)"
@@ -234,6 +291,61 @@ export function ClientesCadastroSection({ clienteId }: Props) {
                 disabled={loading}
                 onParsed={({ campos }) => aplicarComprovante(campos)}
                 onError={setError}
+                onFile={setComprovantePendente}
+              />
+            </div>
+          </FormSection>
+        ) : null}
+
+        {editando ? (
+          <FormSection
+            title="Documentos enviados"
+            hint="Baixe os arquivos guardados no servidor ou envie novos abaixo para substituir ao salvar."
+          >
+            <div className="form-card__action-row">
+              <button
+                type="button"
+                className="btn btn--secondary"
+                disabled={loading || docLoading || !cnhDisponivel}
+                onClick={() => void baixarDocumento("cnh")}
+              >
+                {docLoading ? "Baixando…" : "Baixar CNH"}
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                disabled={loading || docLoading || !comprovanteDisponivel}
+                onClick={() => void baixarDocumento("comprovante-residencia")}
+              >
+                Baixar comprovante
+              </button>
+            </div>
+            {cnhNomeServidor ? (
+              <p className="field__hint">
+                CNH no servidor: <strong>{cnhNomeServidor}</strong>
+              </p>
+            ) : null}
+            {comprovanteNomeServidor ? (
+              <p className="field__hint">
+                Comprovante no servidor: <strong>{comprovanteNomeServidor}</strong>
+              </p>
+            ) : null}
+            <div className="doc-upload-row">
+              <DocUploadField
+                label="Substituir CNH"
+                tipo="cnh"
+                disabled={loading}
+                onParsed={({ campos }) => aplicarCnh(campos)}
+                onError={setError}
+                onFile={setCnhPendente}
+              />
+              <DocUploadField
+                label="Substituir comprovante"
+                tipo="comprovante-residencia"
+                disabled={loading}
+                onParsed={({ campos }) => aplicarComprovante(campos)}
+                onError={setError}
+                onFile={setComprovantePendente}
               />
             </div>
           </FormSection>
