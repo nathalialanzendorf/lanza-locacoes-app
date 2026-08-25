@@ -59,3 +59,24 @@ export async function ocrDocumentoNoNavegador(imagemBase64: string, mime = "imag
   const { data } = await worker.recognize(dataUrl);
   return (data.text ?? "").trim();
 }
+
+/** Segunda passagem só com dígitos — melhora leitura de CPF/registro em CNH-e. */
+export async function ocrDocumentoDigitosNoNavegador(
+  imagemBase64: string,
+  mime = "image/jpeg",
+): Promise<string> {
+  const worker = await workerPor();
+  const dataUrl = await prepararImagemOcrBrowser(imagemBase64, mime);
+  await worker.setParameters({
+    tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+    tessedit_char_whitelist: "0123456789.-/ ",
+    user_defined_dpi: "300",
+  });
+  const { data } = await worker.recognize(dataUrl);
+  await worker.setParameters({
+    tessedit_pageseg_mode: PSM.AUTO,
+    tessedit_char_whitelist: "",
+    user_defined_dpi: "300",
+  });
+  return (data.text ?? "").trim();
+}

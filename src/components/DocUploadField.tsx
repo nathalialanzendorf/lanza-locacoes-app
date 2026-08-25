@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 
 import { lanzaApi } from "@/api/endpoints";
 import { LanzaApiError } from "@/api/client";
-import { ocrDocumentoNoNavegador } from "@/lib/documentoOcrClient";
+import { ocrDocumentoDigitosNoNavegador, ocrDocumentoNoNavegador } from "@/lib/documentoOcrClient";
 
 export type DocUploadTipo = "cnh" | "comprovante-residencia" | "crlv";
 
@@ -192,6 +192,46 @@ function mesclarCamposCnh(
   };
 }
 
+function filtrarAvisosCnh(
+  avisos: string[],
+  campos: Record<string, unknown>,
+): string[] {
+  const score = pontuarCamposCnh(campos);
+  if (score >= 6) {
+    return avisos.filter(
+      (a) =>
+        !/CPF e registro não encontrados|CNH-e costuma ser PDF|CPF ou número de registro CNH não/i.test(
+          a,
+        ),
+    );
+  }
+  if (score >= 3) {
+    return avisos.map((a) =>
+      /CPF e registro não encontrados/i.test(a)
+        ? "CPF e registro não lidos — confira e preencha manualmente."
+        : a,
+    );
+  }
+  return avisos;
+}
+
+function mesclarTextoOcrCnh(texto: string, imagemBase64: string, mime: string): Promise<string> {
+  return (async () => {
+    let merged = texto.trim();
+    const soDigitos = merged.replace(/\D/g, "");
+    if (soDigitos.length >= 11) return merged;
+    try {
+      const digitos = await ocrDocumentoDigitosNoNavegador(imagemBase64, mime);
+      if (digitos.trim()) {
+        merged = merged ? `${merged}\n${digitos}` : digitos;
+      }
+    } catch {
+      /* segunda passagem opcional */
+    }
+    return merged;
+  })();
+}
+
 function mesclarCamposDocumento(
   tipo: DocUploadTipo,
   a: Record<string, unknown>,
@@ -261,15 +301,18 @@ export function DocUploadField({
     }
 
     setStatus("Lendo documento…");
-    const text = await ocrDocumentoNoNavegador(imagemBase64, mime);
+    let text = await ocrDocumentoNoNavegador(imagemBase64, mime);
+    if (tipo === "cnh") {
+      text = await mesclarTextoOcrCnh(text, imagemBase64, mime);
+    }
     if (!text.trim()) {
       throw new Error("OCR no navegador não extraiu texto.");
     }
     const parsed = await lanzaApi.parseTextoDocumento({ tipo, text });
-    return {
-      campos: (parsed.data.campos ?? {}) as Record<string, unknown>,
-      avisos: parsed.data.avisos ?? [],
-    };
+    const campos = (parsed.data.campos ?? {}) as Record<string, unknown>;
+    let avisosOut = parsed.data.avisos ?? [];
+    if (tipo === "cnh") avisosOut = filtrarAvisosCnh(avisosOut, campos);
+    return { campos, avisos: avisosOut };
   }
 
   async function handleFile(file: File | null) {
@@ -334,6 +377,10 @@ export function DocUploadField({
         ) {
           avisosLista.push("Endereço parcialmente lido — confira o CEP, número e complemento.");
         }
+      }
+
+      if (tipo === "cnh") {
+        avisosLista = filtrarAvisosCnh(avisosLista, campos);
       }
 
       setAvisos(avisosLista);
