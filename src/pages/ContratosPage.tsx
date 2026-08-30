@@ -9,10 +9,7 @@ import { ContratosEncerrarSection } from "@/pages/contratos/ContratosEncerrarSec
 
 export function ContratosPage() {
   return (
-    <PageHeader
-      title="Contratos"
-      description="Listagem e geração de contratos de locação (Word/PDF + contratos.json)."
-    >
+    <PageHeader title="Contratos">
       <PageTabs
         ariaLabel="Contratos"
         tabs={[

@@ -33,7 +33,6 @@ import {
 import {
   MOTIVO_ENCERRAMENTO_OPCOES,
   MotivoEncerramento,
-  STATUS_CONTRATO_OPCOES,
   StatusContrato,
   TIPO_CONTRATO_OPCOES,
   TipoContrato,
@@ -78,6 +77,27 @@ type ContratoRenovacaoFonte = Contrato & {
 
 const DIARIA_PADRAO = 120;
 
+function aplicarTarifasVeiculoSemanaDiariaCaucao(
+  v: Veiculo,
+  setters: {
+    setSemana: (v: string) => void;
+    setDiaria: (v: string) => void;
+    setCaucao: (v: string) => void;
+  },
+) {
+  if (v.valorSemanal != null && v.valorSemanal > 0) {
+    setters.setSemana(formatValorInput(v.valorSemanal));
+  }
+  if (v.valorDiaria != null && v.valorDiaria > 0) {
+    setters.setDiaria(formatValorInput(v.valorDiaria));
+  } else {
+    setters.setDiaria(formatValorInput(DIARIA_PADRAO));
+  }
+  if (v.valorCaucao != null && v.valorCaucao > 0) {
+    setters.setCaucao(formatValorInput(v.valorCaucao));
+  }
+}
+
 function aplicarTarifasVeiculo(
   v: Veiculo,
   setters: {
@@ -87,18 +107,10 @@ function aplicarTarifasVeiculo(
     setCaucao: (v: string) => void;
   },
 ) {
-  if (v.valorSemanal != null && v.valorSemanal > 0) {
-    setters.setSemana(formatValorInput(v.valorSemanal));
-  }
   if (v.valorMensal != null && v.valorMensal > 0) {
     setters.setMensal(formatValorInput(v.valorMensal));
   }
-  if (v.valorDiaria != null && v.valorDiaria > 0) {
-    setters.setDiaria(formatValorInput(v.valorDiaria));
-  }
-  if (v.valorCaucao != null && v.valorCaucao > 0) {
-    setters.setCaucao(formatValorInput(v.valorCaucao));
-  }
+  aplicarTarifasVeiculoSemanaDiariaCaucao(v, setters);
 }
 
 function round2(n: number): number {
@@ -333,6 +345,7 @@ export function ContratosCadastroSection({
   const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
   const [assinadoArquivo, setAssinadoArquivo] = useState<File | null>(null);
   const [statusContrato, setStatusContrato] = useState<StatusContratoValor>(StatusContrato.Ativo);
+  const [statusCarregado, setStatusCarregado] = useState<StatusContratoValor>(StatusContrato.Ativo);
   const [dataEncerramento, setDataEncerramento] = useState("");
   const [motivoEncerramento, setMotivoEncerramento] = useState<MotivoEncerramentoValor>(
     MotivoEncerramento.Devolvido,
@@ -394,10 +407,7 @@ export function ContratosCadastroSection({
     if (c.clienteNome?.trim()) {
       setClienteNome(c.clienteNome.trim());
     }
-    if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
     if (c.valorMensal != null) setMensal(formatValorInput(c.valorMensal));
-    if (c.valorDiaria != null) setDiaria(formatValorInput(c.valorDiaria));
-    if (c.valorCaucao != null) setCaucao(formatValorInput(c.valorCaucao));
     if (c.diaPagamentoSemana) {
       setDiaPagamento(diaPagamentoSemanaParaSelect(c.diaPagamentoSemana));
     }
@@ -440,7 +450,9 @@ export function ContratosCadastroSection({
       Boolean(c.documentoDocxStorageKey?.trim() || c.documentoPdfStorageKey?.trim()),
     );
     if (c.id?.trim()) setContratoSalvoId(c.id.trim());
-    setStatusContrato(parseStatusContrato(c.status));
+    const status = parseStatusContrato(c.status);
+    setStatusContrato(status);
+    setStatusCarregado(status);
     setDataEncerramento(c.dataEncerramento?.trim() ?? "");
     const motivo = c.motivoEncerramento?.trim().toLowerCase();
     if (isMotivoEncerramentoValor(motivo)) setMotivoEncerramento(motivo);
@@ -459,11 +471,8 @@ export function ContratosCadastroSection({
     if (c.clienteNome?.trim()) {
       setClienteNome(c.clienteNome.trim());
     }
-    if (c.valorSemanal != null) setSemana(formatValorInput(c.valorSemanal));
     if (c.valorMensal != null) setMensal(formatValorInput(c.valorMensal));
-    if (c.valorDiaria != null) setDiaria(formatValorInput(c.valorDiaria));
     if (c.valorCaucao != null) {
-      setCaucao(formatValorInput(c.valorCaucao));
       setCaucaoAnterior(c.valorCaucao);
     }
     if (c.diaPagamentoSemana) {
@@ -488,18 +497,21 @@ export function ContratosCadastroSection({
   }, [modo, contratoOrigem, veiculosQuery.data]);
 
   useEffect(() => {
-    if (modo !== "criar" || !veiculoId.trim()) return;
+    if (!veiculoId.trim()) return;
     const id = veiculoId.trim();
     const veiculo = veiculosQuery.data?.items?.find((v) => v.id === id);
     if (!veiculo) return;
-    if (ultimoVeiculoTarifas.current === id) return;
-    ultimoVeiculoTarifas.current = id;
-    setSemana("");
-    setMensal("");
-    setDiaria(formatValorInput(DIARIA_PADRAO));
-    setCaucao("");
+    const chave = `${modo}:${contratoId ?? "novo"}:${id}`;
+    if (ultimoVeiculoTarifas.current === chave) return;
+    ultimoVeiculoTarifas.current = chave;
+    if (modo === "criar") {
+      setSemana("");
+      setMensal("");
+      setDiaria(formatValorInput(DIARIA_PADRAO));
+      setCaucao("");
+    }
     aplicarTarifasVeiculo(veiculo, { setSemana, setMensal, setDiaria, setCaucao });
-  }, [modo, veiculoId, veiculosQuery.data]);
+  }, [modo, veiculoId, veiculosQuery.data, contratoId]);
 
   useEffect(() => {
     if (modo === "editar" && motivoEncerramento === MotivoEncerramento.Troca) setQuebraContrato(false);
@@ -782,23 +794,33 @@ export function ContratosCadastroSection({
           patch.diaPagamentoMes = null;
           patch.diaPagamentoTexto = diaPagamento.trim();
         }
-        patch.status = statusContrato;
-        if (statusContrato === StatusContrato.Encerrado) {
-          if (!dataEncerramento.trim()) {
-            throw new Error("Informe a data de encerramento para contratos encerrados.");
-          }
-          patch.dataEncerramento = dataEncerramento.trim();
-          patch.motivoEncerramento = motivoEncerramento;
-          patch.quebraContrato = motivoEncerramento === MotivoEncerramento.Troca ? false : quebraContrato;
-        } else {
+        if (statusCarregado === StatusContrato.Ativo) {
+          patch.status = StatusContrato.Ativo;
+        } else if (statusContrato === StatusContrato.Ativo) {
+          patch.status = StatusContrato.Ativo;
           patch.dataEncerramento = null;
           patch.motivoEncerramento = null;
           patch.quebraContrato = false;
+        } else {
+          patch.status = StatusContrato.Encerrado;
+          patch.dataEncerramento = dataEncerramento.trim() || null;
+          patch.motivoEncerramento = motivoEncerramento;
+          patch.quebraContrato =
+            motivoEncerramento === MotivoEncerramento.Troca ? false : quebraContrato;
         }
         const r = await lanzaApi.atualizarContrato(contratoId.trim(), patch);
         const contrato = r.data?.contrato;
         const idSalvo = contrato?.id ?? contratoId.trim();
         if (idSalvo) setContratoSalvoId(idSalvo);
+        if (contrato?.status) {
+          const statusAtual = parseStatusContrato(contrato.status);
+          setStatusContrato(statusAtual);
+          setStatusCarregado(statusAtual);
+        } else if (statusContrato === StatusContrato.Ativo && statusCarregado === StatusContrato.Encerrado) {
+          setStatusCarregado(StatusContrato.Ativo);
+          setDataEncerramento("");
+          setQuebraContrato(false);
+        }
         if (contrato?.contratoAssinadoStorageKey) {
           setAssinadoStorageKey(contrato.contratoAssinadoStorageKey);
         }
@@ -956,6 +978,16 @@ export function ContratosCadastroSection({
 
   const mostrarToggleCaucao = modo === "criar" || mostrarParcelarCaucaoRenovacao;
   const idDocumento = contratoSalvoId ?? (modo === "editar" ? contratoId : null);
+  const versaoContratoLabel = documentoGeradoEm
+    ? new Date(documentoGeradoEm).toLocaleString("pt-BR")
+    : "Nenhuma versão gerada";
+  const motivoEncerramentoLabel =
+    MOTIVO_ENCERRAMENTO_OPCOES.find((o) => o.value === motivoEncerramento)?.label ??
+    motivoEncerramento;
+  const reativacaoPendente =
+    modo === "editar" &&
+    statusCarregado === StatusContrato.Encerrado &&
+    statusContrato === StatusContrato.Ativo;
 
   function handleAssinadoFile(file: File | null) {
     if (!file) return;
@@ -1271,65 +1303,51 @@ export function ContratosCadastroSection({
             <h3 className="form-section-title">Status do contrato</h3>
             <div className="form-grid">
               <Field label="Status">
-                <NativeSelect
-                  value={statusContrato}
-                  onChange={(v) => setStatusContrato(v as StatusContratoValor)}
-                  variant="cadastro"
-                  allowEmpty={false}
-                  disabled={loading}
-                  aria-label="Status do contrato"
-                >
-                  {STATUS_CONTRATO_OPCOES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </NativeSelect>
+                {statusContrato === StatusContrato.Ativo ? (
+                  <span className="badge badge--ok">Ativo</span>
+                ) : (
+                  <span className="badge badge--amber">Encerrado</span>
+                )}
               </Field>
-              {statusContrato === StatusContrato.Encerrado ? (
+              <Field label="Última versão">
+                <span>{versaoContratoLabel}</span>
+              </Field>
+              {statusContrato === StatusContrato.Ativo ? (
+                <p className="field__hint field--full">
+                  {reativacaoPendente
+                    ? "Reativação pendente — salve o contrato para confirmar."
+                    : "Contratos ativos não podem ser encerrados aqui. Use a ação Encerrar na lista de contratos."}
+                </p>
+              ) : (
                 <>
                   <Field label="Data de encerramento">
-                    <DateInput
-                      value={dataEncerramento}
-                      onChange={setDataEncerramento}
-                      required
-                      disabled={loading}
-                    />
+                    <span>{dataEncerramento.trim() || "—"}</span>
                   </Field>
                   <Field label="Motivo do encerramento">
-                    <NativeSelect
-                      value={motivoEncerramento}
-                      onChange={(v) => setMotivoEncerramento(v as MotivoEncerramentoValor)}
-                      variant="cadastro"
-                      allowEmpty={false}
+                    <span>{motivoEncerramentoLabel}</span>
+                  </Field>
+                  {quebraContrato && motivoEncerramento !== MotivoEncerramento.Troca ? (
+                    <Field label="Quebra de contrato">
+                      <span>Sim — retenção proporcional de caução</span>
+                    </Field>
+                  ) : null}
+                  <div className="field--full">
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
                       disabled={loading}
-                      aria-label="Motivo do encerramento"
+                      onClick={() => {
+                        setStatusContrato(StatusContrato.Ativo);
+                        setSuccess(null);
+                      }}
                     >
-                      {MOTIVO_ENCERRAMENTO_OPCOES.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </Field>
-                  <Field label="Quebra de contrato">
-                    <Toggle
-                      checked={quebraContrato}
-                      onChange={setQuebraContrato}
-                      disabled={loading || motivoEncerramento === MotivoEncerramento.Troca}
-                      label="Registrar quebra (retenção proporcional de caução)"
-                    />
-                    {motivoEncerramento === MotivoEncerramento.Troca ? (
-                      <span className="field__hint">
-                        Troca de veículo não é quebra — a caução transfere para o novo contrato.
-                      </span>
-                    ) : null}
-                  </Field>
+                      Reativar contrato
+                    </button>
+                    <p className="field__hint">
+                      Ao salvar, o contrato voltará a ficar ativo e os dados de encerramento serão removidos.
+                    </p>
+                  </div>
                 </>
-              ) : (
-                <p className="field__hint">
-                  Ao marcar como ativo, data e motivo de encerramento são removidos do registro.
-                </p>
               )}
             </div>
           </div>
