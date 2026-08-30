@@ -910,6 +910,7 @@ export function ContratosCadastroSection({
         formato,
         nomeClienteDocumento ? nomeArquivoContrato(nomeClienteDocumento, formato) : undefined,
       );
+      setTemDocumentoGerado(true);
     } catch (err) {
       setDocError(
         err instanceof LanzaApiError
@@ -1361,12 +1362,16 @@ export function ContratosCadastroSection({
             </p>
           ) : null}
           <h3 className="form-section-title">Download</h3>
-          <p className="form-section__lead">Baixa Word ou PDF da última versão no servidor.</p>
+          <p className="form-section__lead">
+            {temDocumentoGerado
+              ? "Baixa Word ou PDF da última versão no servidor."
+              : "Baixa Word ou PDF com os dados actuais (gera automaticamente se ainda não existir versão guardada)."}
+          </p>
           <div className="form-card__action-row">
             <button
               type="button"
               className="btn btn--secondary"
-              disabled={docLoading || gerandoVersao || !temDocumentoGerado}
+              disabled={docLoading || gerandoVersao}
               onClick={() => void baixarDocumentoGerado("docx")}
             >
               {docLoading ? "Baixando…" : "Baixar Word (.docx)"}
@@ -1374,7 +1379,7 @@ export function ContratosCadastroSection({
             <button
               type="button"
               className="btn btn--ghost"
-              disabled={docLoading || gerandoVersao || !temDocumentoGerado}
+              disabled={docLoading || gerandoVersao}
               onClick={() => void baixarDocumentoGerado("pdf")}
             >
               Baixar PDF

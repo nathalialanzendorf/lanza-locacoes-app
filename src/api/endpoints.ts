@@ -96,7 +96,10 @@ export const lanzaApi = {
         documentoPdfStorageKey?: string | null;
         documentoGeradoEm?: string | null;
       };
-    }>(`/api/contratos/${encodeURIComponent(id)}/gerar-documento`, { method: "POST" }),
+    }>(`/api/contratos/${encodeURIComponent(id)}/gerar-documento`, {
+      method: "POST",
+      timeoutMs: 120_000,
+    }),
   downloadDocumentoGeradoContrato: (
     id: string,
     formato: "docx" | "pdf",
@@ -105,9 +108,13 @@ export const lanzaApi = {
     apiDownload(`/api/contratos/${encodeURIComponent(id)}/documento-gerado`, {
       params: { formato },
       filename,
+      timeoutMs: 120_000,
     }),
   downloadContratoAssinado: (id: string, filename?: string) =>
-    apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, { filename }),
+    apiDownload(`/api/contratos/${encodeURIComponent(id)}/contrato-assinado`, {
+      filename,
+      timeoutMs: 120_000,
+    }),
   uploadContratoAssinado: (id: string, file: File) =>
     apiUpload<{ data: { contrato: import("./types").ContratoDetalhe } }>(
       `/api/contratos/${encodeURIComponent(id)}/contrato-assinado`,
