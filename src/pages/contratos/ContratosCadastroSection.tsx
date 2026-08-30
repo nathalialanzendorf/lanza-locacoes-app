@@ -325,12 +325,13 @@ export function ContratosCadastroSection({
   const [contratoSalvoId, setContratoSalvoId] = useState<string | null>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [gerandoVersao, setGerandoVersao] = useState(false);
+  const [enviandoAssinado, setEnviandoAssinado] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [documentoGeradoEm, setDocumentoGeradoEm] = useState<string | null>(null);
   const [temDocumentoGerado, setTemDocumentoGerado] = useState(false);
   const [assinadoStorageKey, setAssinadoStorageKey] = useState<string | null>(null);
   const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
-  const [assinadoPendente, setAssinadoPendente] = useState<File | null>(null);
+  const [assinadoArquivo, setAssinadoArquivo] = useState<File | null>(null);
   const [statusContrato, setStatusContrato] = useState<StatusContratoValor>(StatusContrato.Ativo);
   const [dataEncerramento, setDataEncerramento] = useState("");
   const [motivoEncerramento, setMotivoEncerramento] = useState<MotivoEncerramentoValor>(
@@ -795,12 +796,8 @@ export function ContratosCadastroSection({
           patch.quebraContrato = false;
         }
         const r = await lanzaApi.atualizarContrato(contratoId.trim(), patch);
-        let contrato = r.data?.contrato;
+        const contrato = r.data?.contrato;
         const idSalvo = contrato?.id ?? contratoId.trim();
-        if (assinadoPendente && idSalvo) {
-          const uploadRes = await lanzaApi.uploadContratoAssinado(idSalvo, assinadoPendente);
-          contrato = uploadRes.data?.contrato ?? contrato;
-        }
         if (idSalvo) setContratoSalvoId(idSalvo);
         if (contrato?.contratoAssinadoStorageKey) {
           setAssinadoStorageKey(contrato.contratoAssinadoStorageKey);
@@ -808,7 +805,6 @@ export function ContratosCadastroSection({
         if (contrato?.contratoAssinadoNome) {
           setAssinadoNome(contrato.contratoAssinadoNome);
         }
-        setAssinadoPendente(null);
         setSuccess("Contrato atualizado.");
         void qc.invalidateQueries({ queryKey: ["contratos"] });
         void qc.invalidateQueries({ queryKey: ["veiculos"] });
@@ -877,8 +873,8 @@ export function ContratosCadastroSection({
         avisoDespesas
           ? `Contrato salvo no banco. Aviso: despesas iniciais não geradas — ${avisoDespesas}`
           : modo === "criar"
-            ? "Contrato salvo no banco. Gere o Word/PDF quando quiser."
-            : "Renovação salva no banco. Gere o Word/PDF quando quiser.",
+            ? "Contrato salvo no banco. Gere o contrato quando quiser."
+            : "Renovação salva no banco. Gere o contrato quando quiser.",
       );
       void qc.invalidateQueries({ queryKey: ["contratos"] });
       void qc.invalidateQueries({ queryKey: ["despesas-cliente"] });
@@ -897,17 +893,18 @@ export function ContratosCadastroSection({
     }
   }
 
-  async function baixarDocumentoGerado(formato: "docx" | "pdf") {
+  async function baixarContratoNaoAssinado() {
     const id = contratoSalvoId ?? contratoId;
     if (!id) return;
     setDocLoading(true);
     setDocError(null);
     try {
-      await lanzaApi.downloadDocumentoGeradoContrato(
-        id,
-        formato,
-        nomeClienteDocumento ? nomeArquivoContrato(nomeClienteDocumento, formato) : undefined,
-      );
+      const baseNome = nomeClienteDocumento ? nomeArquivoContrato(nomeClienteDocumento, "docx") : undefined;
+      const nomeDocx = baseNome;
+      const nomePdf = nomeClienteDocumento ? nomeArquivoContrato(nomeClienteDocumento, "pdf") : undefined;
+      await lanzaApi.downloadDocumentoGeradoContrato(id, "docx", nomeDocx);
+      await new Promise((r) => setTimeout(r, 400));
+      await lanzaApi.downloadDocumentoGeradoContrato(id, "pdf", nomePdf);
       setTemDocumentoGerado(true);
     } catch (err) {
       setDocError(
@@ -915,7 +912,7 @@ export function ContratosCadastroSection({
           ? err.message
           : err instanceof Error
             ? err.message
-            : "Falha ao baixar documento.",
+            : "Falha ao baixar contrato.",
       );
     } finally {
       setDocLoading(false);
@@ -934,7 +931,7 @@ export function ContratosCadastroSection({
       setTemDocumentoGerado(
         Boolean(gerado.documentoDocxStorageKey?.trim() || gerado.documentoPdfStorageKey?.trim()),
       );
-      setSuccess("Nova versão do contrato gerada e guardada no servidor (Word e PDF).");
+      setSuccess("Nova versão do contrato gerada e guardada no servidor.");
     } catch (err) {
       setDocError(
         err instanceof LanzaApiError
@@ -962,9 +959,40 @@ export function ContratosCadastroSection({
 
   function handleAssinadoFile(file: File | null) {
     if (!file) return;
-    setAssinadoPendente(file);
-    setAssinadoNome(file.name);
-    setError(null);
+    setAssinadoArquivo(file);
+    setDocError(null);
+  }
+
+  async function enviarContratoAssinado() {
+    const id = contratoSalvoId ?? contratoId;
+    if (!id?.trim() || !assinadoArquivo) return;
+    setEnviandoAssinado(true);
+    setDocError(null);
+    try {
+      const r = await lanzaApi.uploadContratoAssinado(id.trim(), assinadoArquivo);
+      const contrato = r.data?.contrato;
+      if (contrato?.contratoAssinadoStorageKey?.trim()) {
+        setAssinadoStorageKey(contrato.contratoAssinadoStorageKey.trim());
+      }
+      if (contrato?.contratoAssinadoNome?.trim()) {
+        setAssinadoNome(contrato.contratoAssinadoNome.trim());
+      } else {
+        setAssinadoNome(assinadoArquivo.name);
+      }
+      setAssinadoArquivo(null);
+      setSuccess("Contrato assinado enviado.");
+      void qc.invalidateQueries({ queryKey: ["contratos"] });
+    } catch (err) {
+      setDocError(
+        err instanceof LanzaApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Falha ao enviar contrato assinado.",
+      );
+    } finally {
+      setEnviandoAssinado(false);
+    }
   }
 
   async function baixarContratoAssinado() {
@@ -1306,90 +1334,95 @@ export function ContratosCadastroSection({
             </div>
           </div>
         ) : null}
-
-        {modo === "editar" ? (
-          <div className="form-section field--full">
-            <h3 className="form-section-title">Contrato assinado</h3>
-            <p className="form-section__lead">
-              Envie o PDF ou Word do contrato já assinado pelo cliente.
+      </FormCard>
+      {idDocumento ? (
+        <div className="form-card form-card--actions">
+          <h2 className="form-card__title">Contrato</h2>
+          {documentoGeradoEm ? (
+            <p className="field__hint">
+              Última versão gerada:{" "}
+              <strong>{new Date(documentoGeradoEm).toLocaleString("pt-BR")}</strong>
             </p>
-            <div className="form-grid">
-              <Field label="Arquivo assinado" hint="PDF ou Word (.doc/.docx)">
-                <input
-                  className="input"
-                  type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  disabled={loading}
-                  onChange={(e) => void handleAssinadoFile(e.target.files?.[0] ?? null)}
-                />
-              </Field>
-            </div>
-            {assinadoNome ? (
-              <p className="field__hint">
-                {assinadoPendente ? "Será enviado ao salvar: " : "Arquivo: "}
-                <strong>{assinadoNome}</strong>
+          ) : (
+            <p className="field__hint">
+              {modo === "editar"
+                ? "Após alterar dados do contrato, gere uma nova versão antes de enviar ao cliente."
+                : "Gere a primeira versão ou baixe com os dados actuais."}
+            </p>
+          )}
+          <div className="contrato-documentos">
+            <div className="form-section">
+              <h3 className="form-section-title">Não assinado</h3>
+              <p className="form-section__lead">
+                {temDocumentoGerado
+                  ? "Baixa Word (.docx) e PDF da última versão guardada no servidor."
+                  : "Baixa Word e PDF com os dados actuais (gera automaticamente se ainda não existir versão)."}
               </p>
-            ) : null}
-            {assinadoStorageKey && !assinadoPendente ? (
               <div className="form-card__action-row">
                 <button
                   type="button"
                   className="btn btn--secondary"
-                  disabled={docLoading}
-                  onClick={() => void baixarContratoAssinado()}
+                  disabled={docLoading || gerandoVersao || enviandoAssinado}
+                  onClick={() => void baixarContratoNaoAssinado()}
                 >
-                  {docLoading ? "Baixando…" : "Baixar contrato assinado"}
+                  {docLoading ? "Baixando…" : "Baixar Word e PDF"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={docLoading || gerandoVersao || enviandoAssinado}
+                  onClick={() => void gerarNovaVersaoDocumento()}
+                >
+                  {gerandoVersao ? "Gerando…" : "Gerar nova versão"}
                 </button>
               </div>
-            ) : null}
-          </div>
-        ) : null}
-      </FormCard>
-      {idDocumento ? (
-        <div className="form-card form-card--actions">
-          <h2 className="form-card__title">Documento Word/PDF</h2>
-          <p className="field__hint">
-            {modo === "editar"
-              ? "Após alterar dados, gere uma nova versão. O download usa sempre a última versão guardada no servidor."
-              : "O contrato já está no banco. Gere a primeira versão ou baixe a última guardada."}
-          </p>
-          {documentoGeradoEm ? (
-            <p className="field__hint">
-              Última versão:{" "}
-              <strong>{new Date(documentoGeradoEm).toLocaleString("pt-BR")}</strong>
-            </p>
-          ) : null}
-          <h3 className="form-section-title">Download</h3>
-          <p className="form-section__lead">
-            {temDocumentoGerado
-              ? "Baixa Word ou PDF da última versão no servidor."
-              : "Baixa Word ou PDF com os dados actuais (gera automaticamente se ainda não existir versão guardada)."}
-          </p>
-          <div className="form-card__action-row">
-            <button
-              type="button"
-              className="btn btn--secondary"
-              disabled={docLoading || gerandoVersao}
-              onClick={() => void baixarDocumentoGerado("docx")}
-            >
-              {docLoading ? "Baixando…" : "Baixar Word (.docx)"}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={docLoading || gerandoVersao}
-              onClick={() => void baixarDocumentoGerado("pdf")}
-            >
-              Baixar PDF
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={docLoading || gerandoVersao}
-              onClick={() => void gerarNovaVersaoDocumento()}
-            >
-              {gerandoVersao ? "Gerando…" : "Gerar nova versão"}
-            </button>
+            </div>
+            <div className="form-section">
+              <h3 className="form-section-title">Assinado pelo cliente</h3>
+              <p className="form-section__lead">
+                Envie o PDF do contrato já assinado. O download disponível é apenas em PDF.
+              </p>
+              <Field label="Arquivo PDF assinado">
+                <input
+                  className="input"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  disabled={enviandoAssinado || gerandoVersao}
+                  onChange={(e) => handleAssinadoFile(e.target.files?.[0] ?? null)}
+                />
+              </Field>
+              {assinadoArquivo ? (
+                <p className="field__hint">
+                  Selecionado: <strong>{assinadoArquivo.name}</strong>
+                </p>
+              ) : assinadoNome && assinadoStorageKey ? (
+                <p className="field__hint">
+                  Arquivo no servidor: <strong>{assinadoNome}</strong>
+                </p>
+              ) : null}
+              <div className="form-card__action-row">
+                {assinadoArquivo ? (
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={enviandoAssinado || docLoading || gerandoVersao}
+                    onClick={() => void enviarContratoAssinado()}
+                  >
+                    {enviandoAssinado ? "Enviando…" : "Enviar PDF assinado"}
+                  </button>
+                ) : null}
+                {assinadoStorageKey ? (
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    disabled={docLoading || enviandoAssinado || gerandoVersao}
+                    onClick={() => void baixarContratoAssinado()}
+                  >
+                    {docLoading ? "Baixando…" : "Baixar PDF assinado"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </div>
           {docError ? <p className="form-card__error">{docError}</p> : null}
         </div>
