@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CadastroBackLink } from "@/components/CadastroBackLink";
@@ -271,7 +270,6 @@ export function ContratosCadastroSection({
   backTo = "/contratos",
   backLabel,
 }: Props) {
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const editando = Boolean(contratoId);
   const filtrarVeiculosLocacao = modo !== "editar";
@@ -1384,12 +1382,6 @@ export function ContratosCadastroSection({
             >
               Baixar PDF
             </button>
-          </div>
-          <h3 className="form-section-title">Gerar nova versão</h3>
-          <p className="form-section__lead">
-            Regenera Word e PDF com os dados actuais e grava no servidor (substitui a versão anterior).
-          </p>
-          <div className="form-card__action-row">
             <button
               type="button"
               className="btn btn--primary"
@@ -1397,9 +1389,6 @@ export function ContratosCadastroSection({
               onClick={() => void gerarNovaVersaoDocumento()}
             >
               {gerandoVersao ? "Gerando…" : "Gerar nova versão"}
-            </button>
-            <button type="button" className="btn btn--ghost" onClick={() => navigate("/contratos")}>
-              Ir para lista de contratos
             </button>
           </div>
           {docError ? <p className="form-card__error">{docError}</p> : null}
