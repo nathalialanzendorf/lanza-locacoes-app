@@ -95,6 +95,7 @@ export const lanzaApi = {
         documentoDocxStorageKey?: string | null;
         documentoPdfStorageKey?: string | null;
         documentoGeradoEm?: string | null;
+        documentoGeradoVersao?: number | null;
       };
     }>(`/api/contratos/${encodeURIComponent(id)}/gerar-documento`, {
       method: "POST",

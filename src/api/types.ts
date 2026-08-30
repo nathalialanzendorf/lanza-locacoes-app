@@ -128,6 +128,7 @@ export type ContratoVeiculoSnapshot = {
 
 export type Contrato = {
   id: string;
+  versao?: number | null;
   status?: string;
   clienteId?: string;
   veiculoId?: string;
@@ -157,6 +158,7 @@ export type Contrato = {
   documentoPdfStorageKey?: string | null;
   documentoGeradoEm?: string | null;
   documentoGeradoNome?: string | null;
+  documentoGeradoVersao?: number | null;
 };
 
 /** Resposta completa de GET /api/contratos/:id */

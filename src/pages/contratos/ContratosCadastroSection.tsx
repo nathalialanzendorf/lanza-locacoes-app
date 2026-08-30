@@ -18,7 +18,7 @@ import {
   gerarDatasParcelasPorTipo,
   validarDatasParcelas,
 } from "@/lib/contratoParcelas";
-import { nomeArquivoContrato } from "@/lib/contratoArquivo";
+import { nomeArquivoContrato, formatVersaoDocumentoContrato } from "@/lib/contratoArquivo";
 import {
   DIAS_PAGAMENTO_SEMANAL,
   PERIODOS_CONTRATO,
@@ -340,6 +340,8 @@ export function ContratosCadastroSection({
   const [enviandoAssinado, setEnviandoAssinado] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [documentoGeradoEm, setDocumentoGeradoEm] = useState<string | null>(null);
+  const [documentoGeradoVersao, setDocumentoGeradoVersao] = useState<number | null>(null);
+  const [versaoContrato, setVersaoContrato] = useState<number | null>(null);
   const [temDocumentoGerado, setTemDocumentoGerado] = useState(false);
   const [assinadoStorageKey, setAssinadoStorageKey] = useState<string | null>(null);
   const [assinadoNome, setAssinadoNome] = useState<string | null>(null);
@@ -446,6 +448,10 @@ export function ContratosCadastroSection({
       setAssinadoNome(c.contratoAssinadoNome.trim());
     }
     setDocumentoGeradoEm(c.documentoGeradoEm?.trim() ?? null);
+    setDocumentoGeradoVersao(
+      c.documentoGeradoVersao != null && c.documentoGeradoVersao > 0 ? c.documentoGeradoVersao : null,
+    );
+    setVersaoContrato(c.versao != null && c.versao > 0 ? c.versao : null);
     setTemDocumentoGerado(
       Boolean(c.documentoDocxStorageKey?.trim() || c.documentoPdfStorageKey?.trim()),
     );
@@ -950,6 +956,11 @@ export function ContratosCadastroSection({
       const r = await lanzaApi.gerarDocumentoContrato(id);
       const gerado = r.data;
       setDocumentoGeradoEm(gerado.documentoGeradoEm?.trim() ?? new Date().toISOString());
+      setDocumentoGeradoVersao(
+        gerado.documentoGeradoVersao != null && gerado.documentoGeradoVersao > 0
+          ? gerado.documentoGeradoVersao
+          : (documentoGeradoVersao ?? 0) + 1,
+      );
       setTemDocumentoGerado(
         Boolean(gerado.documentoDocxStorageKey?.trim() || gerado.documentoPdfStorageKey?.trim()),
       );
@@ -978,9 +989,7 @@ export function ContratosCadastroSection({
 
   const mostrarToggleCaucao = modo === "criar" || mostrarParcelarCaucaoRenovacao;
   const idDocumento = contratoSalvoId ?? (modo === "editar" ? contratoId : null);
-  const versaoContratoLabel = documentoGeradoEm
-    ? new Date(documentoGeradoEm).toLocaleString("pt-BR")
-    : "Nenhuma versão gerada";
+  const versaoContratoLabel = formatVersaoDocumentoContrato(documentoGeradoVersao, documentoGeradoEm);
   const motivoEncerramentoLabel =
     MOTIVO_ENCERRAMENTO_OPCOES.find((o) => o.value === motivoEncerramento)?.label ??
     motivoEncerramento;
@@ -1309,7 +1318,10 @@ export function ContratosCadastroSection({
                   <span className="badge badge--amber">Encerrado</span>
                 )}
               </Field>
-              <Field label="Última versão">
+              <Field label="Versão do contrato">
+                <span>{versaoContrato != null && versaoContrato > 0 ? versaoContrato : "—"}</span>
+              </Field>
+              <Field label="Última versão do documento">
                 <span>{versaoContratoLabel}</span>
               </Field>
               {statusContrato === StatusContrato.Ativo ? (
@@ -1356,18 +1368,17 @@ export function ContratosCadastroSection({
       {idDocumento ? (
         <div className="form-card form-card--actions">
           <h2 className="form-card__title">Contrato</h2>
-          {documentoGeradoEm ? (
-            <p className="field__hint">
-              Última versão gerada:{" "}
-              <strong>{new Date(documentoGeradoEm).toLocaleString("pt-BR")}</strong>
-            </p>
-          ) : (
-            <p className="field__hint">
-              {modo === "editar"
-                ? "Após alterar dados do contrato, gere uma nova versão antes de enviar ao cliente."
-                : "Gere a primeira versão ou baixe com os dados actuais."}
-            </p>
-          )}
+          <p className="field__hint">
+            {documentoGeradoVersao != null || documentoGeradoEm ? (
+              <>
+                Última versão: <strong>{versaoContratoLabel}</strong>
+              </>
+            ) : modo === "editar" ? (
+              "Após alterar dados do contrato, gere uma nova versão antes de enviar ao cliente."
+            ) : (
+              "Gere a primeira versão ou baixe com os dados actuais."
+            )}
+          </p>
           <div className="contrato-documentos">
             <div className="form-section">
               <h3 className="form-section-title">Não assinado</h3>
