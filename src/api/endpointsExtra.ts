@@ -72,7 +72,7 @@ export const lanzaApiExtra = {
         avisos: string[];
         textoChars: number;
       };
-    }>("/api/importacoes/documento/ler", { method: "POST", body }),
+    }>("/api/importacoes/documento/ler", { method: "POST", body, timeoutMs: 120_000 }),
 
   extrairImagemDocumento: (body: { tipo: string; nomeArquivo: string; conteudoBase64: string }) =>
     apiRequest<{
@@ -82,7 +82,7 @@ export const lanzaApiExtra = {
         mime: string;
         avisos: string[];
       };
-    }>("/api/importacoes/documento/extrair-imagem", { method: "POST", body }),
+    }>("/api/importacoes/documento/extrair-imagem", { method: "POST", body, timeoutMs: 120_000 }),
 
   parseTextoDocumento: (body: { tipo: string; text: string }) =>
     apiRequest<{
